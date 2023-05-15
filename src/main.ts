@@ -1,5 +1,6 @@
 import {
   ComputeShader,
+  DefaultRenderingPipeline,
   MeshBuilder,
   ShaderLanguage,
   ShaderMaterial,
@@ -82,6 +83,12 @@ const bodiesBuffer2 = new StorageBuffer(engine, bodiesArr.byteLength);
 bodiesBuffer.update(bodiesArr);
 bodiesComputeShader.setUniformBuffer("params", params);
 
+// Add bloom
+var pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [
+  camera,
+]);
+pipeline.bloomEnabled = true;
+
 // Wait for compute shader to be ready
 while (!bodiesComputeShader.isReady()) {
   await new Promise((resolve) => setTimeout(resolve, 100));
@@ -105,7 +112,7 @@ engine.runRenderLoop(async () => {
   );
   bodiesMat.setStorageBuffer("bodies", swap ? bodiesBuffer : bodiesBuffer2);
 
-  bodiesComputeShader.dispatch(Math.ceil(numBodies / 256));
+  bodiesComputeShader.dispatchWhenReady(Math.ceil(numBodies / 256));
   swap = !swap;
   scene.render();
 });
