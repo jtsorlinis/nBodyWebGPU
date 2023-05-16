@@ -33,11 +33,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     if (i != id.x) {
       let other = bodiesIn[i];
       let r = other.pos - body.pos;
-      let distSqr = dot(r, r) + params.softeningFactor;
-      let invDist = 1.0 / sqrt(distSqr);
-      let invDistCube = invDist * invDist * invDist;
-      let s = params.gravity * mass * invDistCube;
-      newAcc += s * r;
+      let distSq = max(dot(r, r), params.softeningFactor);
+      let f = params.gravity * ((mass * mass) / distSq);
+      let a = f / mass;
+      let direction = r / sqrt(distSq);
+      newAcc += a * direction;
     }
   }
 

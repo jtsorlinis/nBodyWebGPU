@@ -11,7 +11,7 @@ import {
 import "./style.css";
 import { initScene, randRange } from "./utils";
 
-const numBodies = 10000;
+const numBodies = 20000;
 const gravity = 10;
 const softeningFactor = 0.1;
 
@@ -46,8 +46,8 @@ const bodiesComputeShader = new ComputeShader(
 // Setup mesh
 const ballMesh = MeshBuilder.CreateSphere("ball");
 ballMesh.buildBoundingInfo(
-  new Vector3(-spaceLimit, -spaceLimit, -spaceLimit),
-  new Vector3(spaceLimit, spaceLimit, spaceLimit)
+  new Vector3(-1000000, -1000000, -1000000),
+  new Vector3(1000000, 1000000, 1000000)
 );
 ballMesh.forcedInstanceCount = numBodies;
 ballMesh.material = bodiesMat;
@@ -60,9 +60,19 @@ for (let i = 0; i < numBodies; i++) {
   bodiesArr[i * 12 + 1] = randRange(-spaceLimit / 2, spaceLimit / 2);
   bodiesArr[i * 12 + 2] = randRange(-spaceLimit, spaceLimit);
 
-  // vel
-  // bodiesArr[i * 12 + 4] = bodiesArr[i * 12 + 1] / 10;
-  // bodiesArr[i * 12 + 5] = bodiesArr[i * 12 + 0] / 10;
+  // spin
+  // const dist = Math.sqrt(
+  //   bodiesArr[i * 12 + 0] ** 2 +
+  //     bodiesArr[i * 12 + 1] ** 2 +
+  //     bodiesArr[i * 12 + 2] ** 2
+  // );
+  // bodiesArr[i * 12 + 4] = (bodiesArr[i * 12 + 1] * 20) / dist;
+  // bodiesArr[i * 12 + 5] = (-bodiesArr[i * 12 + 0] * 20) / dist;
+
+  // random velocity
+  // bodiesArr[i * 12 + 4] = randRange(-gravity * 2, gravity * 2);
+  // bodiesArr[i * 12 + 5] = randRange(-gravity * 2, gravity * 2);
+  // bodiesArr[i * 12 + 6] = randRange(-gravity * 2, gravity * 2);
 }
 
 // Set params
