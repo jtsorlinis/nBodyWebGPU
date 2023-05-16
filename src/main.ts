@@ -13,7 +13,7 @@ import { initScene, randRange } from "./utils";
 
 const numBodies = 20000;
 const gravity = 10;
-const softeningFactor = 0.1;
+const softeningFactor = 0.5; // 2 times radius squared of each body
 
 const { engine, scene, camera } = await initScene();
 
@@ -61,13 +61,13 @@ for (let i = 0; i < numBodies; i++) {
   bodiesArr[i * 12 + 2] = randRange(-spaceLimit, spaceLimit);
 
   // spin
-  // const dist = Math.sqrt(
-  //   bodiesArr[i * 12 + 0] ** 2 +
-  //     bodiesArr[i * 12 + 1] ** 2 +
-  //     bodiesArr[i * 12 + 2] ** 2
-  // );
-  // bodiesArr[i * 12 + 4] = (bodiesArr[i * 12 + 1] * 20) / dist;
-  // bodiesArr[i * 12 + 5] = (-bodiesArr[i * 12 + 0] * 20) / dist;
+  const dist = Math.sqrt(
+    bodiesArr[i * 12 + 0] ** 2 +
+      bodiesArr[i * 12 + 1] ** 2 +
+      bodiesArr[i * 12 + 2] ** 2
+  );
+  bodiesArr[i * 12 + 4] = (bodiesArr[i * 12 + 1] * 20) / dist;
+  bodiesArr[i * 12 + 5] = (-bodiesArr[i * 12 + 0] * 20) / dist;
 
   // random velocity
   // bodiesArr[i * 12 + 4] = randRange(-gravity * 2, gravity * 2);
@@ -98,6 +98,8 @@ var pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [
   camera,
 ]);
 pipeline.bloomEnabled = true;
+pipeline.bloomScale = 1;
+pipeline.bloomWeight = 0.5;
 
 // Wait for compute shader to be ready
 while (!bodiesComputeShader.isReady()) {
