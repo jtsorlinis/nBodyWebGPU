@@ -1,15 +1,13 @@
 import {
-  ComputeShader,
   DefaultRenderingPipeline,
   MeshBuilder,
-  ShaderLanguage,
-  ShaderMaterial,
   StorageBuffer,
   UniformBuffer,
   Vector3,
 } from "@babylonjs/core";
 import "./style.css";
 import { initScene, randRange } from "./utils";
+import { createBodiesComputeShader, createBodiesMaterial } from "./shaders";
 
 const numBodies = 20000;
 const gravity = 10;
@@ -22,26 +20,10 @@ const spaceLimit = Math.pow(numBodies, 1 / 3) * 10;
 camera.position.z = -spaceLimit * 2.5;
 
 // Setup material
-const bodiesMat = new ShaderMaterial("bodiesMat", scene, "./bodies", {
-  attributes: ["position", "uv", "normal"],
-  uniformBuffers: ["Scene", "Mesh"],
-  storageBuffers: ["bodies"],
-  shaderLanguage: ShaderLanguage.WGSL,
-});
+const bodiesMat = createBodiesMaterial(scene);
 
 // Setup compute shader
-const bodiesComputeShader = new ComputeShader(
-  "bodiesCompute",
-  engine,
-  "./bodies",
-  {
-    bindingsMapping: {
-      params: { group: 0, binding: 0 },
-      bodiesIn: { group: 0, binding: 1 },
-      bodiesOut: { group: 0, binding: 2 },
-    },
-  }
-);
+const bodiesComputeShader = createBodiesComputeShader(engine);
 
 // Setup mesh
 const ballMesh = MeshBuilder.CreateSphere("ball");
@@ -100,11 +82,6 @@ var pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [
 pipeline.bloomEnabled = true;
 pipeline.bloomScale = 1;
 pipeline.bloomWeight = 0.5;
-
-// Wait for compute shader to be ready
-while (!bodiesComputeShader.isReady()) {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-}
 
 let swap = false;
 engine.runRenderLoop(async () => {
