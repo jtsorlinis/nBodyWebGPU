@@ -6,13 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "tsc && vite build --base=/nBodyWebGPU/ && gh-pages -d dist"
   },
   "devDependencies": {
-    "typescript": "^5.0.2",
-    "vite": "^4.3.2"
-  },
-  "dependencies": {
-    "@babylonjs/core": "^6.3.1"
+    "@babylonjs/core": "^6.3.1",
+    "gh-pages": "^5.0.0",
+    "typescript": "^5.0.4",
+    "vite": "^4.3.7"
   }
 }

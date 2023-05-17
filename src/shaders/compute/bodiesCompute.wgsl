@@ -19,6 +19,10 @@ const mass : f32 = 1.0;
 
 @compute @workgroup_size(256, 1, 1)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
+  if(id.x >= params.numBodies) {
+    return;
+  }
+
   var body = bodiesIn[id.x];
 
   // First "Kick": Half update of the velocity
