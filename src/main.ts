@@ -10,8 +10,11 @@ import { initScene, randRange } from "./utils";
 import { createBodiesComputeShader, createBodiesMaterial } from "./shaders";
 import { calculateBodiesCPU } from "./cpu";
 
-let numBodies = 3000;
+// Constants
+const cpuBodies = 3000;
+const gpuBodies = 30000;
 const gravity = 10;
+const initialSpin = 10;
 const softeningFactor = 0.5; // 2 times radius squared of each body
 
 const { engine, scene, camera } = await initScene();
@@ -21,6 +24,8 @@ const gpuToggle = document.getElementById("gpuToggle") as HTMLInputElement;
 let useGpu = gpuToggle.checked;
 const bodiesText = document.getElementById("bodiesText") as HTMLElement;
 const bigToggle = document.getElementById("bigToggle") as HTMLInputElement;
+
+let numBodies = cpuBodies;
 
 // Setup compute shader
 const bodiesComputeShader = createBodiesComputeShader(engine);
@@ -33,7 +38,7 @@ bodiesComputeShader.setUniformBuffer("params", params);
 
 // Setup material and mesh
 const bodiesMat = createBodiesMaterial(scene);
-const ballMesh = MeshBuilder.CreateSphere("ball");
+const ballMesh = MeshBuilder.CreateSphere("ball", { segments: 8 });
 ballMesh.material = bodiesMat;
 ballMesh.buildBoundingInfo(
   new Vector3(-1000000, -1000000, -1000000),
@@ -46,7 +51,8 @@ var pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [
 ]);
 pipeline.bloomEnabled = true;
 pipeline.bloomScale = 1;
-pipeline.bloomWeight = 0.5;
+pipeline.bloomWeight = 3;
+pipeline.bloomThreshold = 0;
 
 // Setup scene
 let bodiesArr: Float32Array;
@@ -59,27 +65,30 @@ const setup = () => {
 
   // Setup size based on number of bodies
   const spaceLimit = Math.pow(numBodies, 1 / 3) * 10;
-  camera.position.z = -spaceLimit * 2.5;
+  camera.position.set(0, 0, -spaceLimit * 2.75);
   camera.rotation.set(0, 0, 0);
 
   // Intialize buffer with positions
   bodiesArr = new Float32Array(numBodies * 12);
   for (let i = 0; i < numBodies; i++) {
-    // pos
-    bodiesArr[i * 12 + 0] = randRange(-spaceLimit, spaceLimit);
-    bodiesArr[i * 12 + 1] = randRange(-spaceLimit / 2, spaceLimit / 2);
-    bodiesArr[i * 12 + 2] = randRange(-spaceLimit, spaceLimit);
-
-    // spin
-    const dist = Math.sqrt(
-      bodiesArr[i * 12 + 0] ** 2 +
-        bodiesArr[i * 12 + 1] ** 2 +
-        bodiesArr[i * 12 + 2] ** 2
+    const pos = new Vector3(
+      randRange(-spaceLimit, spaceLimit),
+      randRange(-spaceLimit, spaceLimit),
+      randRange(-spaceLimit, spaceLimit)
     );
 
-    const spinForce = spaceLimit / 250;
-    bodiesArr[i * 12 + 4] = ((bodiesArr[i * 12 + 1] * 20) / dist) * spinForce;
-    bodiesArr[i * 12 + 5] = ((-bodiesArr[i * 12 + 0] * 20) / dist) * spinForce;
+    pos.normalize();
+    pos.scaleInPlace(randRange(spaceLimit * 0.5, spaceLimit));
+    bodiesArr[i * 12 + 0] = pos.x;
+    bodiesArr[i * 12 + 1] = pos.y;
+    bodiesArr[i * 12 + 2] = pos.z;
+
+    // Add spin
+    bodiesArr[i * 12 + 4] = bodiesArr[i * 12 + 1] * (initialSpin / 100);
+    bodiesArr[i * 12 + 5] = -bodiesArr[i * 12 + 0] * (initialSpin / 100);
+
+    // Add colour
+    bodiesArr[i * 12 + 11] = Math.random();
   }
 
   // Set params
@@ -112,7 +121,7 @@ gpuToggle.onclick = async () => {
 bigToggle.onclick = () => {
   bodiesBuffer?.dispose();
   bodiesBuffer2?.dispose();
-  numBodies = bigToggle.checked ? 30000 : 3000;
+  numBodies = bigToggle.checked ? gpuBodies : cpuBodies;
   gpuToggle.disabled = bigToggle.checked;
   setup();
 };

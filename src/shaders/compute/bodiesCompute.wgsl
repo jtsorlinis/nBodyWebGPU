@@ -9,6 +9,7 @@ struct Body {
   pos : vec3<f32>,
   vel : vec3<f32>,
   acc : vec3<f32>,
+  colFloat : f32,
 };
 
 @group(0) @binding(0) var<uniform> params : Params;
