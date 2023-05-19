@@ -1,8 +1,5 @@
 import { Scene, UniversalCamera, Vector3, WebGPUEngine } from "@babylonjs/core";
 
-export const randRange = (min: number, max: number) =>
-  min + Math.random() * (max - min);
-
 export const initScene = async () => {
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
   canvas.onpointerdown = () => {
@@ -35,3 +32,24 @@ export const initScene = async () => {
 
   return { engine, scene, camera };
 };
+
+export const randomPointInSphere = (min: number, r: number) => {
+  if (min > r) {
+    throw new Error("min must be less than or equal to r");
+  }
+
+  let rho = Math.cbrt(
+    Math.random() * (Math.pow(r, 3) - Math.pow(min, 3)) + Math.pow(min, 3)
+  ); // change is here
+  let theta = Math.random() * 2 * Math.PI;
+  let phi = Math.acos(1 - Math.random() * 2);
+
+  let x = rho * Math.sin(phi) * Math.cos(theta);
+  let y = rho * Math.sin(phi) * Math.sin(theta);
+  let z = rho * Math.cos(phi);
+
+  return new Vector3(x, y, z);
+};
+
+export const randRange = (min: number, max: number) =>
+  min + Math.random() * (max - min);

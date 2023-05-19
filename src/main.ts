@@ -6,7 +6,7 @@ import {
   Vector3,
 } from "@babylonjs/core";
 import "./style.css";
-import { initScene, randRange } from "./utils";
+import { initScene, randomPointInSphere } from "./utils";
 import { createBodiesComputeShader, createBodiesMaterial } from "./shaders";
 import { calculateBodiesCPU } from "./cpu";
 
@@ -71,14 +71,7 @@ const setup = () => {
   // Intialize buffer with positions
   bodiesArr = new Float32Array(numBodies * 12);
   for (let i = 0; i < numBodies; i++) {
-    const pos = new Vector3(
-      randRange(-spaceLimit, spaceLimit),
-      randRange(-spaceLimit, spaceLimit),
-      randRange(-spaceLimit, spaceLimit)
-    );
-
-    pos.normalize();
-    pos.scaleInPlace(randRange(spaceLimit * 0.5, spaceLimit));
+    const pos = randomPointInSphere(spaceLimit * 0.5, spaceLimit);
     bodiesArr[i * 12 + 0] = pos.x;
     bodiesArr[i * 12 + 1] = pos.y;
     bodiesArr[i * 12 + 2] = pos.z;
