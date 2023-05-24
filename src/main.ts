@@ -1,4 +1,5 @@
 import {
+  BackgroundMaterial,
   DefaultRenderingPipeline,
   MeshBuilder,
   StorageBuffer,
@@ -8,10 +9,16 @@ import {
 import "./style.css";
 import { initScene, randomPointInSphere } from "./utils";
 import { createBodiesComputeShader, createBodiesMaterial } from "./shaders";
-import { calculateBodiesCPU } from "./cpu";
+import {
+  buildOctreeCPU,
+  calculateBodiesCPU,
+  clearOctreeCPU,
+  fillOctreeCPU,
+  getGridPos,
+} from "./cpu";
 
 // Constants
-const cpuBodies = 3000;
+const cpuBodies = 100;
 const gpuBodies = 30000;
 const gravity = 10;
 const initialSpin = 10;
@@ -46,25 +53,27 @@ ballMesh.buildBoundingInfo(
 );
 
 // Add bloom
-var pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [
-  camera,
-]);
-pipeline.bloomEnabled = true;
-pipeline.bloomScale = 1;
-pipeline.bloomWeight = 3;
-pipeline.bloomThreshold = 0;
+// var pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [
+//   camera,
+// ]);
+// pipeline.bloomEnabled = true;
+// pipeline.bloomScale = 1;
+// pipeline.bloomWeight = 3;
+// pipeline.bloomThreshold = 0;
 
 // Setup scene
 let bodiesArr: Float32Array;
 let bodiesBuffer: StorageBuffer;
 let bodiesBuffer2: StorageBuffer;
 let swap = false;
+let octree: any;
+let spaceLimit: number;
 
 const setup = () => {
   bodiesText.innerHTML = `Bodies: ${numBodies}`;
 
   // Setup size based on number of bodies
-  const spaceLimit = Math.pow(numBodies, 1 / 3) * 10;
+  spaceLimit = Math.pow(numBodies, 1 / 3) * 10;
   camera.position.set(0, 0, -spaceLimit * 2.75);
   camera.rotation.set(0, 0, 0);
 
@@ -96,6 +105,23 @@ const setup = () => {
   bodiesBuffer.update(bodiesArr);
   ballMesh.forcedInstanceCount = numBodies;
   swap = false;
+
+  // octree
+  octree = buildOctreeCPU(5, spaceLimit);
+  // let drawDepth = 3;
+  // const testSphere = MeshBuilder.CreateSphere("ball", { diameter: 5 }, scene);
+  // testSphere.position = new Vector3(
+  //   -spaceLimit + 40,
+  //   -spaceLimit - 40,
+  //   -spaceLimit + 100
+  // );
+  // console.log(getGridPos(testSphere.position, spaceLimit, drawDepth));
+  // for (let i = 0; i < octree[drawDepth].length; i++) {
+  //   let box = MeshBuilder.CreateBox("box", { size: 20 }, scene);
+  //   box.material = new BackgroundMaterial("boxMat", scene);
+  //   box.material.wireframe = true;
+  //   box.position = octree[drawDepth][i].pos;
+  // }
 };
 
 setup();
@@ -141,6 +167,9 @@ engine.runRenderLoop(async () => {
     bodiesComputeShader.dispatchWhenReady(Math.ceil(numBodies / 256));
     swap = !swap;
   } else {
+    // octree
+    clearOctreeCPU(octree);
+    fillOctreeCPU(octree, bodiesArr, spaceLimit);
     calculateBodiesCPU(bodiesArr, numBodies, gravity, softeningFactor, dt);
     swap ? bodiesBuffer2.update(bodiesArr) : bodiesBuffer.update(bodiesArr);
   }
