@@ -51,11 +51,12 @@ export const fillOctreeCPU = (
     );
     const gridPos = getGridPos(pos, spaceLimit, maxDepth);
     let morton = mortonEncode3D(gridPos);
-    octree[maxDepth][morton].mass += 1;
-    octree[maxDepth - 1][morton >> 3].mass += 1;
-    octree[maxDepth - 2][morton >> 6].mass += 1;
-    octree[maxDepth - 3][morton >> 9].mass += 1;
-    octree[maxDepth - 4][morton >> 12].mass += 1;
+    if (morton < octree[maxDepth].length) {
+      for (let depth = maxDepth; depth > 0; depth--) {
+        octree[depth][morton].mass += 1;
+        morton = morton >> 3;
+      }
+    }
   }
 };
 
