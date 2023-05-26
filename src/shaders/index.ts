@@ -9,6 +9,8 @@ import bodiesVertex from "./bodiesVertex.wgsl?raw";
 import bodiesFragment from "./bodiesFragment.wgsl?raw";
 import bodiesComputeSource from "./compute/bodiesCompute.wgsl?raw";
 import buildOctreeComputeSource from "./compute/buildOctree.wgsl?raw";
+import clearOctreeComputeSource from "./compute/clearOctree.wgsl?raw";
+import fillOctreeComputeSource from "./compute/fillOctree.wgsl?raw";
 
 export const createBodiesMaterial = (scene: Scene) => {
   return new ShaderMaterial(
@@ -24,8 +26,8 @@ export const createBodiesMaterial = (scene: Scene) => {
   );
 };
 
-export const createBodiesComputeShader = (engine: ThinEngine) =>
-  new ComputeShader(
+export const createBodiesComputeShader = (engine: ThinEngine) => {
+  return new ComputeShader(
     "bodiesCompute",
     engine,
     { computeSource: bodiesComputeSource },
@@ -37,6 +39,7 @@ export const createBodiesComputeShader = (engine: ThinEngine) =>
       },
     }
   );
+};
 
 export const createBuildOctreeComputeShader = (engine: ThinEngine) => {
   return new ComputeShader(
@@ -46,7 +49,38 @@ export const createBuildOctreeComputeShader = (engine: ThinEngine) => {
     {
       bindingsMapping: {
         params: { group: 0, binding: 0 },
+        depthInfos: { group: 0, binding: 1 },
+        octree: { group: 0, binding: 2 },
+      },
+    }
+  );
+};
+
+export const createClearOctreeComputeShader = (engine: ThinEngine) => {
+  return new ComputeShader(
+    "clearOctree",
+    engine,
+    { computeSource: clearOctreeComputeSource },
+    {
+      bindingsMapping: {
+        params: { group: 0, binding: 0 },
         octree: { group: 0, binding: 1 },
+      },
+    }
+  );
+};
+
+export const createFillOctreeComputeShader = (engine: ThinEngine) => {
+  return new ComputeShader(
+    "fillOctree",
+    engine,
+    { computeSource: fillOctreeComputeSource },
+    {
+      bindingsMapping: {
+        params: { group: 0, binding: 0 },
+        bodies: { group: 0, binding: 1 },
+        octree: { group: 0, binding: 2 },
+        depthInfos: { group: 0, binding: 3 },
       },
     }
   );

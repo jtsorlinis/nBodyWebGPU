@@ -13,6 +13,8 @@ import {
   createBodiesComputeShader,
   createBodiesMaterial,
   createBuildOctreeComputeShader,
+  createClearOctreeComputeShader,
+  createFillOctreeComputeShader,
 } from "./shaders";
 import {
   Octree,
@@ -52,10 +54,17 @@ bodiesComputeShader.setUniformBuffer("params", params);
 // Setup octree compute shaders
 const buildOctreeComputeShader = createBuildOctreeComputeShader(engine);
 const octreeParams = new UniformBuffer(engine);
-octreeParams.addUniform("nodesAtDepth", 1);
-octreeParams.addUniform("dimAtDepth", 1);
-octreeParams.addUniform("cellSize", 1);
+octreeParams.addUniform("spaceLimit", 1);
+octreeParams.addUniform("numBodies", 1);
+octreeParams.addUniform("maxDepth", 1);
+octreeParams.addUniform("totalNodes", 1);
 buildOctreeComputeShader.setUniformBuffer("params", octreeParams);
+
+const clearOctreeComputeShader = createClearOctreeComputeShader(engine);
+clearOctreeComputeShader.setUniformBuffer("params", octreeParams);
+
+const fillOctreeComputeShader = createFillOctreeComputeShader(engine);
+fillOctreeComputeShader.setUniformBuffer("params", octreeParams);
 
 // Setup material and mesh
 const bodiesMat = createBodiesMaterial(scene);
@@ -82,6 +91,11 @@ let bodiesBuffer2: StorageBuffer;
 let swap = false;
 let octree: Octree;
 let spaceLimit: number;
+let octreeDepth: number;
+let totalNodes: number;
+let maxDepth: number;
+let octreeBuffer: StorageBuffer;
+let depthInfos: Uint32Array;
 
 const setup = async () => {
   bodiesText.innerHTML = `Bodies: ${numBodies}`;
@@ -121,41 +135,52 @@ const setup = async () => {
   swap = false;
 
   // octree
-  const octreeDepth = 9;
-  const octreeBuffers: StorageBuffer[] = new Array(octreeDepth);
-  const cellSizes = new Float32Array(octreeDepth);
-  const cellSizesBuffer = new StorageBuffer(engine, 4 * octreeDepth);
-
-  // build octree on gpu bottom up
-  for (let currDepth = octreeDepth - 1; currDepth >= 0; currDepth--) {
-    const nodesAtDepth = Math.pow(8, currDepth);
-    const dimAtDepth = Math.pow(2, currDepth);
-    const cellSize = (spaceLimit * 4) / dimAtDepth;
-    cellSizes[currDepth] = cellSize;
-    octreeParams.updateUInt("nodesAtDepth", nodesAtDepth);
-    octreeParams.updateUInt("dimAtDepth", dimAtDepth);
-    octreeParams.updateFloat("cellSize", cellSize);
-    octreeParams.update();
-    octreeBuffers[currDepth] = new StorageBuffer(engine, 16 * nodesAtDepth);
-    buildOctreeComputeShader.setStorageBuffer(
-      "octree",
-      octreeBuffers[currDepth]
-    );
-    buildOctreeComputeShader.dispatch(Math.ceil(nodesAtDepth / 512));
+  octreeDepth = 5;
+  maxDepth = octreeDepth - 1;
+  totalNodes = (Math.pow(8, octreeDepth) - 1) / 7;
+  octreeBuffer = new StorageBuffer(engine, totalNodes * 16);
+  depthInfos = new Uint32Array(octreeDepth * 4);
+  const depthInfosBuffer = new StorageBuffer(engine, depthInfos.byteLength);
+  for (let i = 0; i < octreeDepth; i++) {
+    depthInfos[i * 4 + 0] = (Math.pow(8, i) - 1) / 7; // offset for depth
+    depthInfos[i * 4 + 1] = Math.pow(8, i); // nodes at depth
+    depthInfos[i * 4 + 2] = Math.pow(2, i); // dim at depth
   }
-  cellSizesBuffer.update(cellSizes);
+  depthInfosBuffer.update(depthInfos);
+  octreeParams.updateFloat("spaceLimit", spaceLimit);
+  octreeParams.updateUInt("numBodies", numBodies);
+  octreeParams.updateUInt("maxDepth", maxDepth);
+  octreeParams.updateUInt("totalNodes", totalNodes);
+  octreeParams.update();
 
-  octree = buildOctreeCPU(8, spaceLimit);
-  // visualization
-  const box = MeshBuilder.CreateBox("box");
-  box.material = new BackgroundMaterial("boxMat", scene);
-  box.material.wireframe = true;
-  box.isVisible = false;
-  for (let i = 0; i < 1000; i++) {
-    const instance = box.createInstance("box" + i);
-    instance.scaling = new Vector3();
-    boxes.push(instance);
-  }
+  // Set buffers
+  buildOctreeComputeShader.setStorageBuffer("octree", octreeBuffer);
+  buildOctreeComputeShader.setStorageBuffer("depthInfos", depthInfosBuffer);
+
+  clearOctreeComputeShader.setStorageBuffer("octree", octreeBuffer);
+
+  fillOctreeComputeShader.setStorageBuffer("octree", octreeBuffer);
+  fillOctreeComputeShader.setStorageBuffer("depthInfos", depthInfosBuffer);
+
+  // build octree on gpu
+  buildOctreeComputeShader.dispatch(Math.ceil(Math.pow(8, maxDepth) / 512));
+
+  // // visualization debug
+  // const data = await octreeBuffer.read();
+  // const x = new Float32Array(data.buffer);
+  // let drawDepth = 3;
+  // const box = MeshBuilder.CreateBox("box");
+  // box.material = new BackgroundMaterial("boxMat", scene);
+  // box.material.wireframe = true;
+  // box.isVisible = false;
+  // const cellSize = (spaceLimit * 4) / depthInfos[drawDepth * 4 + 2];
+  // for (let i = 0; i < depthInfos[drawDepth * 4 + 1]; i++) {
+  //   const instance = box.createInstance("box" + i);
+  //   instance.scaling = new Vector3(cellSize, cellSize, cellSize);
+  //   const index = (depthInfos[drawDepth * 4 + 0] + i) * 4;
+  //   instance.position = new Vector3(x[index + 0], x[index + 1], x[index + 2]);
+  //   boxes.push(instance);
+  // }
 };
 
 setup();
@@ -185,6 +210,29 @@ engine.runRenderLoop(async () => {
   fpsText.innerHTML = `FPS: ${fps.toFixed(2)}`;
 
   if (useGpu) {
+    // clear octree
+    clearOctreeComputeShader.dispatch(Math.ceil(totalNodes / 512));
+
+    // fill octree
+    fillOctreeComputeShader.setStorageBuffer(
+      "bodies",
+      swap ? bodiesBuffer2 : bodiesBuffer
+    );
+    fillOctreeComputeShader.dispatch(Math.ceil(numBodies / 512));
+
+    // // debug values
+    // const debugDepth = 4;
+    // const buff = await octreeBuffer.read();
+    // const x = new Uint32Array(buff.buffer);
+    // // Sum all the masses at this depth
+    // let sum = 0;
+    // for (let i = 0; i < depthInfos[debugDepth * 4 + 1]; i++) {
+    //   const index = (depthInfos[debugDepth * 4 + 0] + i) * 4;
+    //   sum += x[index + 3];
+    // }
+    // console.log(sum);
+
+    // Calculate bodies
     params.updateFloat("dt", dt);
     params.update();
 
