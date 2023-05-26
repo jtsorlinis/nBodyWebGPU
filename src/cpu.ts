@@ -4,24 +4,30 @@ interface Cell {
   pos: Vector3;
   mass: number;
 }
-type Octree = Array<Array<Cell>>;
+export type Octree = Array<{
+  size: number;
+  cells: Array<Cell>;
+}>;
 
 export const buildOctreeCPU = (depth: number, spaceLimit: number) => {
   const octree: Octree = [];
   for (let currDepth = 0; currDepth < depth; currDepth++) {
     const nodesAtDepth = Math.pow(8, currDepth);
     const dimAtDepth = Math.pow(2, currDepth);
-    octree[currDepth] = [];
+    const cellSize = (spaceLimit * 4) / Math.pow(2, currDepth);
+    octree[currDepth] = {
+      size: cellSize,
+      cells: [],
+    };
     for (let j = 0; j < nodesAtDepth; j++) {
       const { x, y, z } = mortonDecode3D(j);
-      const cellSize = (spaceLimit * 4) / Math.pow(2, currDepth);
       const pos = new Vector3(
         cellSize * (x + 1 / 2 - dimAtDepth / 2),
         cellSize * (y + 1 / 2 - dimAtDepth / 2),
         cellSize * (z + 1 / 2 - dimAtDepth / 2)
       );
       const mass = 0;
-      octree[currDepth][j] = {
+      octree[currDepth].cells[j] = {
         pos,
         mass,
       };
@@ -30,10 +36,10 @@ export const buildOctreeCPU = (depth: number, spaceLimit: number) => {
   return octree;
 };
 
-export const clearOctreeCPU = (octree: any) => {
+export const clearOctreeCPU = (octree: Octree) => {
   for (let i = 0; i < octree.length; i++) {
-    for (let j = 0; j < octree[i].length; j++) {
-      octree[i][j].mass = 0;
+    for (let j = 0; j < octree[i].cells.length; j++) {
+      octree[i].cells[j].mass = 0;
     }
   }
 };
@@ -60,9 +66,9 @@ export const fillOctreeCPU = (
     );
     const gridPos = getGridPos(pos, spaceLimit, maxDepth);
     let morton = mortonEncode3D(gridPos);
-    if (morton < octree[maxDepth].length) {
-      for (let depth = maxDepth; depth > 0; depth--) {
-        octree[depth][morton].mass += 1;
+    if (morton < octree[maxDepth].cells.length) {
+      for (let depth = maxDepth; depth >= 0; depth--) {
+        octree[depth].cells[morton].mass += 1;
         morton = morton >> 3;
       }
     }
@@ -77,7 +83,8 @@ export const calculateBodiesCPU = (
   softeningFactor: number,
   dt: number
 ) => {
-  const mass = 1;
+  let bodyMass = 1;
+
   for (let i = 0; i < numBodies; i++) {
     let pos = new Vector3(
       bodiesArr[i * 12 + 0],
@@ -102,20 +109,49 @@ export const calculateBodiesCPU = (
     pos.addInPlace(vel.scale(dt));
 
     // Compute new acceleration
+    const path = new Array(octree.length).fill(0);
     let newAcc = new Vector3(0, 0, 0);
-    for (let j = 0; j < numBodies; j++) {
-      if (i != j) {
-        let otherPos = new Vector3(
-          bodiesArr[j * 12 + 0],
-          bodiesArr[j * 12 + 1],
-          bodiesArr[j * 12 + 2]
-        );
-        let r = otherPos.subtract(pos);
+    let depth = 0;
+    path[depth] = 0;
+
+    while (depth >= 0) {
+      let morton = path[depth];
+      let cell = octree[depth].cells[morton];
+
+      // If cell isn't empty calculate distance from body to cell
+      if (cell.mass > 0) {
+        let r = cell.pos.subtract(pos);
         let distSq = Math.max(r.lengthSquared(), softeningFactor);
-        let f = gravity * ((mass * mass) / distSq);
-        let a = f / mass;
-        let direction = r.scale(1 / Math.sqrt(distSq));
-        newAcc.addInPlace(direction.scale(a));
+        let distCheck = octree[depth].size * octree[depth].size;
+
+        // We are far enough away that we can use this as an approximation
+        if (distSq > distCheck || depth == octree.length - 1) {
+          let f = gravity * ((bodyMass * cell.mass) / distSq);
+          let a = f / bodyMass;
+          let direction = r.scale(1 / Math.sqrt(distSq));
+          newAcc.addInPlace(direction.scale(a));
+        } else {
+          // We are not far enough away so we need to go deeper
+          ++depth;
+          path[depth] = morton << 3;
+          continue;
+        }
+      }
+
+      // Move to next sibling
+      if (depth >= 0) {
+        ++path[depth];
+        while ((path[depth] & 7) === 0) {
+          // We've visited all siblings so backtrack up to parent
+          --depth;
+          if (depth > 0) {
+            ++path[depth];
+          } else {
+            // We've finished visiting the tree
+            depth = -1;
+            break;
+          }
+        }
       }
     }
 

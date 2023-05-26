@@ -11,6 +11,7 @@ import "./style.css";
 import { initScene, randomPointInSphere } from "./utils";
 import { createBodiesComputeShader, createBodiesMaterial } from "./shaders";
 import {
+  Octree,
   buildOctreeCPU,
   calculateBodiesCPU,
   clearOctreeCPU,
@@ -69,7 +70,7 @@ let bodiesArr: Float32Array;
 let bodiesBuffer: StorageBuffer;
 let bodiesBuffer2: StorageBuffer;
 let swap = false;
-let octree: any;
+let octree: Octree;
 let spaceLimit: number;
 
 const setup = () => {
@@ -115,9 +116,9 @@ const setup = () => {
   box.material = new BackgroundMaterial("boxMat", scene);
   box.material.wireframe = true;
   box.isVisible = false;
-  for (let i = 0; i < octree[drawDepth].length; i++) {
+  for (let i = 0; i < octree[drawDepth].cells.length; i++) {
     const instance = box.createInstance("box" + i);
-    instance.position = octree[drawDepth][i].pos;
+    instance.position = octree[drawDepth].cells[i].pos;
     instance.scaling = new Vector3(0);
     boxes.push(instance);
   }
@@ -170,14 +171,14 @@ engine.runRenderLoop(async () => {
     clearOctreeCPU(octree);
     fillOctreeCPU(octree, bodiesArr, spaceLimit);
 
-    // Draw tree at depth
-    const boxSize = (spaceLimit * 4) / Math.pow(2, drawDepth);
-    for (let i = 0; i < octree[drawDepth].length; i++) {
-      boxes[i].scaling = new Vector3();
-      if (octree[drawDepth][i].mass > 0) {
-        boxes[i].scaling = new Vector3(boxSize, boxSize, boxSize);
-      }
-    }
+    // // Draw tree at depth
+    // const boxSize = octree[drawDepth].size;
+    // for (let i = 0; i < octree[drawDepth].cells.length; i++) {
+    //   boxes[i].scaling = new Vector3();
+    //   if (octree[drawDepth].cells[i].mass > 0) {
+    //     boxes[i].scaling = new Vector3(boxSize, boxSize, boxSize);
+    //   }
+    // }
 
     calculateBodiesCPU(
       bodiesArr,
