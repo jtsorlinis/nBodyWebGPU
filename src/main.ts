@@ -166,9 +166,9 @@ const setup = async () => {
   buildOctreeComputeShader.dispatch(Math.ceil(Math.pow(8, maxDepth) / 512));
 
   // // visualization debug
+  // let drawDepth = 3;
   // const data = await octreeBuffer.read();
   // const x = new Float32Array(data.buffer);
-  // let drawDepth = 3;
   // const box = MeshBuilder.CreateBox("box");
   // box.material = new BackgroundMaterial("boxMat", scene);
   // box.material.wireframe = true;
