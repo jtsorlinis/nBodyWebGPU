@@ -19,7 +19,7 @@ import {
 } from "./cpu";
 
 // Constants
-const cpuBodies = 10000;
+const cpuBodies = 100;
 const gpuBodies = 30000;
 const gravity = 10;
 const initialSpin = 10;

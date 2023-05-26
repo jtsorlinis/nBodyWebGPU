@@ -44,8 +44,11 @@ export const clearOctreeCPU = (octree: Octree) => {
   }
 };
 
-export const getGridPos = (pos: Vector3, spaceLimit: number, depth: number) => {
-  const cellSize = (spaceLimit * 4) / Math.pow(2, depth);
+export const getGridPos = (
+  pos: Vector3,
+  spaceLimit: number,
+  cellSize: number
+) => {
   let x = Math.floor((pos.x + spaceLimit * 2) / cellSize);
   let y = Math.floor((pos.y + spaceLimit * 2) / cellSize);
   let z = Math.floor((pos.z + spaceLimit * 2) / cellSize);
@@ -58,13 +61,14 @@ export const fillOctreeCPU = (
   spaceLimit: number
 ) => {
   let maxDepth = octree.length - 1;
+  const cellSize = (spaceLimit * 4) / Math.pow(2, maxDepth);
   for (let i = 0; i < bodiesArr.length / 12; i++) {
     let pos = new Vector3(
       bodiesArr[i * 12 + 0],
       bodiesArr[i * 12 + 1],
       bodiesArr[i * 12 + 2]
     );
-    const gridPos = getGridPos(pos, spaceLimit, maxDepth);
+    const gridPos = getGridPos(pos, spaceLimit, cellSize);
     let morton = mortonEncode3D(gridPos);
     if (morton < octree[maxDepth].cells.length) {
       for (let depth = maxDepth; depth >= 0; depth--) {
@@ -84,6 +88,7 @@ export const calculateBodiesCPU = (
   dt: number
 ) => {
   let bodyMass = 1;
+  const theta = 1;
   const minDistSq = Math.max(0.5, Math.pow(octree[octree.length - 1].size, 2));
   const path = new Array(octree.length).fill(0);
 
@@ -125,7 +130,7 @@ export const calculateBodiesCPU = (
       if (cell.mass > 0) {
         let r = cell.pos.subtract(pos);
         let distSq = Math.max(r.lengthSquared(), softeningFactor);
-        let distCheck = octree[depth].size * octree[depth].size;
+        let distCheck = (octree[depth].size / theta) ** 2;
 
         // We are far enough away that we can use this as an approximation
         if (distSq > distCheck || depth == octree.length - 1) {
