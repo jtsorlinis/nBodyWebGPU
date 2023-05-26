@@ -7,7 +7,7 @@ import {
 } from "@babylonjs/core";
 import bodiesVertex from "./bodiesVertex.wgsl?raw";
 import bodiesFragment from "./bodiesFragment.wgsl?raw";
-import bodiesComputeSource from "./compute/bodiesCompute.wgsl?raw";
+import bodiesComputeSource from "./compute/bodies.wgsl?raw";
 import buildOctreeComputeSource from "./compute/buildOctree.wgsl?raw";
 import clearOctreeComputeSource from "./compute/clearOctree.wgsl?raw";
 import fillOctreeComputeSource from "./compute/fillOctree.wgsl?raw";
