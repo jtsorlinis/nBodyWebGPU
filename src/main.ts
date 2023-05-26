@@ -1,6 +1,7 @@
 import {
   BackgroundMaterial,
   DefaultRenderingPipeline,
+  InstancedMesh,
   MeshBuilder,
   StorageBuffer,
   UniformBuffer,
@@ -33,7 +34,7 @@ const bodiesText = document.getElementById("bodiesText") as HTMLElement;
 const bigToggle = document.getElementById("bigToggle") as HTMLInputElement;
 
 let numBodies = cpuBodies;
-const boxes = [];
+const boxes: InstancedMesh[] = [];
 const drawDepth = 5;
 
 // Setup compute shader
@@ -110,18 +111,7 @@ const setup = () => {
 
   // octree
   octree = buildOctreeCPU(8, spaceLimit);
-  // const testSphere = MeshBuilder.CreateSphere("ball", { diameter: 5 }, scene);
-  // testSphere.position = new Vector3(
-  //   -spaceLimit + 40,
-  //   -spaceLimit - 40,
-  //   -spaceLimit + 100
-  // );
-  // console.log(getGridPos(testSphere.position, spaceLimit, drawDepth));
-  let box = MeshBuilder.CreateBox(
-    "box",
-    { size: (spaceLimit * 4) / Math.pow(2, drawDepth) },
-    scene
-  );
+  let box = MeshBuilder.CreateBox("box");
   box.material = new BackgroundMaterial("boxMat", scene);
   box.material.wireframe = true;
   box.isVisible = false;
@@ -179,14 +169,24 @@ engine.runRenderLoop(async () => {
     // octree
     clearOctreeCPU(octree);
     fillOctreeCPU(octree, bodiesArr, spaceLimit);
+
+    // Draw tree at depth
+    const boxSize = (spaceLimit * 4) / Math.pow(2, drawDepth);
     for (let i = 0; i < octree[drawDepth].length; i++) {
       boxes[i].scaling = new Vector3();
       if (octree[drawDepth][i].mass > 0) {
-        boxes[i].scaling = new Vector3(1, 1, 1);
+        boxes[i].scaling = new Vector3(boxSize, boxSize, boxSize);
       }
     }
 
-    calculateBodiesCPU(bodiesArr, numBodies, gravity, softeningFactor, dt);
+    calculateBodiesCPU(
+      bodiesArr,
+      numBodies,
+      octree,
+      gravity,
+      softeningFactor,
+      dt
+    );
     swap ? bodiesBuffer2.update(bodiesArr) : bodiesBuffer.update(bodiesArr);
   }
 

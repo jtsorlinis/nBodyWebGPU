@@ -1,21 +1,30 @@
 import { Vector3 } from "@babylonjs/core";
 
+interface Cell {
+  pos: Vector3;
+  mass: number;
+}
+type Octree = Array<Array<Cell>>;
+
 export const buildOctreeCPU = (depth: number, spaceLimit: number) => {
-  const octree: any = [];
+  const octree: Octree = [];
   for (let currDepth = 0; currDepth < depth; currDepth++) {
     const nodesAtDepth = Math.pow(8, currDepth);
     const dimAtDepth = Math.pow(2, currDepth);
     octree[currDepth] = [];
     for (let j = 0; j < nodesAtDepth; j++) {
-      octree[currDepth][j] = {};
       const { x, y, z } = mortonDecode3D(j);
       const cellSize = (spaceLimit * 4) / Math.pow(2, currDepth);
-      octree[currDepth][j].pos = new Vector3(
+      const pos = new Vector3(
         cellSize * (x + 1 / 2 - dimAtDepth / 2),
         cellSize * (y + 1 / 2 - dimAtDepth / 2),
         cellSize * (z + 1 / 2 - dimAtDepth / 2)
       );
-      octree[currDepth][j].mass = 0;
+      const mass = 0;
+      octree[currDepth][j] = {
+        pos,
+        mass,
+      };
     }
   }
   return octree;
@@ -38,7 +47,7 @@ export const getGridPos = (pos: Vector3, spaceLimit: number, depth: number) => {
 };
 
 export const fillOctreeCPU = (
-  octree: any,
+  octree: Octree,
   bodiesArr: Float32Array,
   spaceLimit: number
 ) => {
@@ -63,6 +72,7 @@ export const fillOctreeCPU = (
 export const calculateBodiesCPU = (
   bodiesArr: Float32Array,
   numBodies: number,
+  octree: Octree,
   gravity: number,
   softeningFactor: number,
   dt: number
