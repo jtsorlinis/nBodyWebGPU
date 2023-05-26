@@ -9,7 +9,11 @@ import {
 } from "@babylonjs/core";
 import "./style.css";
 import { initScene, randomPointInSphere } from "./utils";
-import { createBodiesComputeShader, createBodiesMaterial } from "./shaders";
+import {
+  createBodiesComputeShader,
+  createBodiesMaterial,
+  createBuildOctreeComputeShader,
+} from "./shaders";
 import {
   Octree,
   buildOctreeCPU,
@@ -45,6 +49,14 @@ params.addUniform("softeningFactor", 1);
 params.addUniform("dt", 1);
 bodiesComputeShader.setUniformBuffer("params", params);
 
+// Setup octree compute shaders
+const buildOctreeComputeShader = createBuildOctreeComputeShader(engine);
+const octreeParams = new UniformBuffer(engine);
+octreeParams.addUniform("nodesAtDepth", 1);
+octreeParams.addUniform("dimAtDepth", 1);
+octreeParams.addUniform("cellSize", 1);
+buildOctreeComputeShader.setUniformBuffer("params", octreeParams);
+
 // Setup material and mesh
 const bodiesMat = createBodiesMaterial(scene);
 const ballMesh = MeshBuilder.CreateSphere("ball", { segments: 8 });
@@ -71,7 +83,7 @@ let swap = false;
 let octree: Octree;
 let spaceLimit: number;
 
-const setup = () => {
+const setup = async () => {
   bodiesText.innerHTML = `Bodies: ${numBodies}`;
 
   // Setup size based on number of bodies
@@ -109,7 +121,30 @@ const setup = () => {
   swap = false;
 
   // octree
-  console.log((spaceLimit * 4) / Math.pow(2, 7));
+  const octreeDepth = 9;
+  const octreeBuffers: StorageBuffer[] = new Array(octreeDepth);
+  const cellSizes = new Float32Array(octreeDepth);
+  const cellSizesBuffer = new StorageBuffer(engine, 4 * octreeDepth);
+
+  // build octree on gpu bottom up
+  for (let currDepth = octreeDepth - 1; currDepth >= 0; currDepth--) {
+    const nodesAtDepth = Math.pow(8, currDepth);
+    const dimAtDepth = Math.pow(2, currDepth);
+    const cellSize = (spaceLimit * 4) / dimAtDepth;
+    cellSizes[currDepth] = cellSize;
+    octreeParams.updateUInt("nodesAtDepth", nodesAtDepth);
+    octreeParams.updateUInt("dimAtDepth", dimAtDepth);
+    octreeParams.updateFloat("cellSize", cellSize);
+    octreeParams.update();
+    octreeBuffers[currDepth] = new StorageBuffer(engine, 16 * nodesAtDepth);
+    buildOctreeComputeShader.setStorageBuffer(
+      "octree",
+      octreeBuffers[currDepth]
+    );
+    buildOctreeComputeShader.dispatch(Math.ceil(nodesAtDepth / 512));
+  }
+  cellSizesBuffer.update(cellSizes);
+
   octree = buildOctreeCPU(8, spaceLimit);
   // visualization
   const box = MeshBuilder.CreateBox("box");

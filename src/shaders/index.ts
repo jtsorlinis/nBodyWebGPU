@@ -8,6 +8,7 @@ import {
 import bodiesVertex from "./bodiesVertex.wgsl?raw";
 import bodiesFragment from "./bodiesFragment.wgsl?raw";
 import bodiesComputeSource from "./compute/bodiesCompute.wgsl?raw";
+import buildOctreeComputeSource from "./compute/buildOctree.wgsl?raw";
 
 export const createBodiesMaterial = (scene: Scene) => {
   return new ShaderMaterial(
@@ -36,3 +37,17 @@ export const createBodiesComputeShader = (engine: ThinEngine) =>
       },
     }
   );
+
+export const createBuildOctreeComputeShader = (engine: ThinEngine) => {
+  return new ComputeShader(
+    "buildOctree",
+    engine,
+    { computeSource: buildOctreeComputeSource },
+    {
+      bindingsMapping: {
+        params: { group: 0, binding: 0 },
+        octree: { group: 0, binding: 1 },
+      },
+    }
+  );
+};
