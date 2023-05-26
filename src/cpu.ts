@@ -84,6 +84,10 @@ export const calculateBodiesCPU = (
   dt: number
 ) => {
   let bodyMass = 1;
+  const minDistSq = Math.max(0.5, Math.pow(octree[octree.length - 1].size, 2));
+  const path = new Array(octree.length).fill(0);
+
+  const boxes = [];
 
   for (let i = 0; i < numBodies; i++) {
     let pos = new Vector3(
@@ -109,7 +113,6 @@ export const calculateBodiesCPU = (
     pos.addInPlace(vel.scale(dt));
 
     // Compute new acceleration
-    const path = new Array(octree.length).fill(0);
     let newAcc = new Vector3(0, 0, 0);
     let depth = 0;
     path[depth] = 0;
@@ -126,10 +129,21 @@ export const calculateBodiesCPU = (
 
         // We are far enough away that we can use this as an approximation
         if (distSq > distCheck || depth == octree.length - 1) {
-          let f = gravity * ((bodyMass * cell.mass) / distSq);
-          let a = f / bodyMass;
-          let direction = r.scale(1 / Math.sqrt(distSq));
-          newAcc.addInPlace(direction.scale(a));
+          if (distSq > minDistSq) {
+            let f = gravity * ((bodyMass * cell.mass) / distSq);
+            let a = f / bodyMass;
+            let direction = r.scale(1 / Math.sqrt(distSq));
+            newAcc.addInPlace(direction.scale(a));
+          }
+
+          // add visualization
+          if (i === 0) {
+            boxes.push({
+              pos: cell.pos,
+              size: octree[depth].size,
+              mass: cell.mass,
+            });
+          }
         } else {
           // We are not far enough away so we need to go deeper
           ++depth;
@@ -172,6 +186,7 @@ export const calculateBodiesCPU = (
     bodiesArr[i * 12 + 9] = acc.y;
     bodiesArr[i * 12 + 10] = acc.z;
   }
+  return boxes;
 };
 
 function mortonEncode3D(pos: Vector3) {

@@ -16,11 +16,10 @@ import {
   calculateBodiesCPU,
   clearOctreeCPU,
   fillOctreeCPU,
-  getGridPos,
 } from "./cpu";
 
 // Constants
-const cpuBodies = 100;
+const cpuBodies = 10000;
 const gpuBodies = 30000;
 const gravity = 10;
 const initialSpin = 10;
@@ -35,8 +34,7 @@ const bodiesText = document.getElementById("bodiesText") as HTMLElement;
 const bigToggle = document.getElementById("bigToggle") as HTMLInputElement;
 
 let numBodies = cpuBodies;
-const boxes: InstancedMesh[] = [];
-const drawDepth = 5;
+let boxes: InstancedMesh[] = [];
 
 // Setup compute shader
 const bodiesComputeShader = createBodiesComputeShader(engine);
@@ -111,15 +109,16 @@ const setup = () => {
   swap = false;
 
   // octree
+  console.log((spaceLimit * 4) / Math.pow(2, 7));
   octree = buildOctreeCPU(8, spaceLimit);
-  let box = MeshBuilder.CreateBox("box");
+  // visualization
+  const box = MeshBuilder.CreateBox("box");
   box.material = new BackgroundMaterial("boxMat", scene);
   box.material.wireframe = true;
   box.isVisible = false;
-  for (let i = 0; i < octree[drawDepth].cells.length; i++) {
+  for (let i = 0; i < 1000; i++) {
     const instance = box.createInstance("box" + i);
-    instance.position = octree[drawDepth].cells[i].pos;
-    instance.scaling = new Vector3(0);
+    instance.scaling = new Vector3();
     boxes.push(instance);
   }
 };
@@ -171,16 +170,7 @@ engine.runRenderLoop(async () => {
     clearOctreeCPU(octree);
     fillOctreeCPU(octree, bodiesArr, spaceLimit);
 
-    // // Draw tree at depth
-    // const boxSize = octree[drawDepth].size;
-    // for (let i = 0; i < octree[drawDepth].cells.length; i++) {
-    //   boxes[i].scaling = new Vector3();
-    //   if (octree[drawDepth].cells[i].mass > 0) {
-    //     boxes[i].scaling = new Vector3(boxSize, boxSize, boxSize);
-    //   }
-    // }
-
-    calculateBodiesCPU(
+    const usedBoxes = calculateBodiesCPU(
       bodiesArr,
       numBodies,
       octree,
@@ -188,6 +178,17 @@ engine.runRenderLoop(async () => {
       softeningFactor,
       dt
     );
+
+    boxes.forEach((box) => (box.scaling = new Vector3()));
+    for (let i = 0; i < usedBoxes.length; i++) {
+      boxes[i].position = usedBoxes[i].pos;
+      boxes[i].scaling = new Vector3(
+        usedBoxes[i].size,
+        usedBoxes[i].size,
+        usedBoxes[i].size
+      );
+    }
+
     swap ? bodiesBuffer2.update(bodiesArr) : bodiesBuffer.update(bodiesArr);
   }
 
