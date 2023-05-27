@@ -51,8 +51,8 @@ var pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [
 ]);
 pipeline.bloomEnabled = true;
 pipeline.bloomScale = 1;
-pipeline.bloomWeight = 3;
-pipeline.bloomThreshold = 0;
+// pipeline.bloomWeight = 0.5;
+pipeline.bloomThreshold = 0.1;
 
 // Setup scene
 let bodiesArr: Float32Array;
