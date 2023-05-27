@@ -12,15 +12,29 @@ import { randRange } from "./utils";
 
 // Constants
 const numBodies = 30000;
-const gravity = 1;
-const initialSpin = 100;
+let gravity = 10;
+let blackHoleMass = 4096; // Sagitarrius A* is 4 million solar masses
+let initialSpin = 30;
 const softeningFactor = 0.5; // 2 times radius squared of each body
-const blackHoleMass = 4000000; // Sagitarrius A* mass in solar masses
 
 const { engine, scene, camera } = await initScene();
 
 const fpsText = document.getElementById("fpsText") as HTMLElement;
 const bodiesText = document.getElementById("bodiesText") as HTMLElement;
+const gravityText = document.getElementById("gravityText") as HTMLElement;
+const gravitySlider = document.getElementById(
+  "gravitySlider"
+) as HTMLInputElement;
+gravityText.innerText = `Gravity: ${gravity}`;
+const blackHoleMassText = document.getElementById("bhMassText") as HTMLElement;
+const blackHoleMassSlider = document.getElementById(
+  "bhMassSlider"
+) as HTMLInputElement;
+blackHoleMassText.innerText = `Black Hole Mass: ${blackHoleMass}`;
+const spinText = document.getElementById("spinText") as HTMLElement;
+const spinSlider = document.getElementById("spinSlider") as HTMLInputElement;
+spinText.innerText = `Initial spin: ${initialSpin}`;
+const restartButton = document.getElementById("restartButton") as HTMLElement;
 
 // Setup compute shader
 const bodiesComputeShader = createBodiesComputeShader(engine);
@@ -80,6 +94,8 @@ const setup = () => {
     // Set mass
     bodiesArr[i * 12 + 11] = randRange(0.5, 1.5);
   }
+
+  // Black hole
   bodiesArr[(numBodies - 1) * 12 + 0] = 0;
   bodiesArr[(numBodies - 1) * 12 + 1] = 0;
   bodiesArr[(numBodies - 1) * 12 + 2] = 0;
@@ -101,6 +117,33 @@ const setup = () => {
 };
 
 setup();
+
+// UI interaction
+gravitySlider.oninput = () => {
+  gravity = gravitySlider.valueAsNumber;
+  gravityText.innerText = `Gravity: ${gravity}`;
+  params.updateFloat("gravity", gravity);
+  params.update();
+};
+
+blackHoleMassSlider.oninput = () => {
+  const val = Math.pow(2, blackHoleMassSlider.valueAsNumber);
+  blackHoleMass = val;
+  blackHoleMassText.innerText = `Black Hole Mass: ${val}`;
+  params.updateFloat("blackHoleMass", blackHoleMass);
+  params.update();
+};
+
+spinSlider.oninput = () => {
+  initialSpin = spinSlider.valueAsNumber;
+  spinText.innerText = `Initial spin: ${initialSpin}`;
+};
+
+restartButton.onclick = () => {
+  bodiesBuffer.dispose();
+  bodiesBuffer2.dispose();
+  setup();
+};
 
 engine.runRenderLoop(async () => {
   const dt = engine.getDeltaTime() / 1000;

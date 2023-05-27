@@ -21,7 +21,9 @@ export const initScene = async () => {
 
   const camera = new UniversalCamera("camera", new Vector3(0, 0, -10), scene);
   camera.minZ = 0.1;
-  camera.speed = 5;
+  camera.speed = 100;
+  camera.angularSensibility = 250;
+  camera.inertia = 0;
   camera.keysLeft = [65];
   camera.keysRight = [68];
   camera.keysUp = [87];
@@ -40,7 +42,7 @@ export const randomPointInSphere = (min: number, r: number) => {
 
   let rho = Math.cbrt(
     Math.random() * (Math.pow(r, 3) - Math.pow(min, 3)) + Math.pow(min, 3)
-  ); // change is here
+  );
   let theta = Math.random() * 2 * Math.PI;
   let phi = Math.acos(1 - Math.random() * 2);
 

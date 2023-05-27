@@ -16,7 +16,7 @@ canvas {
   top: 0;
   left: 0;
   background-color: #303030;
-  width: 110px;
+  width: 170px;
   color: white;
   font-family: "Arial";
   padding: 5px;
@@ -40,4 +40,17 @@ canvas {
 
 #sourceButton:hover {
   background-color: grey;
+}
+
+label {
+  font-size: 14px;
+}
+
+input[type="range"] {
+  width: 100%;
+  margin: 5px 0;
+}
+
+button {
+  width: 100%;
 }

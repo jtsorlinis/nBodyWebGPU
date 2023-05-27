@@ -25,6 +25,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   var body = bodiesIn[id.x];
 
+  // Update black hole mass
+  if(id.x == params.numBodies - 1) {
+    body.mass = params.blackHoleMass;
+  }
+
   // First "Kick": Half update of the velocity
   body.vel += 0.5 * body.acc * params.deltaTime;
 
