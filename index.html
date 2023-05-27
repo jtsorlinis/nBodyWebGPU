@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WebGPU nBody</title>
-    <script type="module" crossorigin src="/nBodyWebGPU/assets/index-26b80d26.js"></script>
-    <link rel="stylesheet" href="/nBodyWebGPU/assets/index-374e290a.css">
+    <script type="module" crossorigin src="/nBodyWebGPU/assets/index-0408a72d.js"></script>
+    <link rel="stylesheet" href="/nBodyWebGPU/assets/index-4bf3750b.css">
   </head>
   <body>
     <div id="ui">
@@ -13,15 +13,22 @@
       <hr />
       <div id="bodiesText">Bodies: 0</div>
       <hr />
+      <button id="restartButton">Restart</button>
+      <hr />
       <label>
-        <input type="checkbox" id="gpuToggle" checked />
-        Use GPU
+        <div id="gravityText">Gravity: 0</div>
+        <input type="range" id="gravitySlider" min="1" max="100" value="10" />
       </label>
       <label>
-        <input type="checkbox" id="bigToggle" />
-        Go Big
+        <div id="bhMassText">Blackhole mass: 0</div>
+        <input type="range" id="bhMassSlider" min="10" max="22" value="12" />
+      </label>
+      <label>
+        <div id="spinText">Initial spin: 0</div>
+        <input type="range" id="spinSlider" min="0" max="200" value="30" />
       </label>
     </div>
+
     <a
       href="https://github.com/jtsorlinis/nBodyWebGPU"
       target="_blank"
