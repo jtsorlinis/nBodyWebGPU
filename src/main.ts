@@ -8,24 +8,19 @@ import {
 import "./style.css";
 import { initScene, randomPointInSphere } from "./utils";
 import { createBodiesComputeShader, createBodiesMaterial } from "./shaders";
-import { calculateBodiesCPU } from "./cpu";
 
 // Constants
-const cpuBodies = 3000;
-const gpuBodies = 30000;
+const numBodies = 30000;
 const gravity = 10;
 const initialSpin = 10;
 const softeningFactor = 0.5; // 2 times radius squared of each body
+const blackHoleMass = 4000; // Sagitarrius A* mass in solar masses
 
 const { engine, scene, camera } = await initScene();
 
 const fpsText = document.getElementById("fpsText") as HTMLElement;
-const gpuToggle = document.getElementById("gpuToggle") as HTMLInputElement;
-let useGpu = gpuToggle.checked;
 const bodiesText = document.getElementById("bodiesText") as HTMLElement;
-const bigToggle = document.getElementById("bigToggle") as HTMLInputElement;
-
-let numBodies = cpuBodies;
+const blackHoleToggle = document.getElementById("bhToggle") as HTMLInputElement;
 
 // Setup compute shader
 const bodiesComputeShader = createBodiesComputeShader(engine);
@@ -34,6 +29,7 @@ params.addUniform("numBodies", 1);
 params.addUniform("gravity", 1);
 params.addUniform("softeningFactor", 1);
 params.addUniform("dt", 1);
+params.addUniform("blackHoleMass", 1);
 bodiesComputeShader.setUniformBuffer("params", params);
 
 // Setup material and mesh
@@ -100,23 +96,13 @@ const setup = () => {
 
 setup();
 
-gpuToggle.onclick = async () => {
-  if (!gpuToggle.checked) {
-    const buffer = swap
-      ? await bodiesBuffer2.read()
-      : await bodiesBuffer.read();
-    bodiesArr.set(new Float32Array(buffer.buffer));
+blackHoleToggle.onclick = () => {
+  if (blackHoleToggle.checked) {
+    params.updateFloat("blackHoleMass", blackHoleMass);
+  } else {
+    params.updateFloat("blackHoleMass", 0);
   }
-  useGpu = gpuToggle.checked;
-  bigToggle.disabled = !useGpu;
-};
-
-bigToggle.onclick = () => {
-  bodiesBuffer?.dispose();
-  bodiesBuffer2?.dispose();
-  numBodies = bigToggle.checked ? gpuBodies : cpuBodies;
-  gpuToggle.disabled = bigToggle.checked;
-  setup();
+  params.update();
 };
 
 engine.runRenderLoop(async () => {
@@ -124,26 +110,21 @@ engine.runRenderLoop(async () => {
   const fps = engine.getFps();
   fpsText.innerHTML = `FPS: ${fps.toFixed(2)}`;
 
-  if (useGpu) {
-    params.updateFloat("dt", dt);
-    params.update();
+  params.updateFloat("dt", dt);
+  params.update();
 
-    bodiesComputeShader.setStorageBuffer(
-      "bodiesIn",
-      swap ? bodiesBuffer2 : bodiesBuffer
-    );
-    bodiesComputeShader.setStorageBuffer(
-      "bodiesOut",
-      swap ? bodiesBuffer : bodiesBuffer2
-    );
-    bodiesMat.setStorageBuffer("bodies", swap ? bodiesBuffer : bodiesBuffer2);
+  bodiesComputeShader.setStorageBuffer(
+    "bodiesIn",
+    swap ? bodiesBuffer2 : bodiesBuffer
+  );
+  bodiesComputeShader.setStorageBuffer(
+    "bodiesOut",
+    swap ? bodiesBuffer : bodiesBuffer2
+  );
+  bodiesMat.setStorageBuffer("bodies", swap ? bodiesBuffer : bodiesBuffer2);
 
-    bodiesComputeShader.dispatchWhenReady(Math.ceil(numBodies / 256));
-    swap = !swap;
-  } else {
-    calculateBodiesCPU(bodiesArr, numBodies, gravity, softeningFactor, dt);
-    swap ? bodiesBuffer2.update(bodiesArr) : bodiesBuffer.update(bodiesArr);
-  }
+  bodiesComputeShader.dispatchWhenReady(Math.ceil(numBodies / 256));
+  swap = !swap;
 
   scene.render();
 });

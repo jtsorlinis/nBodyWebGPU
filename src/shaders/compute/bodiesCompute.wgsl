@@ -3,6 +3,7 @@ struct Params {
   gravity: f32,
   softeningFactor: f32,
   deltaTime: f32,
+  blackHoleMass: f32,
 }
 
 struct Body {
@@ -45,6 +46,14 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
       newAcc += a * direction;
     }
   }
+
+  // Add the acceleration from the black hole
+  let r = -body.pos;
+  let distSq = max(dot(r, r), params.softeningFactor);
+  let f = params.gravity * ((mass * params.blackHoleMass) / distSq);
+  let a = f / mass;
+  let direction = r / sqrt(distSq);
+  newAcc += a * direction;
 
   // Store the new acceleration for the next timestep
   body.acc = newAcc;
