@@ -8,6 +8,7 @@ struct Params {
   numBodies : u32,
   maxDepth : u32,
   totalNodes : u32,
+  minDistSq : f32,
 };
 
 @group(0) @binding(0) var<uniform> params : Params;

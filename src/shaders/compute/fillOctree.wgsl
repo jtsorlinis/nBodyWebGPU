@@ -8,6 +8,7 @@ struct Params {
   numBodies : u32,
   maxDepth : u32,
   totalNodes : u32,
+  minDistSq : f32,
 };
 
 struct DepthInfo {
@@ -74,6 +75,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     return;
   }
 
+  // 8
   var index = morton;
   var depth = params.maxDepth;
   var offset = depthInfos[depth].depthOffset;
@@ -82,68 +84,52 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     return;
   }
 
+  // 7
   index >>= 3;
   depth -= 1;
   offset = depthInfos[depth].depthOffset;
   atomicAdd(&octree[index + offset].mass, 1);
-  if(depth == 0) {
-    return;
-  }
 
+  // 6
   index >>= 3;
   depth -= 1;
   offset = depthInfos[depth].depthOffset;
   atomicAdd(&octree[index + offset].mass, 1);
-  if(depth == 0) {
-    return;
-  }
+  
+  // 5
+  index >>= 3;
+  depth -= 1;
+  offset = depthInfos[depth].depthOffset;
+  atomicAdd(&octree[index + offset].mass, 1);
 
+  // 4
   index >>= 3;
   depth -= 1;
   offset = depthInfos[depth].depthOffset;
   atomicAdd(&octree[index + offset].mass, 1);
-  if(depth == 0) {
-    return;
-  }
-
+  
+  // 3
   index >>= 3;
   depth -= 1;
   offset = depthInfos[depth].depthOffset;
   atomicAdd(&octree[index + offset].mass, 1);
-  if(depth == 0) {
-    return;
-  }
-
+  
+  // 2
   index >>= 3;
   depth -= 1;
   offset = depthInfos[depth].depthOffset;
   atomicAdd(&octree[index + offset].mass, 1);
-  if(depth == 0) {
-    return;
-  }
-
+  
+  // 1
   index >>= 3;
   depth -= 1;
   offset = depthInfos[depth].depthOffset;
   atomicAdd(&octree[index + offset].mass, 1);
-  if(depth == 0) {
-    return;
-  }
-
+  
+  // 0
   index >>= 3;
   depth -= 1;
   offset = depthInfos[depth].depthOffset;
   atomicAdd(&octree[index + offset].mass, 1);
-  if(depth == 0) {
-    return;
-  }
-
-  index >>= 3;
-  depth -= 1;
-  offset = depthInfos[depth].depthOffset;
-  atomicAdd(&octree[index + offset].mass, 1);
-  if(depth == 0) {
-    return;
-  }
 }
 

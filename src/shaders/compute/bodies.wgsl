@@ -12,9 +12,32 @@ struct Body {
   colFloat : f32,
 };
 
+struct OctreeParams {
+  spaceLimit : f32,
+  numBodies : u32,
+  maxDepth : u32,
+  totalNodes : u32,
+  minDistSq : f32,
+};
+
+struct DepthInfo {
+  depthOffset : u32,
+  nodesAtDepth : u32,
+  dimAtDepth : u32,
+  padding : u32,
+};
+
+struct Cell {
+  pos : vec3<f32>,
+  mass : u32,
+};
+
 @group(0) @binding(0) var<uniform> params : Params;
-@group(0) @binding(1) var<storage,read> bodiesIn : array<Body>;
-@group(0) @binding(2) var<storage,read_write> bodiesOut : array<Body>;
+@group(0) @binding(1) var<uniform> octreeParams : OctreeParams;
+@group(0) @binding(2) var<storage> depthInfos : array<DepthInfo>;
+@group(0) @binding(3) var<storage,read> octree : array<Cell>;
+@group(0) @binding(4) var<storage,read> bodiesIn : array<Body>;
+@group(0) @binding(5) var<storage,read_write> bodiesOut : array<Body>;
 
 const mass : f32 = 1.0;
 
@@ -34,15 +57,52 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   // Compute new acceleration
   var newAcc = vec3<f32>(0.0, 0.0, 0.0);
-  for (var i = 0u; i < params.numBodies; i += 1) {
-    if (i != id.x) {
-      let other = bodiesIn[i];
-      let r = other.pos - body.pos;
+  var depth = 0;
+  var depthOffset = 0u;
+  var path = array<u32,10>();
+
+  while(depth >= 0) {
+    let morton = path[depth];
+    let cell = octree[depthOffset + morton];
+
+    // if cell isn't empty calculate distance from body to cell
+    if(cell.mass > 0) {
+      let r = cell.pos - body.pos;
       let distSq = max(dot(r, r), params.softeningFactor);
-      let f = params.gravity * ((mass * mass) / distSq);
-      let a = f / mass;
-      let direction = r / sqrt(distSq);
-      newAcc += a * direction;
+      let cellSize = (octreeParams.spaceLimit * 4) / f32(depthInfos[depth].dimAtDepth);
+      let distCheck = cellSize * cellSize;
+
+      // We are far enough away that we can approximate with the mass
+      if(distSq > distCheck || depth >= i32(octreeParams.maxDepth)) {
+        if(distSq > octreeParams.minDistSq) {
+          let f = params.gravity * ((mass * f32(cell.mass)) / distSq);
+          let a = f / mass;
+          let direction = r / sqrt(distSq);
+          newAcc += a * direction;
+        }
+      } else {
+        // We are not far enough away to approximate, so we need to go deeper
+        depth += 1;
+        depthOffset = depthInfos[depth].depthOffset;
+        path[depth] = morton << 3;
+      }
+    }
+
+    // Move to next sibling
+    if(depth >= 0) {
+      path[depth]++;
+      while((path[depth] & 7) == 0) {
+        // We've visited all siblings, so move back up the tree
+        depth--;
+        depthOffset = depthInfos[depth].depthOffset;
+        if(depth > 0) {
+          path[depth]++;
+        } else {
+          // We've finished the whole tree
+          depth = -1;
+          break;
+        }
+      }
     }
   }
 

@@ -17,7 +17,7 @@ export const initScene = async () => {
   await engine.initAsync();
 
   const scene = new Scene(engine);
-  scene.clearColor.set(0, 0, 0, 1);
+  // scene.clearColor.set(0, 0, 0, 1);
 
   const camera = new UniversalCamera("camera", new Vector3(0, 0, -10), scene);
   camera.minZ = 0.1;

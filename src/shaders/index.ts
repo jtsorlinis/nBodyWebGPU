@@ -34,8 +34,11 @@ export const createBodiesComputeShader = (engine: ThinEngine) => {
     {
       bindingsMapping: {
         params: { group: 0, binding: 0 },
-        bodiesIn: { group: 0, binding: 1 },
-        bodiesOut: { group: 0, binding: 2 },
+        octreeParams: { group: 0, binding: 1 },
+        depthInfos: { group: 0, binding: 2 },
+        octree: { group: 0, binding: 3 },
+        bodiesIn: { group: 0, binding: 4 },
+        bodiesOut: { group: 0, binding: 5 },
       },
     }
   );
