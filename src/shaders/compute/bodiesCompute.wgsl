@@ -10,14 +10,12 @@ struct Body {
   pos : vec3<f32>,
   vel : vec3<f32>,
   acc : vec3<f32>,
-  colFloat : f32,
+  mass : f32,
 };
 
 @group(0) @binding(0) var<uniform> params : Params;
 @group(0) @binding(1) var<storage,read> bodiesIn : array<Body>;
 @group(0) @binding(2) var<storage,read_write> bodiesOut : array<Body>;
-
-const mass : f32 = 1.0;
 
 @compute @workgroup_size(256, 1, 1)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
@@ -40,8 +38,8 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
       let other = bodiesIn[i];
       let r = other.pos - body.pos;
       let distSq = max(dot(r, r), params.softeningFactor);
-      let f = params.gravity * ((mass * mass) / distSq);
-      let a = f / mass;
+      let f = params.gravity * ((body.mass * other.mass) / distSq);
+      let a = f / body.mass;
       let direction = r / sqrt(distSq);
       newAcc += a * direction;
     }
@@ -50,8 +48,8 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   // Add the acceleration from the black hole
   let r = -body.pos;
   let distSq = max(dot(r, r), params.softeningFactor);
-  let f = params.gravity * ((mass * params.blackHoleMass) / distSq);
-  let a = f / mass;
+  let f = params.gravity * ((body.mass * params.blackHoleMass) / distSq);
+  let a = f / body.mass;
   let direction = r / sqrt(distSq);
   newAcc += a * direction;
 

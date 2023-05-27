@@ -8,19 +8,19 @@ import {
 import "./style.css";
 import { initScene, randomPointInSphere } from "./utils";
 import { createBodiesComputeShader, createBodiesMaterial } from "./shaders";
+import { randRange } from "./utils";
 
 // Constants
 const numBodies = 30000;
-const gravity = 10;
-const initialSpin = 10;
+const gravity = 1;
+const initialSpin = 30;
 const softeningFactor = 0.5; // 2 times radius squared of each body
-const blackHoleMass = 4000; // Sagitarrius A* mass in solar masses
+const blackHoleMass = 400000; // Sagitarrius A* mass in solar masses
 
 const { engine, scene, camera } = await initScene();
 
 const fpsText = document.getElementById("fpsText") as HTMLElement;
 const bodiesText = document.getElementById("bodiesText") as HTMLElement;
-const blackHoleToggle = document.getElementById("bhToggle") as HTMLInputElement;
 
 // Setup compute shader
 const bodiesComputeShader = createBodiesComputeShader(engine);
@@ -67,23 +67,25 @@ const setup = () => {
   // Intialize buffer with positions
   bodiesArr = new Float32Array(numBodies * 12);
   for (let i = 0; i < numBodies; i++) {
-    const pos = randomPointInSphere(spaceLimit * 0.5, spaceLimit);
+    const pos = randomPointInSphere(spaceLimit * 0.2, spaceLimit);
     bodiesArr[i * 12 + 0] = pos.x;
     bodiesArr[i * 12 + 1] = pos.y;
     bodiesArr[i * 12 + 2] = pos.z;
 
     // Add spin
-    bodiesArr[i * 12 + 4] = bodiesArr[i * 12 + 1] * (initialSpin / 100);
-    bodiesArr[i * 12 + 5] = -bodiesArr[i * 12 + 0] * (initialSpin / 100);
+    const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
+    bodiesArr[i * 12 + 4] = (bodiesArr[i * 12 + 1] / dist) * initialSpin;
+    bodiesArr[i * 12 + 5] = (-bodiesArr[i * 12 + 0] / dist) * initialSpin;
 
-    // Add colour
-    bodiesArr[i * 12 + 11] = Math.random();
+    // Set mass
+    bodiesArr[i * 12 + 11] = randRange(0.5, 1.5);
   }
 
   // Set params
   params.updateUInt("numBodies", numBodies);
   params.updateFloat("gravity", gravity);
   params.updateFloat("softeningFactor", softeningFactor);
+  params.updateFloat("blackHoleMass", blackHoleMass);
   params.update();
 
   // Copy data to GPU
@@ -95,15 +97,6 @@ const setup = () => {
 };
 
 setup();
-
-blackHoleToggle.onclick = () => {
-  if (blackHoleToggle.checked) {
-    params.updateFloat("blackHoleMass", blackHoleMass);
-  } else {
-    params.updateFloat("blackHoleMass", 0);
-  }
-  params.update();
-};
 
 engine.runRenderLoop(async () => {
   const dt = engine.getDeltaTime() / 1000;
