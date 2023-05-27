@@ -13,7 +13,7 @@ attribute position : vec3<f32>;
 varying col : vec4<f32>;
 
 fn colorFromAcc(val: vec3<f32>) -> vec4<f32> {
-  let mag = saturate(length(val)/25);
+  let mag = saturate(length(val)/150);
   let low = vec4<f32>(0, 0.7, 1, 1.0);
   let high = vec4<f32>(1, 1, .8, 1.0);
   

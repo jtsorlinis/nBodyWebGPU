@@ -45,14 +45,6 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     }
   }
 
-  // Add the acceleration from the black hole
-  let r = -body.pos;
-  let distSq = max(dot(r, r), params.softeningFactor);
-  let f = params.gravity * ((body.mass * params.blackHoleMass) / distSq);
-  let a = f / body.mass;
-  let direction = r / sqrt(distSq);
-  newAcc += a * direction;
-
   // Store the new acceleration for the next timestep
   body.acc = newAcc;
 

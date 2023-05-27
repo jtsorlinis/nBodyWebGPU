@@ -13,9 +13,9 @@ import { randRange } from "./utils";
 // Constants
 const numBodies = 30000;
 const gravity = 1;
-const initialSpin = 30;
+const initialSpin = 100;
 const softeningFactor = 0.5; // 2 times radius squared of each body
-const blackHoleMass = 400000; // Sagitarrius A* mass in solar masses
+const blackHoleMass = 4000000; // Sagitarrius A* mass in solar masses
 
 const { engine, scene, camera } = await initScene();
 
@@ -66,7 +66,7 @@ const setup = () => {
 
   // Intialize buffer with positions
   bodiesArr = new Float32Array(numBodies * 12);
-  for (let i = 0; i < numBodies; i++) {
+  for (let i = 0; i < numBodies - 1; i++) {
     const pos = randomPointInSphere(spaceLimit * 0.2, spaceLimit);
     bodiesArr[i * 12 + 0] = pos.x;
     bodiesArr[i * 12 + 1] = pos.y;
@@ -80,6 +80,10 @@ const setup = () => {
     // Set mass
     bodiesArr[i * 12 + 11] = randRange(0.5, 1.5);
   }
+  bodiesArr[(numBodies - 1) * 12 + 0] = 0;
+  bodiesArr[(numBodies - 1) * 12 + 1] = 0;
+  bodiesArr[(numBodies - 1) * 12 + 2] = 0;
+  bodiesArr[(numBodies - 1) * 12 + 11] = blackHoleMass;
 
   // Set params
   params.updateUInt("numBodies", numBodies);
