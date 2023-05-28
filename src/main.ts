@@ -1,4 +1,5 @@
 import {
+  BackgroundMaterial,
   DefaultRenderingPipeline,
   MeshBuilder,
   StorageBuffer,
@@ -9,9 +10,11 @@ import "./style.css";
 import { initScene, randomPointInSphere } from "./utils";
 import { createBodiesComputeShader, createBodiesMaterial } from "./shaders";
 import { randRange } from "./utils";
+import { calculateBodiesCPU } from "./cpu";
+import { Cell, createOctree } from "./octree";
 
 // Constants
-const numBodies = 30000;
+const numBodies = 3000;
 let gravity = 5;
 let blackHoleMass = 16384; // Sagitarrius A* is 4 million solar masses
 let initialSpin = 30;
@@ -67,14 +70,13 @@ pipeline.bloomThreshold = 0.1;
 // Setup scene
 let bodiesArr: Float32Array;
 let bodiesBuffer: StorageBuffer;
-let bodiesBuffer2: StorageBuffer;
-let swap = false;
+let spaceLimit: number;
 
 const setup = () => {
   bodiesText.innerHTML = `Bodies: ${numBodies}`;
 
   // Setup size based on number of bodies
-  const spaceLimit = Math.pow(numBodies, 1 / 3) * 10;
+  spaceLimit = Math.pow(numBodies, 1 / 3) * 10;
   camera.position.set(0, 0, -spaceLimit * 2.75);
   camera.rotation.set(0, 0, 0);
 
@@ -108,10 +110,27 @@ const setup = () => {
 
   // Copy data to GPU
   bodiesBuffer = new StorageBuffer(engine, bodiesArr.byteLength);
-  bodiesBuffer2 = new StorageBuffer(engine, bodiesArr.byteLength);
+  bodiesMat.setStorageBuffer("bodies", bodiesBuffer);
   bodiesBuffer.update(bodiesArr);
   ballMesh.forcedInstanceCount = numBodies;
-  swap = false;
+
+  // let box = MeshBuilder.CreateBox("box");
+  // box.material = new BackgroundMaterial("boxMat", scene);
+  // box.material.wireframe = true;
+  // box.isVisible = false;
+
+  // const drawOctree = (cell: Cell) => {
+  //   const instance = box.createInstance("boxInstance");
+  //   instance.position = cell.pos;
+  //   instance.scaling = new Vector3(cell.size, cell.size, cell.size);
+  //   if (cell.children.length > 0) {
+  //     for (let i = 0; i < cell.children.length; i++) {
+  //       drawOctree(cell.children[i]);
+  //     }
+  //   }
+  // };
+
+  // drawOctree(octree);
 };
 
 setup();
@@ -120,16 +139,12 @@ setup();
 gravitySlider.oninput = () => {
   gravity = gravitySlider.valueAsNumber;
   gravityText.innerText = `Gravity: ${gravity}`;
-  params.updateFloat("gravity", gravity);
-  params.update();
 };
 
 blackHoleMassSlider.oninput = () => {
   const val = Math.pow(2, blackHoleMassSlider.valueAsNumber);
   blackHoleMass = val;
   blackHoleMassText.innerText = `Black Hole Mass: ${val}`;
-  params.updateFloat("blackHoleMass", blackHoleMass);
-  params.update();
 };
 
 spinSlider.oninput = () => {
@@ -139,7 +154,6 @@ spinSlider.oninput = () => {
 
 restartButton.onclick = () => {
   bodiesBuffer.dispose();
-  bodiesBuffer2.dispose();
   setup();
 };
 
@@ -148,21 +162,15 @@ engine.runRenderLoop(async () => {
   const fps = engine.getFps();
   fpsText.innerHTML = `FPS: ${fps.toFixed(2)}`;
 
-  params.updateFloat("dt", dt);
-  params.update();
-
-  bodiesComputeShader.setStorageBuffer(
-    "bodiesIn",
-    swap ? bodiesBuffer2 : bodiesBuffer
+  const octree = createOctree(bodiesArr, spaceLimit * 4);
+  calculateBodiesCPU(
+    bodiesArr,
+    numBodies,
+    gravity,
+    softeningFactor,
+    dt,
+    octree
   );
-  bodiesComputeShader.setStorageBuffer(
-    "bodiesOut",
-    swap ? bodiesBuffer : bodiesBuffer2
-  );
-  bodiesMat.setStorageBuffer("bodies", swap ? bodiesBuffer : bodiesBuffer2);
-
-  bodiesComputeShader.dispatchWhenReady(Math.ceil(numBodies / 256));
-  swap = !swap;
-
+  bodiesBuffer.update(bodiesArr);
   scene.render();
 });
