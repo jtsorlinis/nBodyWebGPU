@@ -12,8 +12,8 @@ import { randRange } from "./utils";
 
 // Constants
 const numBodies = 30000;
-let gravity = 10;
-let blackHoleMass = 4096; // Sagitarrius A* is 4 million solar masses
+let gravity = 5;
+let blackHoleMass = 16384; // Sagitarrius A* is 4 million solar masses
 let initialSpin = 30;
 const softeningFactor = 0.5; // 2 times radius squared of each body
 
