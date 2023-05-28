@@ -25,8 +25,8 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   var body = bodiesIn[id.x];
 
-  // Update black hole mass
-  if(id.x == params.numBodies - 1) {
+  // Update black hole masses
+  if(body.mass > 1000) {
     body.mass = params.blackHoleMass;
   }
 

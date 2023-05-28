@@ -80,26 +80,24 @@ const setup = () => {
 
   // Intialize buffer with positions
   bodiesArr = new Float32Array(numBodies * 12);
-  for (let i = 0; i < numBodies - 1; i++) {
+  for (let i = 0; i < numBodies; i++) {
     const pos = randomPointInSphere(spaceLimit * 0.2, spaceLimit);
-    bodiesArr[i * 12 + 0] = pos.x;
-    bodiesArr[i * 12 + 1] = pos.y;
-    bodiesArr[i * 12 + 2] = pos.z;
+    bodiesArr.set(pos.asArray(), i * 12);
 
     // Add spin
-    const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
-    bodiesArr[i * 12 + 4] = (bodiesArr[i * 12 + 1] / dist) * initialSpin;
-    bodiesArr[i * 12 + 5] = (-bodiesArr[i * 12 + 0] / dist) * initialSpin;
+    const dist = pos.length();
+    bodiesArr[i * 12 + 4] = (pos.y / dist) * initialSpin;
+    bodiesArr[i * 12 + 5] = (-pos.x / dist) * initialSpin;
 
     // Set mass
     bodiesArr[i * 12 + 11] = randRange(0.5, 1.5);
   }
 
   // Black hole
-  bodiesArr[(numBodies - 1) * 12 + 0] = 0;
-  bodiesArr[(numBodies - 1) * 12 + 1] = 0;
-  bodiesArr[(numBodies - 1) * 12 + 2] = 0;
-  bodiesArr[(numBodies - 1) * 12 + 11] = blackHoleMass;
+  // Set to center of galaxy and remove spin
+  bodiesArr.set([0, 0, 0], 0); // Pos
+  bodiesArr.set([0, 0, 0], 4); // Vel
+  bodiesArr[11] = blackHoleMass;
 
   // Set params
   params.updateUInt("numBodies", numBodies);
