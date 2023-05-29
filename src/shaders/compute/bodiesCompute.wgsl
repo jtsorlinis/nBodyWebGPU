@@ -41,7 +41,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
     workgroupBarrier();
     
     for (var i = 0u; i < 256; i += 1) {
-      if (i != lid.x) {
+      if (id.x != i+tileOffset*256) {
         let other = localBodies[i];
         let r = other.pos - body.pos;
         let distSq = max(dot(r, r), params.softeningFactor);
@@ -72,6 +72,5 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
 
   // Write the updated body back to the buffer
   bodiesOut[id.x] = body;
-  
 }
 
