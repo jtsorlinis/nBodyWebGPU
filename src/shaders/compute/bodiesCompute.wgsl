@@ -15,21 +15,20 @@ struct Params {
 @group(0) @binding(5) var<storage,read> bodiesAccIn : array<vec4f>;
 @group(0) @binding(6) var<storage,read_write> bodiesAccOut : array<vec4f>;
 
+var<workgroup> localBodiesPos : array<vec4f, 256>;
+var<workgroup> localBodiesVel : array<vec4f, 256>;
+var<workgroup> localBodiesAcc : array<vec4f, 256>;
+
 @compute @workgroup_size(256, 1, 1)
-fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-  if(id.x >= params.numBodies) {
-    return;
-  }
+fn main(@builtin(global_invocation_id) id : vec3<u32>, 
+        @builtin(local_invocation_id) lid : vec3<u32>,
+        @builtin(num_workgroups) numGroups : vec3<u32>) {
+  
 
   var bodyPos = bodiesPosIn[id.x].xyz;
   var bodyVel = bodiesVelIn[id.x].xyz;
   var bodyAcc = bodiesAccIn[id.x].xyz;
   var bodyMass = bodiesAccIn[id.x].w;
-
-  // Update black hole masses
-  if(bodyMass > 1000) {
-    bodyMass = params.blackHoleMass;
-  }
 
   // First "Kick": Half update of the velocity
   bodyVel += 0.5 * bodyAcc * params.deltaTime;
@@ -39,17 +38,35 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   // Compute new acceleration
   var newAcc = vec3<f32>(0.0, 0.0, 0.0);
-  for (var i = 0u; i < params.numBodies; i += 1) {
-    if (i != id.x) {
-      let otherPos = bodiesPosIn[i].xyz;
-      let otherMass = bodiesAccIn[i].w;
-      let r = otherPos - bodyPos;
-      let distSq = max(dot(r, r), params.softeningFactor);
-      let f = params.gravity * ((bodyMass * otherMass) / distSq);
-      let a = f / bodyMass;
-      let direction = r / sqrt(distSq);
-      newAcc += a * direction;
+  for(var tileOffset = 0u; tileOffset < numGroups.x; tileOffset++) {
+    // Load the body into shared memory
+    localBodiesPos[lid.x] = bodiesPosIn[lid.x+tileOffset*256];
+    localBodiesVel[lid.x] = bodiesVelIn[lid.x+tileOffset*256];
+    localBodiesAcc[lid.x] = bodiesAccIn[lid.x+tileOffset*256];
+    workgroupBarrier();
+
+    for (var i = 0u; i < 256; i += 1) {
+      if (i != lid.x) {
+        let otherPos = localBodiesPos[i].xyz;
+        let otherMass = localBodiesAcc[i].w;
+        let r = otherPos - bodyPos;
+        let distSq = max(dot(r, r), params.softeningFactor);
+        let f = params.gravity * ((bodyMass * otherMass) / distSq);
+        let a = f / bodyMass;
+        let direction = r / sqrt(distSq);
+        newAcc += a * direction;
+      }
     }
+    workgroupBarrier();
+  }
+
+  if(id.x >= params.numBodies) {
+    return;
+  }
+
+  // Update black hole masses
+  if(bodyMass > 1000) {
+    bodyMass = params.blackHoleMass;
   }
 
   // Store the new acceleration for the next timestep
