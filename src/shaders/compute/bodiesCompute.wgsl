@@ -46,7 +46,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
     workgroupBarrier();
 
     for (var i = 0u; i < 256; i += 1) {
-      if (i != lid.x) {
+      if (id.x != i+tileOffset*256) {
         let otherPos = localBodiesPos[i].xyz;
         let otherMass = localBodiesAcc[i].w;
         let r = otherPos - bodyPos;
@@ -60,6 +60,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
     workgroupBarrier();
   }
 
+  // Don't write out of bounds
   if(id.x >= params.numBodies) {
     return;
   }
