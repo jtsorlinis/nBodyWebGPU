@@ -15330,13 +15330,13 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
   // Compute new acceleration
   var newAcc = vec3<f32>(0.0, 0.0, 0.0);
 
-  for(var tileOffset = 0u; tileOffset < numGroups.x; tileOffset++) {
+  for(var tile = 0u; tile < numGroups.x; tile++) {
     // Load the body into shared memory
-    localBodies[lid.x] = bodiesIn[lid.x+tileOffset*256];
+    localBodies[lid.x] = bodiesIn[lid.x+tile*256];
     workgroupBarrier();
     
-    for (var i = 0u; i < 256; i += 1) {
-      if (id.x != i+tileOffset*256) {
+    for (var i = 0u; i < 256; i++) {
+      if (id.x != i+tile*256) {
         let other = localBodies[i];
         let r = other.pos - body.pos;
         let distSq = max(dot(r, r), params.softeningFactor);
