@@ -17,18 +17,14 @@ struct Body {
 @group(0) @binding(1) var<storage,read> bodiesIn : array<Body>;
 @group(0) @binding(2) var<storage,read_write> bodiesOut : array<Body>;
 
+var<workgroup> localBodies : array<Body, 256>;
+
 @compute @workgroup_size(256, 1, 1)
-fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-  if(id.x >= params.numBodies) {
-    return;
-  }
-
+fn main(@builtin(global_invocation_id) id : vec3<u32>, 
+        @builtin(local_invocation_id) lid : vec3<u32>,
+        @builtin(num_workgroups) numGroups : vec3<u32>) {
+  
   var body = bodiesIn[id.x];
-
-  // Update black hole masses
-  if(body.mass > 1000) {
-    body.mass = params.blackHoleMass;
-  }
 
   // First "Kick": Half update of the velocity
   body.vel += 0.5 * body.acc * params.deltaTime;
@@ -38,16 +34,34 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   // Compute new acceleration
   var newAcc = vec3<f32>(0.0, 0.0, 0.0);
-  for (var i = 0u; i < params.numBodies; i += 1) {
-    if (i != id.x) {
-      let other = bodiesIn[i];
-      let r = other.pos - body.pos;
-      let distSq = max(dot(r, r), params.softeningFactor);
-      let f = params.gravity * ((body.mass * other.mass) / distSq);
-      let a = f / body.mass;
-      let direction = r / sqrt(distSq);
-      newAcc += a * direction;
+
+  for(var tileOffset = 0u; tileOffset < numGroups.x; tileOffset++) {
+    // Load the body into shared memory
+    localBodies[lid.x] = bodiesIn[lid.x+tileOffset*256];
+    workgroupBarrier();
+    
+    for (var i = 0u; i < 256; i += 1) {
+      if (i != lid.x) {
+        let other = localBodies[i];
+        let r = other.pos - body.pos;
+        let distSq = max(dot(r, r), params.softeningFactor);
+        let f = params.gravity * ((body.mass * other.mass) / distSq);
+        let a = f / body.mass;
+        let direction = r / sqrt(distSq);
+        newAcc += a * direction;
+      }
     }
+    workgroupBarrier();
+  }
+
+  // Don't write out of bounds
+  if(id.x >= params.numBodies) {
+    return;
+  }
+
+  // Update black hole masses
+  if(body.mass > 1000) {
+    body.mass = params.blackHoleMass;
   }
 
   // Store the new acceleration for the next timestep
@@ -58,5 +72,6 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   // Write the updated body back to the buffer
   bodiesOut[id.x] = body;
+  
 }
 
