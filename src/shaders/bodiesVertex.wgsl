@@ -1,15 +1,10 @@
 #include<sceneUboDeclaration>
 
-struct Body {
-  pos : vec3<f32>,
-  vel : vec3<f32>,
-  acc : vec3<f32>,
-  mass : f32,
-};
+var<storage,read> bodiesPos : array<vec4f>;
+var<storage,read> bodiesAcc : array<vec4f>;
 
-var<storage,read> bodies : array<Body>;
 
-attribute position : vec3<f32>;
+attribute position : vec4<f32>;
 varying col : vec4<f32>;
 
 fn colorFromAcc(val: vec3<f32>) -> vec4<f32> {
@@ -25,7 +20,6 @@ fn colorFromAcc(val: vec3<f32>) -> vec4<f32> {
 
 @vertex
 fn main(input : VertexInputs) -> FragmentInputs {
-  let body = bodies[input.instanceIndex];
-  vertexOutputs.position = scene.viewProjection * vec4<f32>(vertexInputs.position + body.pos, 1.0);
-  vertexOutputs.col = colorFromAcc(body.acc);
+  vertexOutputs.position = scene.viewProjection * (vertexInputs.position + bodiesPos[input.instanceIndex]);
+  vertexOutputs.col = colorFromAcc(bodiesAcc[input.instanceIndex].xyz);
 }

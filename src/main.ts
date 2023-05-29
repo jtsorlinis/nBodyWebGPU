@@ -65,9 +65,15 @@ pipeline.bloomScale = 1;
 pipeline.bloomThreshold = 0.1;
 
 // Setup scene
-let bodiesArr: Float32Array;
-let bodiesBuffer: StorageBuffer;
-let bodiesBuffer2: StorageBuffer;
+let bodiesPosArr: Float32Array;
+let bodiesVelArr: Float32Array;
+let bodiesAccArr: Float32Array;
+let bodiesPosBuffer: StorageBuffer;
+let bodiesPosBuffer2: StorageBuffer;
+let bodiesVelBuffer: StorageBuffer;
+let bodiesVelBuffer2: StorageBuffer;
+let bodiesAccBuffer: StorageBuffer;
+let bodiesAccBuffer2: StorageBuffer;
 let swap = false;
 
 const setup = () => {
@@ -79,25 +85,27 @@ const setup = () => {
   camera.rotation.set(0, 0, 0);
 
   // Intialize buffer with positions
-  bodiesArr = new Float32Array(numBodies * 12);
+  bodiesPosArr = new Float32Array(numBodies * 4);
+  bodiesVelArr = new Float32Array(numBodies * 4);
+  bodiesAccArr = new Float32Array(numBodies * 4);
   for (let i = 0; i < numBodies; i++) {
     const pos = randomPointInSphere(spaceLimit * 0.2, spaceLimit);
-    bodiesArr.set(pos.asArray(), i * 12);
+    bodiesPosArr.set(pos.asArray(), i * 4);
 
     // Add spin
     const dist = pos.length();
-    bodiesArr[i * 12 + 4] = (pos.y / dist) * initialSpin;
-    bodiesArr[i * 12 + 5] = (-pos.x / dist) * initialSpin;
+    bodiesVelArr[i * 4] = (pos.y / dist) * initialSpin;
+    bodiesVelArr[i * 4 + 1] = (-pos.x / dist) * initialSpin;
 
-    // Set mass
-    bodiesArr[i * 12 + 11] = randRange(0.5, 1.5);
+    // Set mass. W of accel array is mass
+    bodiesAccArr[i * 4 + 3] = randRange(0.5, 1.5);
   }
 
   // Black hole
   // Set to center of galaxy and remove spin
-  bodiesArr.set([0, 0, 0], 0); // Pos
-  bodiesArr.set([0, 0, 0], 4); // Vel
-  bodiesArr[11] = blackHoleMass;
+  bodiesPosArr.set([0, 0, 0], 0); // Pos
+  bodiesVelArr.set([0, 0, 0], 0); // Vel
+  bodiesAccArr[3] = blackHoleMass;
 
   // Set params
   params.updateUInt("numBodies", numBodies);
@@ -107,9 +115,18 @@ const setup = () => {
   params.update();
 
   // Copy data to GPU
-  bodiesBuffer = new StorageBuffer(engine, bodiesArr.byteLength);
-  bodiesBuffer2 = new StorageBuffer(engine, bodiesArr.byteLength);
-  bodiesBuffer.update(bodiesArr);
+  bodiesPosBuffer = new StorageBuffer(engine, bodiesPosArr.byteLength);
+  bodiesPosBuffer2 = new StorageBuffer(engine, bodiesPosArr.byteLength);
+  bodiesPosBuffer.update(bodiesPosArr);
+
+  bodiesVelBuffer = new StorageBuffer(engine, bodiesVelArr.byteLength);
+  bodiesVelBuffer2 = new StorageBuffer(engine, bodiesVelArr.byteLength);
+  bodiesVelBuffer.update(bodiesVelArr);
+
+  bodiesAccBuffer = new StorageBuffer(engine, bodiesAccArr.byteLength);
+  bodiesAccBuffer2 = new StorageBuffer(engine, bodiesAccArr.byteLength);
+  bodiesAccBuffer.update(bodiesAccArr);
+
   ballMesh.forcedInstanceCount = numBodies;
   swap = false;
 };
@@ -138,8 +155,12 @@ spinSlider.oninput = () => {
 };
 
 restartButton.onclick = () => {
-  bodiesBuffer.dispose();
-  bodiesBuffer2.dispose();
+  bodiesPosBuffer.dispose();
+  bodiesPosBuffer2.dispose();
+  bodiesVelBuffer.dispose();
+  bodiesVelBuffer2.dispose();
+  bodiesAccBuffer.dispose();
+  bodiesAccBuffer2.dispose();
   setup();
 };
 
@@ -151,18 +172,46 @@ engine.runRenderLoop(async () => {
   params.updateFloat("dt", dt);
   params.update();
 
-  bodiesComputeShader.setStorageBuffer(
-    "bodiesIn",
-    swap ? bodiesBuffer2 : bodiesBuffer
-  );
-  bodiesComputeShader.setStorageBuffer(
-    "bodiesOut",
-    swap ? bodiesBuffer : bodiesBuffer2
-  );
-  bodiesMat.setStorageBuffer("bodies", swap ? bodiesBuffer : bodiesBuffer2);
+  swapBuffers(swap);
 
   bodiesComputeShader.dispatchWhenReady(Math.ceil(numBodies / 256));
   swap = !swap;
 
   scene.render();
 });
+
+const swapBuffers = (swap: boolean) => {
+  bodiesComputeShader.setStorageBuffer(
+    "bodiesPosIn",
+    swap ? bodiesPosBuffer2 : bodiesPosBuffer
+  );
+  bodiesComputeShader.setStorageBuffer(
+    "bodiesPosOut",
+    swap ? bodiesPosBuffer : bodiesPosBuffer2
+  );
+  bodiesComputeShader.setStorageBuffer(
+    "bodiesVelIn",
+    swap ? bodiesVelBuffer2 : bodiesVelBuffer
+  );
+  bodiesComputeShader.setStorageBuffer(
+    "bodiesVelOut",
+    swap ? bodiesVelBuffer : bodiesVelBuffer2
+  );
+  bodiesComputeShader.setStorageBuffer(
+    "bodiesAccIn",
+    swap ? bodiesAccBuffer2 : bodiesAccBuffer
+  );
+  bodiesComputeShader.setStorageBuffer(
+    "bodiesAccOut",
+    swap ? bodiesAccBuffer : bodiesAccBuffer2
+  );
+
+  bodiesMat.setStorageBuffer(
+    "bodiesPos",
+    swap ? bodiesPosBuffer : bodiesPosBuffer2
+  );
+  bodiesMat.setStorageBuffer(
+    "bodiesAcc",
+    swap ? bodiesAccBuffer : bodiesAccBuffer2
+  );
+};
