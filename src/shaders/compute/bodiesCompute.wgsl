@@ -24,7 +24,6 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
         @builtin(local_invocation_id) lid : vec3<u32>,
         @builtin(num_workgroups) numGroups : vec3<u32>) {
   
-
   var bodyPos = bodiesPosIn[id.x].xyz;
   var bodyVel = bodiesVelIn[id.x].xyz;
   var bodyAcc = bodiesAccIn[id.x].xyz;
