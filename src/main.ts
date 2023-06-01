@@ -11,7 +11,7 @@ import { createBodiesComputeShader, createBodiesMaterial } from "./shaders";
 import { randRange } from "./utils";
 
 // Constants
-const numBodies = 30000;
+const numBodies = 1 << 15;
 let gravity = 5;
 let blackHoleMass = 16384; // Sagitarrius A* is 4 million solar masses
 let initialSpin = 30;
