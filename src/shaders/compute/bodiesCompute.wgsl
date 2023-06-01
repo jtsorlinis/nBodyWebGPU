@@ -54,21 +54,16 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
     workgroupBarrier();
   }
 
-  // Don't write out of bounds
-  if(id.x >= params.numBodies) {
-    return;
-  }
-
-  // Update black hole masses
-  if(body.mass > 1000) {
-    body.mass = params.blackHoleMass;
-  }
-
   // Store the new acceleration for the next timestep
   body.acc = newAcc;
 
   // Second "Kick": Another half update of the velocity
   body.vel += 0.5 * body.acc * params.deltaTime;
+
+  // Update black hole masses
+  if(body.mass > 1000) {
+    body.mass = params.blackHoleMass;
+  }
 
   // Write the updated body back to the buffer
   bodiesOut[id.x] = body;
