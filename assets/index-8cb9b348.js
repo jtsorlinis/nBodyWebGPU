@@ -15331,22 +15331,33 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
   var newAcc = vec3<f32>(0.0, 0.0, 0.0);
 
   for(var tile = 0u; tile < numGroups.x; tile++) {
-    // Load the body into shared memory
-    localBodies[lid.x] = bodiesIn[lid.x+tile*256];
+    // Load the body into shared memory if it's in bounds
+    let loadIndex = lid.x + tile * 256;
+    if (loadIndex < params.numBodies) {
+      localBodies[lid.x] = bodiesIn[loadIndex];
+    } else {
+      localBodies[lid.x] = Body();
+    }
     workgroupBarrier();
     
     for (var i = 0u; i < 256; i++) {
-      if (id.x != i+tile*256) {
+      let otherIndex = i + tile * 256;
+      if (id.x != otherIndex) {
         let other = localBodies[i];
         let r = other.pos - body.pos;
-        let distSq = max(dot(r, r), params.softeningFactor);
+        let distSq = dot(r, r) + params.softeningFactor;
         let f = params.gravity * ((body.mass * other.mass) / distSq);
-        let a = f / body.mass;
+        let a = f / body.mass; // WGSL divide by zero will just return the numerator (f)
         let direction = r / sqrt(distSq);
         newAcc += a * direction;
       }
     }
     workgroupBarrier();
+  }
+
+  // Don't write out of bounds
+  if (id.x >= params.numBodies) {
+    return;
   }
 
   // Store the new acceleration for the next timestep
@@ -15364,4 +15375,4 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
   bodiesOut[id.x] = body;
 }
 
-`,iO=o=>new er("bodiesMat",o,{vertexSource:JD,fragmentSource:eO},{attributes:["position","uv","normal"],uniformBuffers:["Scene","Mesh"],storageBuffers:["bodies"],shaderLanguage:Lt.WGSL}),sO=o=>new po("bodiesCompute",o,{computeSource:tO},{bindingsMapping:{params:{group:0,binding:0},bodiesIn:{group:0,binding:1},bodiesOut:{group:0,binding:2}}}),$n=32768;let Zo=5,ml=16384,gl=30;const rO=.5,{engine:oa,scene:gd,camera:_u}=await qD(),nO=document.getElementById("fpsText"),aO=document.getElementById("bodiesText"),gm=document.getElementById("gravityText"),v_=document.getElementById("gravitySlider");gm.innerText=`Gravity: ${Zo}`;const vm=document.getElementById("bhMassText"),x_=document.getElementById("bhMassSlider");vm.innerText=`Black Hole Mass: ${ml}`;const xm=document.getElementById("spinText"),T_=document.getElementById("spinSlider");xm.innerText=`Initial spin: ${gl}`;const oO=document.getElementById("restartButton"),eh=sO(oa),is=new Ee(oa);is.addUniform("numBodies",1);is.addUniform("gravity",1);is.addUniform("softeningFactor",1);is.addUniform("dt",1);is.addUniform("blackHoleMass",1);eh.setUniformBuffer("params",is);const Tm=iO(gd),vd=XS.CreateSphere("ball",{segments:8});vd.material=Tm;vd.buildBoundingInfo(new g(-1e6,-1e6,-1e6),new g(1e6,1e6,1e6));var xd=new Fi("defaultPipeline",!0,gd,[_u]);xd.bloomEnabled=!0;xd.bloomScale=1;xd.bloomThreshold=.1;let nr,Qa,Jo,Oa=!1;const Sm=()=>{aO.innerHTML=`Bodies: ${$n}`;const o=Math.pow($n,1/3)*10;_u.position.set(0,0,-o*2.75),_u.rotation.set(0,0,0),nr=new Float32Array($n*12);for(let e=0;e<$n;e++){const t=QD(o*.2,o);nr.set(t.asArray(),e*12);const i=t.length();nr[e*12+4]=t.y/i*gl,nr[e*12+5]=-t.x/i*gl,nr[e*12+11]=ZD(.5,1.5)}nr.set([0,0,0],0),nr.set([0,0,0],4),nr[11]=ml,is.updateUInt("numBodies",$n),is.updateFloat("gravity",Zo),is.updateFloat("softeningFactor",rO),is.updateFloat("blackHoleMass",ml),is.update(),Qa=new tu(oa,nr.byteLength),Jo=new tu(oa,nr.byteLength),Qa.update(nr),vd.forcedInstanceCount=$n,Oa=!1};Sm();v_.oninput=()=>{Zo=v_.valueAsNumber,gm.innerText=`Gravity: ${Zo}`,is.updateFloat("gravity",Zo),is.update()};x_.oninput=()=>{const o=Math.pow(2,x_.valueAsNumber);ml=o,vm.innerText=`Black Hole Mass: ${o}`,is.updateFloat("blackHoleMass",ml),is.update()};T_.oninput=()=>{gl=T_.valueAsNumber,xm.innerText=`Initial spin: ${gl}`};oO.onclick=()=>{Qa.dispose(),Jo.dispose(),Sm()};oa.runRenderLoop(async()=>{const o=oa.getDeltaTime()/1e3,e=oa.getFps();nO.innerHTML=`FPS: ${e.toFixed(2)}`,is.updateFloat("dt",o),is.update(),eh.setStorageBuffer("bodiesIn",Oa?Jo:Qa),eh.setStorageBuffer("bodiesOut",Oa?Qa:Jo),Tm.setStorageBuffer("bodies",Oa?Qa:Jo),eh.dispatchWhenReady(Math.ceil($n/256)),Oa=!Oa,gd.render()});
+`,iO=o=>new er("bodiesMat",o,{vertexSource:JD,fragmentSource:eO},{attributes:["position","uv","normal"],uniformBuffers:["Scene","Mesh"],storageBuffers:["bodies"],shaderLanguage:Lt.WGSL}),sO=o=>new po("bodiesCompute",o,{computeSource:tO},{bindingsMapping:{params:{group:0,binding:0},bodiesIn:{group:0,binding:1},bodiesOut:{group:0,binding:2}}}),$n=32768;let Zo=5,ml=16384,gl=30;const rO=.001,{engine:oa,scene:gd,camera:_u}=await qD(),nO=document.getElementById("fpsText"),aO=document.getElementById("bodiesText"),gm=document.getElementById("gravityText"),v_=document.getElementById("gravitySlider");gm.innerText=`Gravity: ${Zo}`;const vm=document.getElementById("bhMassText"),x_=document.getElementById("bhMassSlider");vm.innerText=`Black Hole Mass: ${ml}`;const xm=document.getElementById("spinText"),T_=document.getElementById("spinSlider");xm.innerText=`Initial spin: ${gl}`;const oO=document.getElementById("restartButton"),eh=sO(oa),is=new Ee(oa);is.addUniform("numBodies",1);is.addUniform("gravity",1);is.addUniform("softeningFactor",1);is.addUniform("dt",1);is.addUniform("blackHoleMass",1);eh.setUniformBuffer("params",is);const Tm=iO(gd),vd=XS.CreateSphere("ball",{segments:8});vd.material=Tm;vd.buildBoundingInfo(new g(-1e6,-1e6,-1e6),new g(1e6,1e6,1e6));var xd=new Fi("defaultPipeline",!0,gd,[_u]);xd.bloomEnabled=!0;xd.bloomScale=1;xd.bloomThreshold=.1;let nr,Qa,Jo,Oa=!1;const Sm=()=>{aO.innerHTML=`Bodies: ${$n}`;const o=Math.pow($n,1/3)*10;_u.position.set(0,0,-o*2.75),_u.rotation.set(0,0,0),nr=new Float32Array($n*12);for(let e=0;e<$n;e++){const t=QD(o*.2,o);nr.set(t.asArray(),e*12);const i=t.length();nr[e*12+4]=t.y/i*gl,nr[e*12+5]=-t.x/i*gl,nr[e*12+11]=ZD(.5,1.5)}nr.set([0,0,0],0),nr.set([0,0,0],4),nr[11]=ml,is.updateUInt("numBodies",$n),is.updateFloat("gravity",Zo),is.updateFloat("softeningFactor",rO),is.updateFloat("blackHoleMass",ml),is.update(),Qa=new tu(oa,nr.byteLength),Jo=new tu(oa,nr.byteLength),Qa.update(nr),vd.forcedInstanceCount=$n,Oa=!1};Sm();v_.oninput=()=>{Zo=v_.valueAsNumber,gm.innerText=`Gravity: ${Zo}`,is.updateFloat("gravity",Zo),is.update()};x_.oninput=()=>{const o=Math.pow(2,x_.valueAsNumber);ml=o,vm.innerText=`Black Hole Mass: ${o}`,is.updateFloat("blackHoleMass",ml),is.update()};T_.oninput=()=>{gl=T_.valueAsNumber,xm.innerText=`Initial spin: ${gl}`};oO.onclick=()=>{Qa.dispose(),Jo.dispose(),Sm()};oa.runRenderLoop(async()=>{const o=oa.getDeltaTime()/1e3,e=oa.getFps();nO.innerHTML=`FPS: ${e.toFixed(2)}`,is.updateFloat("dt",o),is.update(),eh.setStorageBuffer("bodiesIn",Oa?Jo:Qa),eh.setStorageBuffer("bodiesOut",Oa?Qa:Jo),Tm.setStorageBuffer("bodies",Oa?Qa:Jo),eh.dispatchWhenReady(Math.ceil($n/256)),Oa=!Oa,gd.render()});
