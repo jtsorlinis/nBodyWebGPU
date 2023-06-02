@@ -15,7 +15,7 @@ const numBodies = 1 << 15;
 let gravity = 5;
 let blackHoleMass = 16384; // Sagitarrius A* is 4 million solar masses
 let initialSpin = 30;
-const softeningFactor = 0.5; // 2 times radius squared of each body
+const softeningFactor = 0.001;
 
 const { engine, scene, camera } = await initScene();
 
