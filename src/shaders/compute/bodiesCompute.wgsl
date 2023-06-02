@@ -36,12 +36,18 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
   var newAcc = vec3<f32>(0.0, 0.0, 0.0);
 
   for(var tile = 0u; tile < numGroups.x; tile++) {
-    // Load the body into shared memory
-    localBodies[lid.x] = bodiesIn[lid.x+tile*256];
+    // Load the body into shared memory if it's in bounds
+    let loadIndex = lid.x + tile * 256;
+    if (loadIndex < params.numBodies) {
+      localBodies[lid.x] = bodiesIn[loadIndex];
+    } else {
+      localBodies[lid.x] = Body();
+    }
     workgroupBarrier();
     
     for (var i = 0u; i < 256; i++) {
-      if (id.x != i+tile*256) {
+      let otherIndex = i + tile * 256;
+      if (id.x != otherIndex && otherIndex < params.numBodies) {
         let other = localBodies[i];
         let r = other.pos - body.pos;
         let distSq = max(dot(r, r), params.softeningFactor);
@@ -52,6 +58,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
       }
     }
     workgroupBarrier();
+  }
+
+  // Don't write out of bounds
+  if (id.x >= params.numBodies) {
+    return;
   }
 
   // Store the new acceleration for the next timestep
