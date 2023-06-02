@@ -47,12 +47,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
     
     for (var i = 0u; i < 256; i++) {
       let otherIndex = i + tile * 256;
-      if (id.x != otherIndex && otherIndex < params.numBodies) {
+      if (id.x != otherIndex) {
         let other = localBodies[i];
         let r = other.pos - body.pos;
         let distSq = max(dot(r, r), params.softeningFactor);
         let f = params.gravity * ((body.mass * other.mass) / distSq);
-        let a = f / body.mass;
+        let a = f / body.mass; // WGSL divide by zero will just return the numerator (f)
         let direction = r / sqrt(distSq);
         newAcc += a * direction;
       }
