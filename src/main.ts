@@ -48,6 +48,14 @@ bodiesComputeShader.setUniformBuffer("params", params);
 
 // Setup material and mesh
 const bodiesMat = createBodiesMaterial(scene);
+
+// Update colours based on params
+const updateColours = () => {
+  const maxAcc = Math.sqrt((numBodies + blackHoleMass) * gravity) / 15;
+  bodiesMat.setFloat("maxAcc", maxAcc);
+};
+updateColours();
+
 const ballMesh = MeshBuilder.CreateSphere("ball", { segments: 8 });
 ballMesh.material = bodiesMat;
 ballMesh.buildBoundingInfo(
@@ -61,8 +69,7 @@ var pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [
 ]);
 pipeline.bloomEnabled = true;
 pipeline.bloomScale = 1;
-// pipeline.bloomWeight = 0.5;
-pipeline.bloomThreshold = 0.1;
+pipeline.bloomThreshold = 0.0;
 
 // Setup scene
 let bodiesArr: Float32Array;
@@ -122,6 +129,7 @@ gravitySlider.oninput = () => {
   gravityText.innerText = `Gravity: ${gravity}`;
   params.updateFloat("gravity", gravity);
   params.update();
+  updateColours();
 };
 
 blackHoleMassSlider.oninput = () => {
@@ -130,6 +138,7 @@ blackHoleMassSlider.oninput = () => {
   blackHoleMassText.innerText = `Black Hole Mass: ${val}`;
   params.updateFloat("blackHoleMass", blackHoleMass);
   params.update();
+  updateColours();
 };
 
 spinSlider.oninput = () => {
