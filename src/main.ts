@@ -16,6 +16,7 @@ let gravity = 5;
 let blackHoleMass = 16384; // Sagitarrius A* is 4 million solar masses
 let initialSpin = 30;
 const softeningFactor = 0.001;
+let twinGalaxies = false;
 
 const { engine, scene, camera } = await initScene();
 
@@ -35,6 +36,9 @@ const spinText = document.getElementById("spinText") as HTMLElement;
 const spinSlider = document.getElementById("spinSlider") as HTMLInputElement;
 spinText.innerText = `Initial spin: ${initialSpin}`;
 const restartButton = document.getElementById("restartButton") as HTMLElement;
+const twinGalaxiesToggle = document.getElementById(
+  "twinGalaxiesToggle"
+) as HTMLInputElement;
 
 // Setup compute shader
 const bodiesComputeShader = createBodiesComputeShader(engine);
@@ -81,15 +85,20 @@ const setup = () => {
   bodiesText.innerHTML = `Bodies: ${numBodies}`;
 
   // Setup size based on number of bodies
-  const spaceLimit = Math.pow(numBodies, 1 / 3) * 10;
-  camera.position.set(0, 0, -spaceLimit * 2.75);
+  const spaceLimit = Math.pow(numBodies * (twinGalaxies ? 0.5 : 1), 1 / 3) * 10;
+  camera.position.set(0, 0, -spaceLimit * (twinGalaxies ? 5 : 2.75));
   camera.rotation.set(0, 0, 0);
 
+  let galaxy1Offset = twinGalaxies ? -spaceLimit * 2 : 0;
+  let galaxy2Offset = twinGalaxies ? spaceLimit * 2 : 0;
   // Intialize buffer with positions
   bodiesArr = new Float32Array(numBodies * 12);
   for (let i = 0; i < numBodies; i++) {
     const pos = randomPointInSphere(spaceLimit * 0.2, spaceLimit);
-    bodiesArr.set(pos.asArray(), i * 12);
+    const offset = i < numBodies / 2 ? galaxy1Offset : galaxy2Offset;
+    bodiesArr[i * 12] = pos.x + offset;
+    bodiesArr[i * 12 + 1] = pos.y;
+    bodiesArr[i * 12 + 2] = pos.z;
 
     // Add spin
     const dist = pos.length();
@@ -100,11 +109,17 @@ const setup = () => {
     bodiesArr[i * 12 + 11] = randRange(0.5, 1.5);
   }
 
-  // Black hole
+  // Black hole(s)
   // Set to center of galaxy and remove spin
-  bodiesArr.set([0, 0, 0], 0); // Pos
+  bodiesArr.set([galaxy1Offset, 0, 0], 0); // Pos
   bodiesArr.set([0, 0, 0], 4); // Vel
   bodiesArr[11] = blackHoleMass;
+
+  if (twinGalaxies) {
+    bodiesArr.set([galaxy2Offset, 0, 0], 12); // Pos
+    bodiesArr.set([0, 0, 0], 16); // Vel
+    bodiesArr[23] = blackHoleMass;
+  }
 
   // Set params
   params.updateUInt("numBodies", numBodies);
@@ -149,6 +164,11 @@ spinSlider.oninput = () => {
 restartButton.onclick = () => {
   bodiesBuffer.dispose();
   bodiesBuffer2.dispose();
+  setup();
+};
+
+twinGalaxiesToggle.onchange = () => {
+  twinGalaxies = twinGalaxiesToggle.checked;
   setup();
 };
 

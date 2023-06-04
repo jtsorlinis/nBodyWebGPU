@@ -54,3 +54,9 @@ input[type="range"] {
 button {
   width: 100%;
 }
+
+.uiCb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
