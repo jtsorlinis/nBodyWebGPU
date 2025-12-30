@@ -20,7 +20,7 @@ export const createBodiesMaterial = (scene: Scene) => {
       uniformBuffers: ["Scene", "Mesh"],
       storageBuffers: ["bodies"],
       shaderLanguage: ShaderLanguage.WGSL,
-    }
+    },
   );
 };
 
@@ -35,7 +35,7 @@ export const createBodiesIntegrateShader = (engine: WebGPUEngine) =>
         bodiesIn: { group: 0, binding: 1 },
         bodiesOut: { group: 0, binding: 2 },
       },
-    }
+    },
   );
 
 export const createBodiesForcesShader = (engine: WebGPUEngine) =>
@@ -48,5 +48,5 @@ export const createBodiesForcesShader = (engine: WebGPUEngine) =>
         params: { group: 0, binding: 0 },
         bodies: { group: 0, binding: 1 },
       },
-    }
+    },
   );

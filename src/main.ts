@@ -7,7 +7,11 @@ import {
 } from "@babylonjs/core";
 import "./style.css";
 import { initScene, randomPointInDisk } from "./utils";
-import { createBodiesIntegrateShader, createBodiesForcesShader, createBodiesMaterial } from "./shaders";
+import {
+  createBodiesIntegrateShader,
+  createBodiesForcesShader,
+  createBodiesMaterial,
+} from "./shaders";
 import { randRange } from "./utils";
 
 // Constants
@@ -23,18 +27,18 @@ const fpsText = document.getElementById("fpsText") as HTMLElement;
 const bodiesText = document.getElementById("bodiesText") as HTMLElement;
 const gravityText = document.getElementById("gravityText") as HTMLElement;
 const gravitySlider = document.getElementById(
-  "gravitySlider"
+  "gravitySlider",
 ) as HTMLInputElement;
 gravityText.innerText = `Gravity: ${gravity}`;
 const blackHoleMassText = document.getElementById("bhMassText") as HTMLElement;
 const blackHoleMassSlider = document.getElementById(
-  "bhMassSlider"
+  "bhMassSlider",
 ) as HTMLInputElement;
 blackHoleMassText.innerText = `Black Hole Mass: ${blackHoleMass}`;
 
 const restartButton = document.getElementById("restartButton") as HTMLElement;
 const twinGalaxiesToggle = document.getElementById(
-  "twinGalaxiesToggle"
+  "twinGalaxiesToggle",
 ) as HTMLInputElement;
 
 // Setup compute shaders
@@ -61,12 +65,11 @@ const updateColours = () => {
 };
 updateColours();
 
-
 const ballMesh = MeshBuilder.CreateSphere("ball", { segments: 8 });
 ballMesh.material = bodiesMat;
 ballMesh.buildBoundingInfo(
   new Vector3(-1000000, -1000000, -1000000),
-  new Vector3(1000000, 1000000, 1000000)
+  new Vector3(1000000, 1000000, 1000000),
 );
 
 // Add bloom
@@ -105,10 +108,10 @@ const setup = () => {
     // Keplerian Orbital Velocity
     const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
     const speed = Math.sqrt((gravity * blackHoleMass) / dist);
-    
+
     // Add some random noise to velocity to make it less perfect
-    const speedNoise = randRange(0.8, 1.2); 
-    
+    const speedNoise = randRange(0.8, 1.2);
+
     bodiesArr[i * 12 + 4] = (-pos.y / dist) * speed * speedNoise;
     bodiesArr[i * 12 + 5] = (pos.x / dist) * speed * speedNoise;
     bodiesArr[i * 12 + 6] = 0; // Minimal Z velocity
@@ -163,8 +166,6 @@ blackHoleMassSlider.oninput = () => {
   params.update();
   updateColours();
 };
-
-
 
 restartButton.onclick = () => {
   bodiesBuffer.dispose();

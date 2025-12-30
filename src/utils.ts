@@ -41,7 +41,7 @@ export const randomPointInSphere = (min: number, r: number) => {
   }
 
   let rho = Math.cbrt(
-    Math.random() * (Math.pow(r, 3) - Math.pow(min, 3)) + Math.pow(min, 3)
+    Math.random() * (Math.pow(r, 3) - Math.pow(min, 3)) + Math.pow(min, 3),
   );
   let theta = Math.random() * 2 * Math.PI;
   let phi = Math.acos(1 - Math.random() * 2);
@@ -62,7 +62,7 @@ export const randomPointInDisk = (min: number, r: number) => {
   }
 
   let rho = Math.sqrt(
-    Math.random() * (Math.pow(r, 2) - Math.pow(min, 2)) + Math.pow(min, 2)
+    Math.random() * (Math.pow(r, 2) - Math.pow(min, 2)) + Math.pow(min, 2),
   );
   let theta = Math.random() * 2 * Math.PI;
 
