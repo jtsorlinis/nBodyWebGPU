@@ -61,7 +61,6 @@ const updateColours = () => {
 };
 updateColours();
 
-// ... (MeshBuilder setup omitted as it matches original, but I need to include context to match lines)
 
 const ballMesh = MeshBuilder.CreateSphere("ball", { segments: 8 });
 ballMesh.material = bodiesMat;
