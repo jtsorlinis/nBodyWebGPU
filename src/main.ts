@@ -91,19 +91,25 @@ const setup = () => {
 
   // Setup size based on number of bodies
   const spaceLimit = Math.pow(numBodies * (twinGalaxies ? 0.5 : 1), 1 / 3) * 10;
-  camera.position.set(0, 0, -spaceLimit * (twinGalaxies ? 5 : 2.75));
-  camera.rotation.set(0, 0, 0);
 
-  let galaxy1Offset = twinGalaxies ? -spaceLimit * 2 : 0;
-  let galaxy2Offset = twinGalaxies ? spaceLimit * 2 : 0;
+  const dist = spaceLimit * (twinGalaxies ? 4 : 2.25);
+  const elevationAngle = 30 * (Math.PI / 180);
+  const y = dist * Math.sin(elevationAngle);
+  const z = -dist * Math.cos(elevationAngle);
+
+  camera.position.set(0, y, z);
+  camera.setTarget(Vector3.Zero());
+
+  let galaxy1Offset = twinGalaxies ? -spaceLimit * 1.5 : 0;
+  let galaxy2Offset = twinGalaxies ? spaceLimit * 1.5 : 0;
   // Intialize buffer with positions
   bodiesArr = new Float32Array(numBodies * 12);
   for (let i = 0; i < numBodies; i++) {
-    const pos = randomPointInDisk(spaceLimit * 0.1, spaceLimit); // Use disk
+    const pos = randomPointInDisk(spaceLimit * 0.1, spaceLimit);
     const offset = i < numBodies / 2 ? galaxy1Offset : galaxy2Offset;
     bodiesArr[i * 12] = pos.x + offset;
-    bodiesArr[i * 12 + 1] = pos.y;
-    bodiesArr[i * 12 + 2] = pos.z;
+    bodiesArr[i * 12 + 1] = pos.z;
+    bodiesArr[i * 12 + 2] = pos.y;
 
     // Keplerian Orbital Velocity
     const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
@@ -113,8 +119,8 @@ const setup = () => {
     const speedNoise = randRange(0.8, 1.2);
 
     bodiesArr[i * 12 + 4] = (-pos.y / dist) * speed * speedNoise;
-    bodiesArr[i * 12 + 5] = (pos.x / dist) * speed * speedNoise;
-    bodiesArr[i * 12 + 6] = 0; // Minimal Z velocity
+    bodiesArr[i * 12 + 5] = 0;
+    bodiesArr[i * 12 + 6] = (pos.x / dist) * speed * speedNoise;
 
     // Set mass
     bodiesArr[i * 12 + 11] = randRange(0.5, 1.5);
