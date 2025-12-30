@@ -7,7 +7,8 @@ import {
 } from "@babylonjs/core";
 import bodiesVertex from "./bodiesVertex.wgsl?raw";
 import bodiesFragment from "./bodiesFragment.wgsl?raw";
-import bodiesComputeSource from "./compute/bodiesCompute.wgsl?raw";
+import bodiesIntegrateSource from "./compute/bodiesIntegrate.wgsl?raw";
+import bodiesForcesSource from "./compute/bodiesForces.wgsl?raw";
 
 export const createBodiesMaterial = (scene: Scene) => {
   return new ShaderMaterial(
@@ -23,16 +24,29 @@ export const createBodiesMaterial = (scene: Scene) => {
   );
 };
 
-export const createBodiesComputeShader = (engine: WebGPUEngine) =>
+export const createBodiesIntegrateShader = (engine: WebGPUEngine) =>
   new ComputeShader(
-    "bodiesCompute",
+    "bodiesIntegrate",
     engine,
-    { computeSource: bodiesComputeSource },
+    { computeSource: bodiesIntegrateSource },
     {
       bindingsMapping: {
         params: { group: 0, binding: 0 },
         bodiesIn: { group: 0, binding: 1 },
         bodiesOut: { group: 0, binding: 2 },
+      },
+    }
+  );
+
+export const createBodiesForcesShader = (engine: WebGPUEngine) =>
+  new ComputeShader(
+    "bodiesForces",
+    engine,
+    { computeSource: bodiesForcesSource },
+    {
+      bindingsMapping: {
+        params: { group: 0, binding: 0 },
+        bodies: { group: 0, binding: 1 },
       },
     }
   );

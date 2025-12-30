@@ -7,7 +7,7 @@ import {
 } from "@babylonjs/core";
 import "./style.css";
 import { initScene, randomPointInSphere } from "./utils";
-import { createBodiesComputeShader, createBodiesMaterial } from "./shaders";
+import { createBodiesIntegrateShader, createBodiesForcesShader, createBodiesMaterial } from "./shaders";
 import { randRange } from "./utils";
 
 // Constants
@@ -15,7 +15,6 @@ const numBodies = 1 << 15;
 let gravity = 5;
 let blackHoleMass = 16384; // Sagitarrius A* is 4 million solar masses
 let initialSpin = 30;
-const softeningFactor = 0.001;
 let twinGalaxies = false;
 
 const { engine, scene, camera } = await initScene();
@@ -40,15 +39,17 @@ const twinGalaxiesToggle = document.getElementById(
   "twinGalaxiesToggle"
 ) as HTMLInputElement;
 
-// Setup compute shader
-const bodiesComputeShader = createBodiesComputeShader(engine);
+// Setup compute shaders
+const bodiesIntegrateShader = createBodiesIntegrateShader(engine);
+const bodiesForcesShader = createBodiesForcesShader(engine);
+
 const params = new UniformBuffer(engine);
 params.addUniform("numBodies", 1);
 params.addUniform("gravity", 1);
-params.addUniform("softeningFactor", 1);
 params.addUniform("dt", 1);
 params.addUniform("blackHoleMass", 1);
-bodiesComputeShader.setUniformBuffer("params", params);
+bodiesIntegrateShader.setUniformBuffer("params", params);
+bodiesForcesShader.setUniformBuffer("params", params);
 
 // Setup material and mesh
 const bodiesMat = createBodiesMaterial(scene);
@@ -59,6 +60,8 @@ const updateColours = () => {
   bodiesMat.setFloat("maxAcc", maxAcc);
 };
 updateColours();
+
+// ... (MeshBuilder setup omitted as it matches original, but I need to include context to match lines)
 
 const ballMesh = MeshBuilder.CreateSphere("ball", { segments: 8 });
 ballMesh.material = bodiesMat;
@@ -124,7 +127,6 @@ const setup = () => {
   // Set params
   params.updateUInt("numBodies", numBodies);
   params.updateFloat("gravity", gravity);
-  params.updateFloat("softeningFactor", softeningFactor);
   params.updateFloat("blackHoleMass", blackHoleMass);
   params.update();
 
@@ -181,17 +183,21 @@ engine.runRenderLoop(async () => {
   params.updateFloat("dt", dt);
   params.update();
 
-  bodiesComputeShader.setStorageBuffer(
-    "bodiesIn",
-    swap ? bodiesBuffer2 : bodiesBuffer
-  );
-  bodiesComputeShader.setStorageBuffer(
-    "bodiesOut",
-    swap ? bodiesBuffer : bodiesBuffer2
-  );
-  bodiesMat.setStorageBuffer("bodies", swap ? bodiesBuffer : bodiesBuffer2);
+  const bufferIn = swap ? bodiesBuffer2 : bodiesBuffer;
+  const bufferOut = swap ? bodiesBuffer : bodiesBuffer2;
 
-  bodiesComputeShader.dispatch(Math.ceil(numBodies / 256));
+  // Pass 1: Integrate (Drift + Kick 1)
+  bodiesIntegrateShader.setStorageBuffer("bodiesIn", bufferIn);
+  bodiesIntegrateShader.setStorageBuffer("bodiesOut", bufferOut);
+  bodiesIntegrateShader.dispatch(Math.ceil(numBodies / 256));
+
+  // Pass 2: Forces (Force Calc + Kick 2)
+  // Operates in-place on bufferOut which now contains updated positions
+  bodiesForcesShader.setStorageBuffer("bodies", bufferOut);
+  bodiesForcesShader.dispatch(Math.ceil(numBodies / 256));
+
+  bodiesMat.setStorageBuffer("bodies", bufferOut);
+
   swap = !swap;
 
   scene.render();
