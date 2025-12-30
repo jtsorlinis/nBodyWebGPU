@@ -132,6 +132,7 @@ const setup = () => {
   bodiesBuffer = new StorageBuffer(engine, bodiesArr.byteLength);
   bodiesBuffer2 = new StorageBuffer(engine, bodiesArr.byteLength);
   bodiesBuffer.update(bodiesArr);
+  bodiesBuffer2.update(bodiesArr);
   ballMesh.forcedInstanceCount = numBodies;
   swap = false;
 };
@@ -190,7 +191,7 @@ engine.runRenderLoop(async () => {
   );
   bodiesMat.setStorageBuffer("bodies", swap ? bodiesBuffer : bodiesBuffer2);
 
-  bodiesComputeShader.dispatchWhenReady(Math.ceil(numBodies / 256));
+  bodiesComputeShader.dispatch(Math.ceil(numBodies / 256));
   swap = !swap;
 
   scene.render();
