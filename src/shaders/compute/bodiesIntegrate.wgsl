@@ -3,6 +3,7 @@ struct Params {
   gravity: f32,
   deltaTime: f32,
   blackHoleMass: f32,
+  softening: f32,
 }
 
 struct Body {

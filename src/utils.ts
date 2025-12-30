@@ -55,3 +55,20 @@ export const randomPointInSphere = (min: number, r: number) => {
 
 export const randRange = (min: number, max: number) =>
   min + Math.random() * (max - min);
+
+export const randomPointInDisk = (min: number, r: number) => {
+  if (min > r) {
+    throw new Error("min must be less than or equal to r");
+  }
+
+  let rho = Math.sqrt(
+    Math.random() * (Math.pow(r, 2) - Math.pow(min, 2)) + Math.pow(min, 2)
+  );
+  let theta = Math.random() * 2 * Math.PI;
+
+  let x = rho * Math.cos(theta);
+  let y = rho * Math.sin(theta);
+  let z = randRange(-r * 0.05, r * 0.05); // Thin disk
+
+  return new Vector3(x, y, z);
+};

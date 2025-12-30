@@ -6,7 +6,7 @@ import {
   Vector3,
 } from "@babylonjs/core";
 import "./style.css";
-import { initScene, randomPointInSphere } from "./utils";
+import { initScene, randomPointInDisk } from "./utils";
 import { createBodiesIntegrateShader, createBodiesForcesShader, createBodiesMaterial } from "./shaders";
 import { randRange } from "./utils";
 
@@ -14,7 +14,7 @@ import { randRange } from "./utils";
 const numBodies = 1 << 15;
 let gravity = 5;
 let blackHoleMass = 16384; // Sagitarrius A* is 4 million solar masses
-let initialSpin = 30;
+
 let twinGalaxies = false;
 
 const { engine, scene, camera } = await initScene();
@@ -31,9 +31,7 @@ const blackHoleMassSlider = document.getElementById(
   "bhMassSlider"
 ) as HTMLInputElement;
 blackHoleMassText.innerText = `Black Hole Mass: ${blackHoleMass}`;
-const spinText = document.getElementById("spinText") as HTMLElement;
-const spinSlider = document.getElementById("spinSlider") as HTMLInputElement;
-spinText.innerText = `Initial spin: ${initialSpin}`;
+
 const restartButton = document.getElementById("restartButton") as HTMLElement;
 const twinGalaxiesToggle = document.getElementById(
   "twinGalaxiesToggle"
@@ -48,6 +46,8 @@ params.addUniform("numBodies", 1);
 params.addUniform("gravity", 1);
 params.addUniform("dt", 1);
 params.addUniform("blackHoleMass", 1);
+params.addUniform("softening", 1);
+params.updateFloat("softening", 3.0); // Softening length to prevent singularities
 bodiesIntegrateShader.setUniformBuffer("params", params);
 bodiesForcesShader.setUniformBuffer("params", params);
 
@@ -97,16 +97,22 @@ const setup = () => {
   // Intialize buffer with positions
   bodiesArr = new Float32Array(numBodies * 12);
   for (let i = 0; i < numBodies; i++) {
-    const pos = randomPointInSphere(spaceLimit * 0.2, spaceLimit);
+    const pos = randomPointInDisk(spaceLimit * 0.1, spaceLimit); // Use disk
     const offset = i < numBodies / 2 ? galaxy1Offset : galaxy2Offset;
     bodiesArr[i * 12] = pos.x + offset;
     bodiesArr[i * 12 + 1] = pos.y;
     bodiesArr[i * 12 + 2] = pos.z;
 
-    // Add spin
-    const dist = pos.length();
-    bodiesArr[i * 12 + 4] = (pos.y / dist) * initialSpin;
-    bodiesArr[i * 12 + 5] = (-pos.x / dist) * initialSpin;
+    // Keplerian Orbital Velocity
+    const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
+    const speed = Math.sqrt((gravity * blackHoleMass) / dist);
+    
+    // Add some random noise to velocity to make it less perfect
+    const speedNoise = randRange(0.8, 1.2); 
+    
+    bodiesArr[i * 12 + 4] = (-pos.y / dist) * speed * speedNoise;
+    bodiesArr[i * 12 + 5] = (pos.x / dist) * speed * speedNoise;
+    bodiesArr[i * 12 + 6] = 0; // Minimal Z velocity
 
     // Set mass
     bodiesArr[i * 12 + 11] = randRange(0.5, 1.5);
@@ -159,10 +165,7 @@ blackHoleMassSlider.oninput = () => {
   updateColours();
 };
 
-spinSlider.oninput = () => {
-  initialSpin = spinSlider.valueAsNumber;
-  spinText.innerText = `Initial spin: ${initialSpin}`;
-};
+
 
 restartButton.onclick = () => {
   bodiesBuffer.dispose();

@@ -3,6 +3,7 @@ struct Params {
   gravity: f32,
   deltaTime: f32,
   blackHoleMass: f32,
+  softening: f32,
 }
 
 struct Body {
@@ -42,8 +43,8 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
         if (id.x != otherIndex) {
             let other = localBodies[i];
             let r = other.pos - body.pos;
-            // Use a tiny epsilon to prevent division by zero, but rely on clamp for singularities
-            let distSq = max(dot(r, r), 1e-9); 
+            // Add softening to prevent singularities and unrealistic close encounters
+            let distSq = dot(r, r) + params.softening * params.softening; 
             let invDist = inverseSqrt(distSq);
             let f = params.gravity * other.mass * invDist * invDist * invDist;
             newAcc += r * f;
@@ -68,6 +69,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
 
   // Second "Kick": Another half update of the velocity
   body.vel += 0.5 * body.acc * params.deltaTime;
+
+  // Limit velocity to prevent ejections from high-mass interactions
+  let speed = length(body.vel);
+  if (speed > 1000.0) {
+    body.vel = normalize(body.vel) * 1000.0;
+  }
 
   // Update black hole masses
   if(body.mass > 1000) {
