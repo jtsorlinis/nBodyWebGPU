@@ -33,7 +33,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
   body.pos += body.vel * params.deltaTime;
 
   // Compute new acceleration
-  var newAcc = vec3<f32>(0.0, 0.0, 0.0);
+  var newAcc = vec3(0.0);
 
   for(var tile = 0u; tile < numGroups.x; tile++) {
     // Load the body into shared memory if it's in bounds
@@ -51,9 +51,9 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
         let other = localBodies[i];
         let r = other.pos - body.pos;
         let distSq = dot(r, r) + params.softeningFactor;
-        let a = (params.gravity * other.mass) / distSq; // WGSL divide by zero will just return the numerator (f)
-        let direction = r / sqrt(distSq);
-        newAcc += a * direction;
+        let invDist = inverseSqrt(distSq);
+        let f = params.gravity * other.mass * invDist * invDist * invDist;
+        newAcc += r * f;
       }
     }
     workgroupBarrier();
