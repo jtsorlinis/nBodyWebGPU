@@ -18,7 +18,7 @@ import { randRange } from "./utils";
 
 // Constants
 const numBodies = 1 << 17;
-const maxNodes = numBodies * 4; // Estimate for octree nodes
+const maxNodes = numBodies * 8; // Estimate for octree nodes
 let gravity = 5;
 let blackHoleMass = numBodies / 2;
 

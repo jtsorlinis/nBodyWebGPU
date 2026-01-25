@@ -35,7 +35,7 @@ struct Node {
 
 const MAX_DEPTH = 30u;
 const SCALE_MASS = 100.0;
-const SCALE_MOMENT = 10.0;
+const SCALE_MOMENT = 1.0;
 
 fn getOctant(pos: vec3<f32>, min: vec3<f32>, max: vec3<f32>) -> u32 {
   let center = (min + max) * 0.5;

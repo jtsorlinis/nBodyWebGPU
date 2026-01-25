@@ -33,7 +33,7 @@ struct Node {
 @group(0) @binding(2) var<storage, read> nodes : array<Node>;
 
 const SCALE_MASS = 100.0;
-const SCALE_MOMENT = 10.0;
+const SCALE_MOMENT = 1.0;
 
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
@@ -45,7 +45,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   var newAcc = vec3(0.0);
 
   // Stack for traversal (just indices now, much lighter)
-  var stack: array<i32, 128>;
+  var stack: array<i32, 256>;
   var stackPtr = 0;
 
   // Push Root
@@ -99,7 +99,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
                }
            } else {
                // It's a Node
-               if (stackPtr < 128) {
+               if (stackPtr < 256) {
                    stack[stackPtr] = child;
                    stackPtr++;
                }
