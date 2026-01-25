@@ -4,6 +4,11 @@ struct Params {
   deltaTime: f32,
   blackHoleMass: f32,
   softening: f32,
+  theta: f32,
+  maxNodes: u32,
+  _pad0: u32,
+  minPos: vec3<f32>,
+  maxPos: vec3<f32>,
 }
 
 struct Body {
