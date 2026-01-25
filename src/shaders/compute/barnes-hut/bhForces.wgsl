@@ -23,13 +23,9 @@ struct Node {
   comXInt: i32,
   comYInt: i32,
   comZInt: i32,
-  children: array<i32, 8>,
-};
-
-struct StackItem {
-  nodeIdx: i32,
   center: vec3<f32>,
   halfSize: f32,
+  children: array<i32, 8>,
 };
 
 @group(0) @binding(0) var<uniform> params : Params;
@@ -48,14 +44,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   var body = bodies[id.x];
   var newAcc = vec3(0.0);
 
-  // Stack for traversal
-  var stack: array<StackItem, 128>;
+  // Stack for traversal (just indices now, much lighter)
+  var stack: array<i32, 128>;
   var stackPtr = 0;
 
   // Push Root
-  let rootSize = params.maxPos.x - params.minPos.x; // Assume cubic
-  let rootCenter = (params.minPos + params.maxPos) * 0.5;
-  stack[0] = StackItem(0, rootCenter, rootSize * 0.5);
+  stack[0] = 0;
   stackPtr = 1;
 
   let thetaSq = params.theta * params.theta;
@@ -63,9 +57,8 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   while (stackPtr > 0) {
     stackPtr--;
-    let item = stack[stackPtr];
-    let nodeIdx = item.nodeIdx;
-    let node = nodes[nodeIdx];
+    let nodeIdx = stack[stackPtr];
+    let node = nodes[nodeIdx]; // Read from global memory (cached)
 
     let mass = f32(node.massInt) / SCALE_MASS;
     
@@ -77,7 +70,8 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     let r = com - body.pos;
     let distSq = dot(r, r);
     
-    let size = item.halfSize * 2.0;
+    let halfSize = node.halfSize;
+    let size = halfSize * 2.0;
 
     // Check if we can approximate (Squared check)
     // size < theta * dist => size^2 < theta^2 * distSq
@@ -88,8 +82,6 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
         newAcc += r * f;
     } else {
         // Open the node
-        let nextHalfSize = item.halfSize * 0.5;
-        
         for (var i = 0; i < 8; i++) {
            let child = node.children[i];
            if (child == -1) { continue; }
@@ -107,15 +99,8 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
                }
            } else {
                // It's a Node
-               var childCenter = item.center;
-               // Calculate offset based on octant 'i'
-               // 1 = +x, 2 = +y, 4 = +z. else -
-               if ((u32(i) & 1u) != 0u) { childCenter.x += nextHalfSize; } else { childCenter.x -= nextHalfSize; }
-               if ((u32(i) & 2u) != 0u) { childCenter.y += nextHalfSize; } else { childCenter.y -= nextHalfSize; }
-               if ((u32(i) & 4u) != 0u) { childCenter.z += nextHalfSize; } else { childCenter.z -= nextHalfSize; }
-               
                if (stackPtr < 128) {
-                   stack[stackPtr] = StackItem(child, childCenter, nextHalfSize);
+                   stack[stackPtr] = child;
                    stackPtr++;
                }
            }

@@ -18,7 +18,7 @@ import { randRange } from "./utils";
 
 // Constants
 const numBodies = 1 << 17;
-const maxNodes = numBodies * 2; // Estimate for octree nodes
+const maxNodes = numBodies * 4; // Estimate for octree nodes
 let gravity = 5;
 let blackHoleMass = numBodies / 2;
 
@@ -186,8 +186,8 @@ const setup = () => {
   bodiesBuffer.update(bodiesArr);
   bodiesBuffer2.update(bodiesArr);
 
-  // Nodes Buffer: 4 ints + 8 ints = 12 ints = 48 bytes per node
-  nodesBuffer = new StorageBuffer(engine, maxNodes * 48);
+  // Nodes Buffer: 64 bytes per node
+  nodesBuffer = new StorageBuffer(engine, maxNodes * 64);
 
   // Allocator: 1 uint
   allocatorBuffer = new StorageBuffer(engine, 4);

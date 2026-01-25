@@ -23,6 +23,8 @@ struct Node {
   comXInt: atomic<i32>,
   comYInt: atomic<i32>,
   comZInt: atomic<i32>,
+  center: vec3<f32>,
+  halfSize: f32,
   children: array<atomic<i32>, 8>,
 };
 
@@ -46,6 +48,14 @@ fn getOctant(pos: vec3<f32>, min: vec3<f32>, max: vec3<f32>) -> u32 {
 
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
+  // Thread 0 initializes the Root Node (0)
+  if (id.x == 0u) {
+     let rootCenter = (params.minPos + params.maxPos) * 0.5;
+     let rootSize = params.maxPos.x - params.minPos.x;
+     nodes[0].center = rootCenter;
+     nodes[0].halfSize = rootSize * 0.5;
+  }
+
   if (id.x >= params.numBodies) {
     return;
   }
@@ -118,6 +128,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
         if ((octant & 1u) != 0u) { childMin.x = center.x; } else { childMax.x = center.x; }
         if ((octant & 2u) != 0u) { childMin.y = center.y; } else { childMax.y = center.y; }
         if ((octant & 4u) != 0u) { childMin.z = center.z; } else { childMax.z = center.z; }
+        
+        // IMPORTANT: Write new node geometry
+        let newCenter = (childMin + childMax) * 0.5;
+        let newHalfSize = (childMax.x - childMin.x) * 0.5;
+        nodes[newNodeIdx].center = newCenter;
+        nodes[newNodeIdx].halfSize = newHalfSize;
         
         let otherBody = bodies[otherBodyIdx];
         
