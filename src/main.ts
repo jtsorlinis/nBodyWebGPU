@@ -33,11 +33,6 @@ const gravitySlider = document.getElementById(
   "gravitySlider",
 ) as HTMLInputElement;
 gravityText.innerText = `Gravity: ${gravity}`;
-const blackHoleMassText = document.getElementById("bhMassText") as HTMLElement;
-const blackHoleMassSlider = document.getElementById(
-  "bhMassSlider",
-) as HTMLInputElement;
-blackHoleMassText.innerText = `Black Hole Mass: ${blackHoleMass}`;
 
 const restartButton = document.getElementById("restartButton") as HTMLElement;
 const twinGalaxiesToggle = document.getElementById(
@@ -203,15 +198,6 @@ gravitySlider.oninput = () => {
   gravity = gravitySlider.valueAsNumber;
   gravityText.innerText = `Gravity: ${gravity}`;
   params.updateFloat("gravity", gravity);
-  params.update();
-  updateColours();
-};
-
-blackHoleMassSlider.oninput = () => {
-  const val = Math.pow(2, blackHoleMassSlider.valueAsNumber);
-  blackHoleMass = val;
-  blackHoleMassText.innerText = `Black Hole Mass: ${val}`;
-  params.updateFloat("blackHoleMass", blackHoleMass);
   params.update();
   updateColours();
 };
