@@ -17,8 +17,9 @@ import {
 import { randRange } from "./utils";
 
 // Constants
-const numBodies = 1 << 17;
-const maxNodes = numBodies * 8; // Estimate for octree nodes
+const initialNumBodies = 1 << 17;
+let numBodies = initialNumBodies;
+let maxNodes = numBodies * 8; // Estimate for octree nodes
 let gravity = 5;
 let blackHoleMass = numBodies / 2;
 
@@ -37,6 +38,10 @@ gravityText.innerText = `Gravity: ${gravity}`;
 const restartButton = document.getElementById("restartButton") as HTMLElement;
 const twinGalaxiesToggle = document.getElementById(
   "twinGalaxiesToggle",
+) as HTMLInputElement;
+
+const moreBodiesToggle = document.getElementById(
+  "moreBodiesToggle",
 ) as HTMLInputElement;
 
 // Setup compute shaders
@@ -212,6 +217,15 @@ restartButton.onclick = () => {
 
 twinGalaxiesToggle.onchange = () => {
   twinGalaxies = twinGalaxiesToggle.checked;
+  setup();
+};
+
+moreBodiesToggle.onchange = () => {
+  numBodies = moreBodiesToggle.checked
+    ? initialNumBodies * 2
+    : initialNumBodies;
+  maxNodes = numBodies * 8;
+  blackHoleMass = numBodies / 2;
   setup();
 };
 
