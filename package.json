@@ -10,9 +10,9 @@
     "deploy": "tsc && vite build --base=/nBodyWebGPU/ && gh-pages -d dist"
   },
   "devDependencies": {
-    "@babylonjs/core": "^8.43.0",
+    "@babylonjs/core": "^8.49.3",
     "gh-pages": "^6.3.0",
     "typescript": "^5.9.3",
-    "vite": "^7.3.0"
+    "vite": "^7.3.1"
   }
 }
