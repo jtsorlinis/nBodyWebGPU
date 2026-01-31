@@ -1,8 +1,10 @@
-import { ComputeShader } from "@babylonjs/core/Compute/computeShader";
-import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
-import { Scene } from "@babylonjs/core/scene";
-import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage";
-import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
+import {
+  ComputeShader,
+  Scene,
+  ShaderLanguage,
+  ShaderMaterial,
+  WebGPUEngine,
+} from "@babylonjs/core";
 import bodiesVertex from "./bodiesVertex.wgsl?raw";
 import bodiesFragment from "./bodiesFragment.wgsl?raw";
 import bodiesIntegrateSource from "./compute/bodiesIntegrate.wgsl?raw";

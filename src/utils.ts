@@ -1,7 +1,4 @@
-import { UniversalCamera } from "@babylonjs/core/Cameras/universalCamera";
-import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { Scene } from "@babylonjs/core/scene";
+import { Scene, UniversalCamera, Vector3, WebGPUEngine } from "@babylonjs/core";
 
 export const initScene = async () => {
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;

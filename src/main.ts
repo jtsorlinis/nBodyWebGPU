@@ -1,8 +1,10 @@
-import { StorageBuffer } from "@babylonjs/core/Buffers/storageBuffer";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
-import { UniformBuffer } from "@babylonjs/core/Materials/uniformBuffer";
-import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
+import {
+  DefaultRenderingPipeline,
+  MeshBuilder,
+  StorageBuffer,
+  UniformBuffer,
+  Vector3,
+} from "@babylonjs/core";
 import "./style.css";
 import { initScene, randomPointInDisk } from "./utils";
 import {
