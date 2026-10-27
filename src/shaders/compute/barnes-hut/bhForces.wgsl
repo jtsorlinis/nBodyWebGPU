@@ -6,9 +6,7 @@ struct Params {
   softening: f32,
   theta: f32,
   maxNodes: u32,
-  _pad0: u32,
-  minPos: vec3<f32>,
-  maxPos: vec3<f32>,
+  massScale: f32,
 }
 
 struct Body {
@@ -31,9 +29,6 @@ struct Node {
 @group(0) @binding(0) var<uniform> params : Params;
 @group(0) @binding(1) var<storage, read_write> bodies : array<Body>;
 @group(0) @binding(2) var<storage, read> nodes : array<Node>;
-
-const SCALE_MASS = 100.0;
-const SCALE_MOMENT = 1.0;
 
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
@@ -60,12 +55,13 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     let nodeIdx = stack[stackPtr];
     let node = nodes[nodeIdx]; // Read from global memory (cached)
 
-    let mass = f32(node.massInt) / SCALE_MASS;
-    
+    let mass = f32(node.massInt) / params.massScale;
+
     if (mass <= 0.0) { continue; }
 
-    let moment = vec3(f32(node.comXInt), f32(node.comYInt), f32(node.comZInt)) / SCALE_MOMENT;
-    let com = moment / mass;
+    // Moment is relative to the node centre in units of its half size (see bhTree)
+    let moment = vec3(f32(node.comXInt), f32(node.comYInt), f32(node.comZInt));
+    let com = node.center + moment / f32(node.massInt) * node.halfSize;
 
     let r = com - body.pos;
     let distSq = dot(r, r);

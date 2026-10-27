@@ -6,9 +6,7 @@ struct Params {
   softening: f32,
   theta: f32,
   maxNodes: u32,
-  _pad0: u32,
-  minPos: vec3<f32>,
-  maxPos: vec3<f32>,
+  massScale: f32,
 }
 
 struct Body {
@@ -32,10 +30,14 @@ struct Node {
 @group(0) @binding(1) var<storage, read_write> bodies : array<Body>;
 @group(0) @binding(2) var<storage, read_write> nodes : array<Node>;
 @group(0) @binding(3) var<storage, read_write> allocator : atomic<u32>;
+// Min xyz then max xyz of all body positions, as order-preserving uints (see bhBounds)
+@group(0) @binding(4) var<storage, read> bounds : array<u32, 6>;
 
 const MAX_DEPTH = 30u;
-const SCALE_MASS = 100.0;
-const SCALE_MOMENT = 1.0;
+
+fn orderedToFloat(bits: u32) -> f32 {
+  return bitcast<f32>(select(~bits, bits & 0x7FFFFFFFu, (bits & 0x80000000u) != 0u));
+}
 
 fn getOctant(pos: vec3<f32>, min: vec3<f32>, max: vec3<f32>) -> u32 {
   let center = (min + max) * 0.5;
@@ -46,14 +48,35 @@ fn getOctant(pos: vec3<f32>, min: vec3<f32>, max: vec3<f32>) -> u32 {
   return octant;
 }
 
+// Add a body's mass and moment to a node using integer atomics.
+// The moment is stored relative to the node's centre in units of its half size, so each
+// body contributes at most +-mass * massScale per axis (sums can't overflow) and the
+// precision is the same at every depth. bhForces decodes it back to a centre of mass.
+fn accumulate(nodeIdx: i32, body: Body, nodeMin: vec3<f32>, nodeMax: vec3<f32>) {
+  let center = (nodeMin + nodeMax) * 0.5;
+  let halfSize = (nodeMax.x - nodeMin.x) * 0.5;
+  let weight = body.mass * params.massScale;
+  let moment = (body.pos - center) / halfSize * weight;
+  atomicAdd(&nodes[nodeIdx].massInt, i32(round(weight)));
+  atomicAdd(&nodes[nodeIdx].comXInt, i32(round(moment.x)));
+  atomicAdd(&nodes[nodeIdx].comYInt, i32(round(moment.y)));
+  atomicAdd(&nodes[nodeIdx].comZInt, i32(round(moment.z)));
+}
+
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
+  // Root is a cube around all bodies, padded so none sit exactly on its boundary
+  let lo = vec3(orderedToFloat(bounds[0]), orderedToFloat(bounds[1]), orderedToFloat(bounds[2]));
+  let hi = vec3(orderedToFloat(bounds[3]), orderedToFloat(bounds[4]), orderedToFloat(bounds[5]));
+  let extent = hi - lo;
+  let rootHalfSize = max(max(extent.x, extent.y), extent.z) * 0.51 + 1.0;
+  let rootMin = (lo + hi) * 0.5 - vec3(rootHalfSize);
+  let rootMax = (lo + hi) * 0.5 + vec3(rootHalfSize);
+
   // Thread 0 initializes the Root Node (0)
   if (id.x == 0u) {
-     let rootCenter = (params.minPos + params.maxPos) * 0.5;
-     let rootSize = params.maxPos.x - params.minPos.x;
-     nodes[0].center = rootCenter;
-     nodes[0].halfSize = rootSize * 0.5;
+     nodes[0].center = (rootMin + rootMax) * 0.5;
+     nodes[0].halfSize = (rootMax.x - rootMin.x) * 0.5;
   }
 
   if (id.x >= params.numBodies) {
@@ -62,19 +85,16 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   let bodyIdx = i32(id.x);
   let body = bodies[bodyIdx];
-  
+
   // Start insertion from Root
   var nodeIdx = 0i;
   var depth = 0u;
-  var min = params.minPos;
-  var max = params.maxPos;
-  
+  var min = rootMin;
+  var max = rootMax;
+
   loop {
     // Update Mass/COM for current node (using atomics)
-    atomicAdd(&nodes[nodeIdx].massInt, i32(body.mass * SCALE_MASS));
-    atomicAdd(&nodes[nodeIdx].comXInt, i32(body.pos.x * body.mass * SCALE_MOMENT));
-    atomicAdd(&nodes[nodeIdx].comYInt, i32(body.pos.y * body.mass * SCALE_MOMENT));
-    atomicAdd(&nodes[nodeIdx].comZInt, i32(body.pos.z * body.mass * SCALE_MOMENT));
+    accumulate(nodeIdx, body, min, max);
 
     let octant = getOctant(body.pos, min, max);
     let childPtr = &nodes[nodeIdx].children[octant];
@@ -138,10 +158,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
         let otherBody = bodies[otherBodyIdx];
         
         // Update Mass/COM for the new node (it will contain the other body)
-        atomicAdd(&nodes[newNodeIdx].massInt, i32(otherBody.mass * SCALE_MASS));
-        atomicAdd(&nodes[newNodeIdx].comXInt, i32(otherBody.pos.x * otherBody.mass * SCALE_MOMENT));
-        atomicAdd(&nodes[newNodeIdx].comYInt, i32(otherBody.pos.y * otherBody.mass * SCALE_MOMENT));
-        atomicAdd(&nodes[newNodeIdx].comZInt, i32(otherBody.pos.z * otherBody.mass * SCALE_MOMENT));
+        accumulate(newNodeIdx, otherBody, childMin, childMax);
         
         // Put other body into the new node
         let otherOctant = getOctant(otherBody.pos, childMin, childMax);

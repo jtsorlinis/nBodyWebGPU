@@ -6,13 +6,14 @@ import {
   Vector3,
 } from "@babylonjs/core";
 import "./style.css";
-import { initScene, randomPointInDisk } from "./utils";
+import { createRotationCurve, initScene, randomPointInDisk } from "./utils";
 import {
   createBodiesIntegrateShader,
   createBodiesMaterial,
   createBHTreeShader,
   createBHForcesShader,
   createBHClearShader,
+  createBHBoundsShader,
 } from "./shaders";
 import { randRange } from "./utils";
 
@@ -22,6 +23,9 @@ let numBodies = initialNumBodies;
 let maxNodes = numBodies * 8; // Estimate for octree nodes
 let gravity = 5;
 let blackHoleMass = numBodies / 2;
+const softening = 3.0;
+const theta = 0.5;
+const simDt = 1 / 60; // Fixed simulation timestep (seconds)
 
 let twinGalaxies = false;
 
@@ -49,6 +53,7 @@ const bodiesIntegrateShader = createBodiesIntegrateShader(engine);
 const bhTreeShader = createBHTreeShader(engine);
 const bhForcesShader = createBHForcesShader(engine);
 const bhClearShader = createBHClearShader(engine);
+const bhBoundsShader = createBHBoundsShader(engine);
 
 const params = new UniformBuffer(engine);
 // Layout must match the shaders (std140/uniform alignment rules)
@@ -59,9 +64,7 @@ const params = new UniformBuffer(engine);
 // 16: softening (f32)
 // 20: theta (f32)
 // 24: maxNodes (u32)
-// 28: padding
-// 32: minPos (vec3)
-// 48: maxPos (vec3)
+// 28: massScale (f32)
 
 params.addUniform("numBodies", 1);
 params.addUniform("gravity", 1);
@@ -70,19 +73,17 @@ params.addUniform("blackHoleMass", 1);
 params.addUniform("softening", 1);
 params.addUniform("theta", 1);
 params.addUniform("maxNodes", 1);
-params.addUniform("pad1", 1);
-params.addUniform("minPos", 3);
-params.addUniform("pad2", 1);
-params.addUniform("maxPos", 3);
-params.addUniform("pad3", 1);
+params.addUniform("massScale", 1);
 
-params.updateFloat("softening", 3.0);
-params.updateFloat("theta", 0.5);
+params.updateFloat("softening", softening);
+params.updateFloat("theta", theta);
+params.updateFloat("dt", simDt);
 
 bodiesIntegrateShader.setUniformBuffer("params", params);
 bhTreeShader.setUniformBuffer("params", params);
 bhForcesShader.setUniformBuffer("params", params);
 bhClearShader.setUniformBuffer("params", params);
+bhBoundsShader.setUniformBuffer("params", params);
 
 // Setup material and mesh
 const bodiesMat = createBodiesMaterial(scene);
@@ -115,18 +116,32 @@ let bodiesBuffer: StorageBuffer;
 let bodiesBuffer2: StorageBuffer;
 let nodesBuffer: StorageBuffer;
 let allocatorBuffer: StorageBuffer;
+let boundsBuffer: StorageBuffer;
 let swap = false;
+
+// Bounds are reduced with atomicMin/Max on order-preserving uints, so start from the extremes
+const boundsReset = new Uint32Array([
+  0xffffffff, 0xffffffff, 0xffffffff, 0, 0, 0,
+]);
 
 const setup = () => {
   bodiesText.innerHTML = `Bodies: ${numBodies}`;
 
   // Setup size based on number of bodies
-  const spaceLimit = Math.pow(numBodies * (twinGalaxies ? 0.5 : 1), 1 / 3) * 10;
+  const numGalaxies = twinGalaxies ? 2 : 1;
+  const spaceLimit = Math.pow(numBodies / numGalaxies, 1 / 3) * 10;
+  const innerRadius = spaceLimit * 0.1;
 
-  // Bounds for Octree (make sure it covers everything)
-  const bounds = spaceLimit * 4;
-  params.updateVector3("minPos", new Vector3(-bounds, -bounds, -bounds));
-  params.updateVector3("maxPos", new Vector3(bounds, bounds, bounds));
+  // Speed for a circular orbit at each radius, including the pull of the disk itself
+  const orbitalSpeed = createRotationCurve({
+    gravity,
+    centralMass: blackHoleMass,
+    diskMass: numBodies / numGalaxies, // Bodies have a mean mass of 1
+    rMin: innerRadius,
+    rMax: spaceLimit,
+    halfThickness: spaceLimit * 0.05, // Matches randomPointInDisk
+    softening,
+  });
 
   const dist = spaceLimit * (twinGalaxies ? 4 : 2.25);
   const elevationAngle = 30 * (Math.PI / 180);
@@ -141,15 +156,15 @@ const setup = () => {
   // Intialize buffer with positions
   bodiesArr = new Float32Array(numBodies * 12);
   for (let i = 0; i < numBodies; i++) {
-    const pos = randomPointInDisk(spaceLimit * 0.1, spaceLimit);
+    const pos = randomPointInDisk(innerRadius, spaceLimit);
     const offset = i < numBodies / 2 ? galaxy1Offset : galaxy2Offset;
     bodiesArr[i * 12] = pos.x + offset;
     bodiesArr[i * 12 + 1] = pos.z;
     bodiesArr[i * 12 + 2] = pos.y;
 
-    // Keplerian Orbital Velocity
+    // Circular Orbital Velocity
     const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
-    const speed = Math.sqrt((gravity * blackHoleMass) / dist);
+    const speed = orbitalSpeed(dist);
 
     // Add some random noise to velocity to make it less perfect
     const speedNoise = randRange(0.8, 1.2);
@@ -178,6 +193,12 @@ const setup = () => {
   params.updateUInt("maxNodes", maxNodes);
   params.updateFloat("gravity", gravity);
   params.updateFloat("blackHoleMass", blackHoleMass);
+  // Fixed-point scale for the octree's mass/COM sums, so the total mass fits in an i32
+  const maxTotalMass = numBodies * 1.5 + numGalaxies * blackHoleMass;
+  params.updateFloat(
+    "massScale",
+    Math.floor(0x7fffffff / (maxTotalMass * 1.1)),
+  );
   params.update();
 
   // Copy data to GPU
@@ -192,7 +213,11 @@ const setup = () => {
   // Allocator: 1 uint
   allocatorBuffer = new StorageBuffer(engine, 4);
 
+  // Bounds: min xyz, max xyz
+  boundsBuffer = new StorageBuffer(engine, boundsReset.byteLength);
+
   ballMesh.forcedInstanceCount = numBodies;
+  bodiesMat.setStorageBuffer("bodies", bodiesBuffer);
   swap = false;
 };
 
@@ -207,17 +232,20 @@ gravitySlider.oninput = () => {
   updateColours();
 };
 
-restartButton.onclick = () => {
+const restart = () => {
   bodiesBuffer.dispose();
   bodiesBuffer2.dispose();
   nodesBuffer.dispose();
   allocatorBuffer.dispose();
+  boundsBuffer.dispose();
   setup();
 };
 
+restartButton.onclick = restart;
+
 twinGalaxiesToggle.onchange = () => {
   twinGalaxies = twinGalaxiesToggle.checked;
-  setup();
+  restart();
 };
 
 moreBodiesToggle.onchange = () => {
@@ -226,17 +254,10 @@ moreBodiesToggle.onchange = () => {
     : initialNumBodies;
   maxNodes = numBodies * 8;
   blackHoleMass = numBodies / 2;
-  setup();
+  restart();
 };
 
-engine.runRenderLoop(async () => {
-  const dt = engine.getDeltaTime() / 1000;
-  const fps = engine.getFps();
-  fpsText.innerHTML = `FPS: ${fps.toFixed(2)}`;
-
-  params.updateFloat("dt", dt);
-  params.update();
-
+const step = () => {
   const bufferIn = swap ? bodiesBuffer2 : bodiesBuffer;
   const bufferOut = swap ? bodiesBuffer : bodiesBuffer2;
 
@@ -250,16 +271,23 @@ engine.runRenderLoop(async () => {
   bhClearShader.setStorageBuffer("nodes", nodesBuffer);
   bhClearShader.dispatch(Math.ceil(maxNodes / 256));
 
-  // 2b: Reset Allocator (Root is 0, so next free is 1)
+  // 2b: Reset Allocator (Root is 0, so next free is 1) and Bounds
   allocatorBuffer.update(new Uint32Array([1]));
+  boundsBuffer.update(boundsReset);
 
-  // 2c: Build Tree
+  // 2c: Compute Bounds of all bodies (Root of the tree)
+  bhBoundsShader.setStorageBuffer("bodies", bufferOut);
+  bhBoundsShader.setStorageBuffer("bounds", boundsBuffer);
+  bhBoundsShader.dispatch(Math.ceil(numBodies / 256));
+
+  // 2d: Build Tree
   bhTreeShader.setStorageBuffer("bodies", bufferOut);
   bhTreeShader.setStorageBuffer("nodes", nodesBuffer);
   bhTreeShader.setStorageBuffer("allocator", allocatorBuffer);
+  bhTreeShader.setStorageBuffer("bounds", boundsBuffer);
   bhTreeShader.dispatch(Math.ceil(numBodies / 256));
 
-  // 2d: Compute Forces (Kick 2)
+  // 2e: Compute Forces (Kick 2)
   bhForcesShader.setStorageBuffer("bodies", bufferOut);
   bhForcesShader.setStorageBuffer("nodes", nodesBuffer);
   bhForcesShader.dispatch(Math.ceil(numBodies / 256));
@@ -267,6 +295,28 @@ engine.runRenderLoop(async () => {
   bodiesMat.setStorageBuffer("bodies", bufferOut);
 
   swap = !swap;
+};
+
+// Fixed timestep keeps the leapfrog integrator stable and results independent of frame rate.
+// At most one step runs per frame: if the GPU can't keep up (or the tab was hidden) the
+// simulation slows down instead of taking bigger, less accurate steps.
+let timeAccumulator = 0;
+
+engine.runRenderLoop(async () => {
+  const fps = engine.getFps();
+  fpsText.innerHTML = `FPS: ${fps.toFixed(2)}`;
+
+  timeAccumulator = Math.min(
+    timeAccumulator + engine.getDeltaTime() / 1000,
+    2 * simDt,
+  );
+  if (timeAccumulator >= simDt) {
+    step();
+    timeAccumulator -= simDt;
+  }
+
+  // Draw bodies where they'd be by now, so motion stays smooth at any refresh rate
+  bodiesMat.setFloat("extrapolationTime", timeAccumulator);
 
   scene.render();
 });

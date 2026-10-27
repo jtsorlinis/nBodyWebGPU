@@ -6,9 +6,7 @@ struct Params {
   softening: f32,
   theta: f32,
   maxNodes: u32,
-  _pad0: u32,
-  minPos: vec3<f32>,
-  maxPos: vec3<f32>,
+  massScale: f32,
 }
 
 struct Body {
