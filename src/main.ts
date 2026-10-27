@@ -19,6 +19,7 @@ import {
   createBHTraversalShaders,
   BH_FORCE_WORKGROUP_SIZE,
   BH_ORDER_BIN_COUNT,
+  BH_ORDER_BLOCK_COUNT,
 } from "./shaders";
 import { randRange } from "./utils";
 
@@ -143,6 +144,7 @@ let clearArgsBuffer: StorageBuffer;
 let parentsBuffer: StorageBuffer;
 let ropesBuffer: StorageBuffer;
 let orderCountsBuffer: StorageBuffer;
+let orderBlocksBuffer: StorageBuffer;
 let orderRanksBuffer: StorageBuffer;
 let bodyOrderBuffer: StorageBuffer;
 let swap = false;
@@ -256,6 +258,7 @@ const setup = () => {
   parentsBuffer.update(new Uint32Array([0, 0]));
   ropesBuffer = new StorageBuffer(engine, maxNodes * 4);
   orderCountsBuffer = new StorageBuffer(engine, BH_ORDER_BIN_COUNT * 4);
+  orderBlocksBuffer = new StorageBuffer(engine, BH_ORDER_BLOCK_COUNT * 4);
   orderRanksBuffer = new StorageBuffer(engine, numBodies * 8);
   bodyOrderBuffer = new StorageBuffer(engine, numBodies * 4);
   for (const shader of [traversal.parents, traversal.ropes]) {
@@ -264,8 +267,11 @@ const setup = () => {
     shader.setStorageBuffer("parents", parentsBuffer);
   }
   traversal.ropes.setStorageBuffer("ropes", ropesBuffer);
-  for (const shader of [traversal.orderClear, traversal.orderKeys, traversal.orderScan, traversal.orderScatter]) {
+  for (const shader of [traversal.orderClear, traversal.orderKeys, traversal.orderScanBlocks, traversal.orderScatter]) {
     shader.setStorageBuffer("counts", orderCountsBuffer);
+  }
+  for (const shader of [traversal.orderScanBlocks, traversal.orderScan, traversal.orderScatter]) {
+    shader.setStorageBuffer("blocks", orderBlocksBuffer);
   }
   traversal.orderKeys.setStorageBuffer("bounds", boundsBuffer);
   traversal.orderKeys.setStorageBuffer("ranks", orderRanksBuffer);
@@ -300,6 +306,7 @@ const restart = () => {
   parentsBuffer.dispose();
   ropesBuffer.dispose();
   orderCountsBuffer.dispose();
+  orderBlocksBuffer.dispose();
   orderRanksBuffer.dispose();
   bodyOrderBuffer.dispose();
   setup();
@@ -361,6 +368,7 @@ const step = () => {
 
   // 2e: Build subtree successor links for stackless force traversal. Each pass
   // reads the completed previous pass; reachable parent links are rewritten each step.
+  // The rope pass also decodes mass/COM in place, once per node instead of per body.
   traversal.parents.dispatch(Math.ceil(maxNodes / 256));
   traversal.ropes.dispatch(Math.ceil(maxNodes / 256));
 
@@ -369,6 +377,8 @@ const step = () => {
   traversal.orderClear.dispatch(Math.ceil(BH_ORDER_BIN_COUNT / 256));
   traversal.orderKeys.setStorageBuffer("bodies", bufferOut);
   traversal.orderKeys.dispatch(Math.ceil(numBodies / 256));
+  // Scan histogram blocks in parallel, then their totals; scatter adds both offsets.
+  traversal.orderScanBlocks.dispatch(BH_ORDER_BLOCK_COUNT);
   traversal.orderScan.dispatch(1);
   traversal.orderScatter.dispatch(Math.ceil(numBodies / 256));
 

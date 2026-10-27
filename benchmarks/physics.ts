@@ -12,13 +12,22 @@ import orderClear from './physics-candidates/orderClear.wgsl?raw';
 import decodeNodes from './physics-candidates/decodeNodes.wgsl?raw';
 import parentsSource from './physics-candidates/parents.wgsl?raw';
 import ropesSource from './physics-candidates/ropes.wgsl?raw';
-import productionForce from '../src/shaders/compute/barnes-hut/bhForces.wgsl?raw';
-import { BH_FORCE_WORKGROUP_SIZE, BH_ORDER_GRID_SIZE, bhTraversalSources } from '../src/shaders';
+import productionForce from './traversal-baseline/bhForces.wgsl?raw';
+import round2Parents from './traversal-baseline/bhParents.wgsl?raw';
+import round2Ropes from './traversal-baseline/bhRopes.wgsl?raw';
+import round2Clear from './traversal-baseline/bhOrderClear.wgsl?raw';
+import round2Keys from './traversal-baseline/bhOrderKeys.wgsl?raw';
+import round2Scan from './traversal-baseline/bhOrderScan.wgsl?raw';
+import round2Scatter from './traversal-baseline/bhOrderScatter.wgsl?raw';
+
+const BH_FORCE_WORKGROUP_SIZE = 64, BH_ORDER_GRID_SIZE = 64;
+const bhTraversalSources = {parents:round2Parents,ropes:round2Ropes,orderClear:round2Clear,
+  orderKeys:round2Keys.replaceAll('GRID_SIZE','64u'),orderScan:round2Scan.replaceAll('BIN_COUNT','262144u'),orderScatter:round2Scatter};
 
 type Variant = { name: string; source: string; workgroup: number; grid?: number; decode?: boolean; rope?: boolean };
 
 export async function benchmarkPhysics() {
-  const production = options.has('production');
+  const production = options.has('round2');
   const adapter = await navigator.gpu?.requestAdapter({ powerPreference: 'high-performance' });
   if (!adapter || !adapter.features.has('timestamp-query')) throw new Error('WebGPU timestamp queries required');
   const device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'], requiredLimits: {

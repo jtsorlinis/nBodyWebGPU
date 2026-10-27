@@ -1,13 +1,13 @@
-@group(0) @binding(0) var<storage, read_write> counts: array<u32>;
+@group(0) @binding(0) var<storage, read_write> blocks: array<u32>;
 var<workgroup> sums: array<u32, 256>;
 
-// One workgroup scans the histogram. Each lane owns a disjoint contiguous chunk.
+// One workgroup scans the block totals. Each lane owns a disjoint contiguous chunk.
 @compute @workgroup_size(256)
 fn main(@builtin(local_invocation_id) id: vec3<u32>) {
-  let chunkSize = BIN_COUNT / 256u;
+  let chunkSize = BLOCK_COUNT / 256u;
   let start = id.x * chunkSize;
   var total = 0u;
-  for (var i = 0u; i < chunkSize; i++) { total += counts[start + i]; }
+  for (var i = 0u; i < chunkSize; i++) { total += blocks[start + i]; }
   sums[id.x] = total;
   workgroupBarrier();
   for (var stride = 1u; stride < 256u; stride <<= 1u) {
@@ -20,8 +20,8 @@ fn main(@builtin(local_invocation_id) id: vec3<u32>) {
   var offset = 0u;
   if (id.x > 0u) { offset = sums[id.x - 1u]; }
   for (var i = 0u; i < chunkSize; i++) {
-    let count = counts[start + i];
-    counts[start + i] = offset;
+    let count = blocks[start + i];
+    blocks[start + i] = offset;
     offset += count;
   }
 }

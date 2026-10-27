@@ -1,5 +1,8 @@
 # Physics traversal optimization, 27 October 2026
 
+This is the second-round report. See [TRAVERSAL.md](TRAVERSAL.md) for the later
+changes against `c03ea56`. The `round2` route below reproduces this saved version.
+
 Baseline: `4e790f30fe4b382f4e8fb3556fd91e926792f6fb` (the version present at the
 start of this work). The six shaders in `physics-baseline/` are exact snapshots
 of that commit. Rendering, tree construction, timestep, softening, theta, and
@@ -53,8 +56,9 @@ All tested candidates produced identical accelerations and velocities.
   spatial ordering. Extra memory traffic outweighed the saved arithmetic.
 
 The prototypes are retained in `physics-candidates/`; rejected variants are not
-used by the app. The final comparison imports the production force shader and
-all six production preparation shaders.
+used by the app. The final comparison originally imported the production force shader and
+all six production preparation shaders. The `round2` route now uses their saved
+`c03ea56` snapshots so this result remains reproducible.
 
 ## Correctness checks
 
@@ -93,11 +97,11 @@ other GPU-intensive pages and wait for **Finished**. The server binds only to
 
 | Comparison | URL path |
 | --- | --- |
-| Current production vs this baseline | `/benchmarks/?run=physics-production&production` |
+| Saved second-round result vs this baseline | `/benchmarks/?run=physics-production&round2` |
 | All individual candidates | `/benchmarks/?run=physics-suite&physics=suite` |
 | Successor and ordering combinations, full step | `/benchmarks/?run=physics-full&physics=rope-suite&mode=full` |
 | Every evolving state at maximum gravity | `/benchmarks/?run=physics-evolving&physics=rope-order64&evolve&gravity=100` |
-| Production evolving-state regression | `/benchmarks/?run=physics-production-stress&production&evolve&gravity=100` |
+| Second-round evolving-state regression | `/benchmarks/?run=physics-production-stress&round2&evolve&gravity=100` |
 | Partial workgroups | `/benchmarks/?run=physics-edge&physics=rope-order64&mode=full&edge` |
 | Second seed | `/benchmarks/?run=physics-second-seed&physics=rope-order64&mode=full&seed=987654321` |
 

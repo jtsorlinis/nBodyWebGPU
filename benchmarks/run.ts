@@ -13,12 +13,11 @@ import productionTree from './physics-baseline/bhTree.wgsl?raw';
 import productionClear from './physics-baseline/bhClear.wgsl?raw';
 import productionForce from './physics-baseline/bhForces.wgsl?raw';
 import productionPrepare from './physics-baseline/bhPrepare.wgsl?raw';
-import { BH_FORCE_WORKGROUP_SIZE } from '../src/shaders';
 
 async function computeBench() {
   // Preserve the first optimization round's benchmark via &previous.
   const production = options.has('previous');
-  const forceWorkgroup = production ? BH_FORCE_WORKGROUP_SIZE : Number(options.get('workgroup') ?? 256);
+  const forceWorkgroup = production ? 64 : Number(options.get('workgroup') ?? 256);
   const usedClear = production || options.get('clear') === 'used';
   const iterations = options.has('evolve') ? 120 : 15;
   const gravity = Number(options.get('gravity') ?? 5);
@@ -194,7 +193,10 @@ async function computeBench() {
 }
 
 try {
-  if (options.has('physics') || options.has('production')) {
+  if (options.has('traversal') || options.has('production')) {
+    const { benchmarkTraversal } = await import('./traversal');
+    await benchmarkTraversal();
+  } else if (options.has('physics') || options.has('round2')) {
     const { benchmarkPhysics } = await import('./physics');
     await benchmarkPhysics();
   } else if (options.has('render')) {

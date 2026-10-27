@@ -19,13 +19,16 @@ import bhRopesSource from "./compute/barnes-hut/bhRopes.wgsl?raw";
 import bhOrderClearSource from "./compute/barnes-hut/bhOrderClear.wgsl?raw";
 import bhOrderKeysSource from "./compute/barnes-hut/bhOrderKeys.wgsl?raw";
 import bhOrderScanSource from "./compute/barnes-hut/bhOrderScan.wgsl?raw";
+import bhOrderScanBlocksSource from "./compute/barnes-hut/bhOrderScanBlocks.wgsl?raw";
 import bhOrderScatterSource from "./compute/barnes-hut/bhOrderScatter.wgsl?raw";
 
 // Share the dispatch size with main.ts so the shader and dispatch cannot drift apart.
-export const BH_FORCE_WORKGROUP_SIZE = 64;
-// A power-of-two grid makes the interleaved Morton keys contiguous histogram indices.
-export const BH_ORDER_GRID_SIZE = 64;
+export const BH_FORCE_WORKGROUP_SIZE = 256;
+// 64 or 128 cells per axis keep both scan levels divisible by 256 and dispatches
+// within WebGPU's workgroup-count limit. Morton keys index the histogram directly.
+export const BH_ORDER_GRID_SIZE = 128;
 export const BH_ORDER_BIN_COUNT = BH_ORDER_GRID_SIZE ** 3;
+export const BH_ORDER_BLOCK_COUNT = BH_ORDER_BIN_COUNT / 256;
 
 // Also used by the GPU benchmark, so it checks the actual production shaders.
 export const bhTraversalSources = {
@@ -33,7 +36,8 @@ export const bhTraversalSources = {
   ropes: bhRopesSource,
   orderClear: bhOrderClearSource,
   orderKeys: bhOrderKeysSource.replace(/GRID_SIZE/g, `${BH_ORDER_GRID_SIZE}u`),
-  orderScan: bhOrderScanSource.replace(/BIN_COUNT/g, `${BH_ORDER_BIN_COUNT}u`),
+  orderScanBlocks: bhOrderScanBlocksSource,
+  orderScan: bhOrderScanSource.replace(/BLOCK_COUNT/g, `${BH_ORDER_BLOCK_COUNT}u`),
   orderScatter: bhOrderScatterSource,
 };
 
@@ -48,8 +52,9 @@ export const createBHTraversalShaders = (engine: WebGPUEngine) => {
     ropes: create("ropes", ["params", "nodes", "allocator", "parents", "ropes"]),
     orderClear: create("orderClear", ["counts"]),
     orderKeys: create("orderKeys", ["params", "bodies", "bounds", "counts", "ranks"]),
-    orderScan: create("orderScan", ["counts"]),
-    orderScatter: create("orderScatter", ["params", "counts", "ranks", "bodyOrder"]),
+    orderScanBlocks: create("orderScanBlocks", ["counts", "blocks"]),
+    orderScan: create("orderScan", ["blocks"]),
+    orderScatter: create("orderScatter", ["params", "counts", "ranks", "bodyOrder", "blocks"]),
   };
 };
 

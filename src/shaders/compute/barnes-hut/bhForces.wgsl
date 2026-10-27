@@ -16,6 +16,8 @@ struct Body {
   mass : f32,
 };
 
+// bhRopes reuses the four integer accumulation slots as f32 COM xyz and mass.
+// Bitcasts below reinterpret those bytes; bhClear resets them before the next build.
 struct Node {
   massInt: i32,
   comXInt: i32,
@@ -53,13 +55,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     let nodeIdx = nextNode;
     nextNode = ropes[nodeIdx];
 
-    let mass = f32(nodes[nodeIdx].massInt) / params.massScale;
+    let mass = bitcast<f32>(nodes[nodeIdx].comZInt);
 
     if (mass <= 0.0) { continue; }
 
-    // Moment is relative to the node centre in units of its half size (see bhTree)
-    let moment = vec3(f32(nodes[nodeIdx].comXInt), f32(nodes[nodeIdx].comYInt), f32(nodes[nodeIdx].comZInt));
-    let com = nodes[nodeIdx].center + moment / f32(nodes[nodeIdx].massInt) * nodes[nodeIdx].halfSize;
+    // The center of mass was decoded once per node by bhRopes.
+    let com = vec3<f32>(bitcast<f32>(nodes[nodeIdx].massInt), bitcast<f32>(nodes[nodeIdx].comXInt), bitcast<f32>(nodes[nodeIdx].comYInt));
 
     let r = com - body.pos;
     let distSq = dot(r, r);

@@ -1,7 +1,8 @@
 # GPU performance experiments
 
-The newer physics traversal improvements against commit `4e790f3` are documented
-in [PHYSICS.md](PHYSICS.md), with a separate baseline and saved measurements.
+The latest physics improvements against `c03ea56` are in [TRAVERSAL.md](TRAVERSAL.md).
+The preceding round against `4e790f3` is in [PHYSICS.md](PHYSICS.md). Each has an
+immutable baseline and saved measurements.
 
 Run `npm run benchmark`, then open one of the URLs below in a WebGPU browser.
 The server listens only on `127.0.0.1:5174`. `npm run benchmark:check` type-checks
@@ -19,7 +20,7 @@ Run one page at a time, with other GPU-intensive pages closed:
 | Experiment | URL after `http://127.0.0.1:5174` |
 | --- | --- |
 | Original compute | `/benchmarks/?run=baseline` |
-| Current production vs `4e790f3` | `/benchmarks/?run=production&production` |
+| Current production vs `c03ea56` | `/benchmarks/?run=production&production` |
 | Spheres/quads, full/half bloom | `/benchmarks/?run=render&render` |
 | Root reduction only | `/benchmarks/?run=root&reducedTree` |
 | Skip clearing node geometry | `/benchmarks/?run=geometry&clear=geometry` |
@@ -31,7 +32,8 @@ Run one page at a time, with other GPU-intensive pages closed:
 | Partial workgroups and small counts | `/benchmarks/?run=edge&previous&edge` |
 | 120 evolving steps at maximum gravity | `/benchmarks/?run=stress&previous&evolve&gravity=100` |
 
-Append `&quick` to use 4,096 and 131,072 bodies instead of including 262,144.
+For these original experiments, `&quick` selects 4,096 and 131,072 bodies. The
+current production/traversal harness instead selects 131,072 bodies and one galaxy.
 Keep the page open until it says **Finished**. Errors are displayed and recorded.
 
 ## Method

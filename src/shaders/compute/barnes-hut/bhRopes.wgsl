@@ -7,7 +7,7 @@ struct Node {
   center: vec3<f32>, halfSize: f32, children: array<i32, 8>,
 }
 @group(0) @binding(0) var<uniform> params: Params;
-@group(0) @binding(1) var<storage, read> nodes: array<Node>;
+@group(0) @binding(1) var<storage, read_write> nodes: array<Node>;
 @group(0) @binding(2) var<storage, read> allocator: u32;
 @group(0) @binding(3) var<storage, read> parents: array<vec2<u32>>;
 @group(0) @binding(4) var<storage, read_write> ropes: array<i32>;
@@ -28,4 +28,18 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     current = parent;
   }
   ropes[id.x] = next;
+  // Reuse the first 16 bytes for decoded COM xyz and mass after tree construction.
+  // Other invocations only read children here, which this conversion never changes.
+  // The next bhClear restores integer accumulation slots to zero.
+  let weight = nodes[id.x].massInt;
+  let mass = f32(weight) / params.massScale;
+  var com = vec3<f32>(0.0);
+  if (weight > 0) {
+    let moment = vec3<f32>(f32(nodes[id.x].comXInt), f32(nodes[id.x].comYInt), f32(nodes[id.x].comZInt));
+    com = nodes[id.x].center + moment / f32(weight) * nodes[id.x].halfSize;
+  }
+  nodes[id.x].massInt = bitcast<i32>(com.x);
+  nodes[id.x].comXInt = bitcast<i32>(com.y);
+  nodes[id.x].comYInt = bitcast<i32>(com.z);
+  nodes[id.x].comZInt = bitcast<i32>(mass);
 }
