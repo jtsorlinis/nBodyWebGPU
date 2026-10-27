@@ -1,0 +1,3903 @@
+{
+  "baselineCommit": "4e790f30fe4b382f4e8fb3556fd91e926792f6fb",
+  "date": "2026-10-27",
+  "note": "Latest complete run per experiment. GPU timestamps in milliseconds; paired alternates variants on one resident tree, full includes integration, rebuilding and all preparation passes. Warmup excluded.",
+  "runs": [
+    {
+      "run": "physics-screen",
+      "type": "physics-environment",
+      "baselineCommit": "4e790f3",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    },
+    {
+      "run": "physics-screen",
+      "type": "physics-paired",
+      "count": 4096,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 0.458752,
+          "min": 0.393216,
+          "p90": 0.458752
+        },
+        "direct-loads": {
+          "median": 0.524288,
+          "min": 0.524288,
+          "p90": 0.524288
+        },
+        "unrolled": {
+          "median": 0.524288,
+          "min": 0.458752,
+          "p90": 0.524288
+        },
+        "wg32": {
+          "median": 0.458752,
+          "min": 0.393216,
+          "p90": 0.458752
+        },
+        "order16": {
+          "median": 0.393216,
+          "min": 0.32768,
+          "p90": 0.393216
+        },
+        "order32": {
+          "median": 0.393216,
+          "min": 0.393216,
+          "p90": 0.393216
+        },
+        "order64": {
+          "median": 0.589824,
+          "min": 0.589824,
+          "p90": 0.65536
+        },
+        "loads-order32": {
+          "median": 0.458752,
+          "min": 0.458752,
+          "p90": 0.458752
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "direct-loads",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "unrolled",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "wg32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "order16",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-screen",
+      "type": "physics-paired",
+      "count": 131072,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 7.667712,
+          "min": 7.53664,
+          "p90": 8.126464
+        },
+        "direct-loads": {
+          "median": 7.077888,
+          "min": 6.946816,
+          "p90": 7.471104
+        },
+        "unrolled": {
+          "median": 7.077888,
+          "min": 6.946816,
+          "p90": 7.274496
+        },
+        "wg32": {
+          "median": 7.667712,
+          "min": 7.53664,
+          "p90": 8.585216
+        },
+        "order16": {
+          "median": 6.488064,
+          "min": 6.356992,
+          "p90": 6.88128
+        },
+        "order32": {
+          "median": 6.094848,
+          "min": 5.963776,
+          "p90": 6.291456
+        },
+        "order64": {
+          "median": 6.094848,
+          "min": 5.963776,
+          "p90": 6.291456
+        },
+        "loads-order32": {
+          "median": 5.505024,
+          "min": 5.505024,
+          "p90": 5.767168
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "direct-loads",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "unrolled",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "wg32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "order16",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-screen",
+      "type": "physics-paired",
+      "count": 131072,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 7.471104,
+          "min": 7.340032,
+          "p90": 7.86432
+        },
+        "direct-loads": {
+          "median": 7.143424,
+          "min": 7.012352,
+          "p90": 7.733248
+        },
+        "unrolled": {
+          "median": 7.274496,
+          "min": 7.012352,
+          "p90": 7.86432
+        },
+        "wg32": {
+          "median": 7.471104,
+          "min": 7.405568,
+          "p90": 7.929856
+        },
+        "order16": {
+          "median": 6.815744,
+          "min": 6.619136,
+          "p90": 7.53664
+        },
+        "order32": {
+          "median": 6.356992,
+          "min": 6.291456,
+          "p90": 6.88128
+        },
+        "order64": {
+          "median": 6.160384,
+          "min": 6.029312,
+          "p90": 6.750208
+        },
+        "loads-order32": {
+          "median": 5.89824,
+          "min": 5.767168,
+          "p90": 6.291456
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "direct-loads",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "unrolled",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "wg32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "order16",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-screen",
+      "type": "physics-paired",
+      "count": 262144,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 17.69472,
+          "min": 17.170432,
+          "p90": 19.00544
+        },
+        "direct-loads": {
+          "median": 16.908288,
+          "min": 16.252928,
+          "p90": 18.939904
+        },
+        "unrolled": {
+          "median": 16.842752,
+          "min": 16.187392,
+          "p90": 18.874368
+        },
+        "wg32": {
+          "median": 18.087936,
+          "min": 17.563648,
+          "p90": 18.874368
+        },
+        "order16": {
+          "median": 15.40096,
+          "min": 14.876672,
+          "p90": 16.71168
+        },
+        "order32": {
+          "median": 14.680064,
+          "min": 14.024704,
+          "p90": 15.925248
+        },
+        "order64": {
+          "median": 13.500416,
+          "min": 13.303808,
+          "p90": 14.155776
+        },
+        "loads-order32": {
+          "median": 13.697024,
+          "min": 12.910592,
+          "p90": 14.41792
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "direct-loads",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "unrolled",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "wg32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "order16",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-screen",
+      "type": "physics-paired",
+      "count": 262144,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 17.891328,
+          "min": 17.301504,
+          "p90": 19.202048
+        },
+        "direct-loads": {
+          "median": 16.449536,
+          "min": 16.05632,
+          "p90": 17.432576
+        },
+        "unrolled": {
+          "median": 16.646144,
+          "min": 16.121856,
+          "p90": 17.498112
+        },
+        "wg32": {
+          "median": 18.153472,
+          "min": 17.498112,
+          "p90": 19.136512
+        },
+        "order16": {
+          "median": 16.252928,
+          "min": 15.663104,
+          "p90": 17.629184
+        },
+        "order32": {
+          "median": 15.532032,
+          "min": 14.811136,
+          "p90": 16.515072
+        },
+        "order64": {
+          "median": 14.680064,
+          "min": 14.09024,
+          "p90": 15.532032
+        },
+        "loads-order32": {
+          "median": 14.548992,
+          "min": 13.76256,
+          "p90": 15.269888
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "direct-loads",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "unrolled",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "wg32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "order16",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-screen",
+      "type": "complete"
+    },
+    {
+      "run": "physics-ordering",
+      "type": "physics-environment",
+      "baselineCommit": "4e790f3",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    },
+    {
+      "run": "physics-ordering",
+      "type": "physics-paired",
+      "count": 4096,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 0.458752,
+          "min": 0.393216,
+          "p90": 0.458752
+        },
+        "order16": {
+          "median": 0.393216,
+          "min": 0.32768,
+          "p90": 0.393216
+        },
+        "order32": {
+          "median": 0.393216,
+          "min": 0.393216,
+          "p90": 0.393216
+        },
+        "order64": {
+          "median": 0.589824,
+          "min": 0.589824,
+          "p90": 0.65536
+        },
+        "loads-order32": {
+          "median": 0.458752,
+          "min": 0.458752,
+          "p90": 0.65536
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "order16",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-ordering",
+      "type": "physics-paired",
+      "count": 131072,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 7.733248,
+          "min": 7.602176,
+          "p90": 8.454144
+        },
+        "order16": {
+          "median": 6.5536,
+          "min": 6.422528,
+          "p90": 7.274496
+        },
+        "order32": {
+          "median": 6.094848,
+          "min": 5.89824,
+          "p90": 6.619136
+        },
+        "order64": {
+          "median": 6.029312,
+          "min": 5.89824,
+          "p90": 6.22592
+        },
+        "loads-order32": {
+          "median": 5.505024,
+          "min": 5.439488,
+          "p90": 5.636096
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "order16",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-ordering",
+      "type": "physics-paired",
+      "count": 131072,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 7.86432,
+          "min": 7.405568,
+          "p90": 8.323072
+        },
+        "order16": {
+          "median": 6.750208,
+          "min": 6.5536,
+          "p90": 7.340032
+        },
+        "order32": {
+          "median": 6.356992,
+          "min": 6.160384,
+          "p90": 6.619136
+        },
+        "order64": {
+          "median": 6.094848,
+          "min": 5.963776,
+          "p90": 6.422528
+        },
+        "loads-order32": {
+          "median": 5.832704,
+          "min": 5.701632,
+          "p90": 6.029312
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "order16",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-ordering",
+      "type": "physics-paired",
+      "count": 262144,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 18.0224,
+          "min": 17.432576,
+          "p90": 18.939904
+        },
+        "order16": {
+          "median": 15.597568,
+          "min": 14.7456,
+          "p90": 16.318464
+        },
+        "order32": {
+          "median": 14.548992,
+          "min": 13.893632,
+          "p90": 15.597568
+        },
+        "order64": {
+          "median": 14.155776,
+          "min": 13.369344,
+          "p90": 15.07328
+        },
+        "loads-order32": {
+          "median": 13.238272,
+          "min": 12.713984,
+          "p90": 13.959168
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "order16",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-ordering",
+      "type": "physics-paired",
+      "count": 262144,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 18.481152,
+          "min": 17.36704,
+          "p90": 19.398656
+        },
+        "order16": {
+          "median": 17.235968,
+          "min": 15.597568,
+          "p90": 17.69472
+        },
+        "order32": {
+          "median": 16.05632,
+          "min": 14.7456,
+          "p90": 16.71168
+        },
+        "order64": {
+          "median": 15.269888,
+          "min": 14.024704,
+          "p90": 15.859712
+        },
+        "loads-order32": {
+          "median": 14.942208,
+          "min": 13.828096,
+          "p90": 15.72864
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "order16",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-ordering",
+      "type": "complete"
+    },
+    {
+      "run": "physics-decode",
+      "type": "physics-environment",
+      "baselineCommit": "4e790f3",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    },
+    {
+      "run": "physics-decode",
+      "type": "physics-paired",
+      "count": 4096,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 0.393216,
+          "min": 0.393216,
+          "p90": 0.458752
+        },
+        "loads-order32": {
+          "median": 0.458752,
+          "min": 0.393216,
+          "p90": 0.458752
+        },
+        "loads-order64": {
+          "median": 0.589824,
+          "min": 0.589824,
+          "p90": 0.65536
+        },
+        "decode": {
+          "median": 0.393216,
+          "min": 0.32768,
+          "p90": 0.393216
+        },
+        "decode-loads": {
+          "median": 0.458752,
+          "min": 0.458752,
+          "p90": 0.524288
+        },
+        "decode-order32": {
+          "median": 0.458752,
+          "min": 0.393216,
+          "p90": 0.589824
+        },
+        "decode-order64": {
+          "median": 0.65536,
+          "min": 0.589824,
+          "p90": 0.65536
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "decode",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "decode-loads",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "decode-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "decode-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-decode",
+      "type": "physics-paired",
+      "count": 131072,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 7.667712,
+          "min": 7.602176,
+          "p90": 8.257536
+        },
+        "loads-order32": {
+          "median": 5.57056,
+          "min": 5.505024,
+          "p90": 5.963776
+        },
+        "loads-order64": {
+          "median": 5.57056,
+          "min": 5.439488,
+          "p90": 5.832704
+        },
+        "decode": {
+          "median": 9.109504,
+          "min": 9.043968,
+          "p90": 9.764864
+        },
+        "decode-loads": {
+          "median": 8.323072,
+          "min": 8.192,
+          "p90": 8.716288
+        },
+        "decode-order32": {
+          "median": 6.356992,
+          "min": 6.160384,
+          "p90": 6.488064
+        },
+        "decode-order64": {
+          "median": 6.22592,
+          "min": 6.094848,
+          "p90": 6.684672
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "decode",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "decode-loads",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "decode-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "decode-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-decode",
+      "type": "physics-paired",
+      "count": 131072,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 7.667712,
+          "min": 7.340032,
+          "p90": 8.257536
+        },
+        "loads-order32": {
+          "median": 5.89824,
+          "min": 5.701632,
+          "p90": 6.488064
+        },
+        "loads-order64": {
+          "median": 5.767168,
+          "min": 5.57056,
+          "p90": 6.291456
+        },
+        "decode": {
+          "median": 8.84736,
+          "min": 8.585216,
+          "p90": 9.371648
+        },
+        "decode-loads": {
+          "median": 7.86432,
+          "min": 7.798784,
+          "p90": 8.060928
+        },
+        "decode-order32": {
+          "median": 6.619136,
+          "min": 6.422528,
+          "p90": 6.815744
+        },
+        "decode-order64": {
+          "median": 6.488064,
+          "min": 6.22592,
+          "p90": 6.815744
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "decode",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "decode-loads",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "decode-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "decode-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-decode",
+      "type": "physics-paired",
+      "count": 262144,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 17.825792,
+          "min": 17.235968,
+          "p90": 18.415616
+        },
+        "loads-order32": {
+          "median": 13.631488,
+          "min": 12.845056,
+          "p90": 14.942208
+        },
+        "loads-order64": {
+          "median": 13.1072,
+          "min": 12.45184,
+          "p90": 14.41792
+        },
+        "decode": {
+          "median": 21.2992,
+          "min": 20.905984,
+          "p90": 22.60992
+        },
+        "decode-loads": {
+          "median": 19.202048,
+          "min": 18.743296,
+          "p90": 20.381696
+        },
+        "decode-order32": {
+          "median": 15.138816,
+          "min": 14.614528,
+          "p90": 15.72864
+        },
+        "decode-order64": {
+          "median": 14.483456,
+          "min": 14.155776,
+          "p90": 15.07328
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "decode",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "decode-loads",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "decode-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "decode-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-decode",
+      "type": "physics-paired",
+      "count": 262144,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "gpuMs": {
+        "baseline": {
+          "median": 17.825792,
+          "min": 17.170432,
+          "p90": 18.808832
+        },
+        "loads-order32": {
+          "median": 14.41792,
+          "min": 13.828096,
+          "p90": 15.40096
+        },
+        "loads-order64": {
+          "median": 13.697024,
+          "min": 12.976128,
+          "p90": 14.41792
+        },
+        "decode": {
+          "median": 21.757952,
+          "min": 21.102592,
+          "p90": 22.28224
+        },
+        "decode-loads": {
+          "median": 19.398656,
+          "min": 18.67776,
+          "p90": 19.98848
+        },
+        "decode-order32": {
+          "median": 16.187392,
+          "min": 15.532032,
+          "p90": 17.36704
+        },
+        "decode-order64": {
+          "median": 15.269888,
+          "min": 14.680064,
+          "p90": 16.646144
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "decode",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "decode-loads",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0
+        },
+        {
+          "variant": "decode-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        },
+        {
+          "variant": "decode-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "relativeRms": 0,
+          "validPermutation": true
+        }
+      ]
+    },
+    {
+      "run": "physics-decode",
+      "type": "complete"
+    },
+    {
+      "run": "physics-ropes",
+      "type": "physics-environment",
+      "baselineCommit": "4e790f3",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    },
+    {
+      "run": "physics-ropes",
+      "type": "physics-paired",
+      "count": 4096,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 0.458752,
+          "min": 0.393216,
+          "p90": 0.589824
+        },
+        "loads-order32": {
+          "median": 0.458752,
+          "min": 0.458752,
+          "p90": 0.65536
+        },
+        "loads-order64": {
+          "median": 0.720896,
+          "min": 0.65536,
+          "p90": 0.720896
+        },
+        "rope": {
+          "median": 0.524288,
+          "min": 0.458752,
+          "p90": 0.524288
+        },
+        "rope-order32": {
+          "median": 0.393216,
+          "min": 0.393216,
+          "p90": 0.458752
+        },
+        "rope-order64": {
+          "median": 0.65536,
+          "min": 0.589824,
+          "p90": 0.65536
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.005336495072305634
+      },
+      "treeCheck": {
+        "usedNodes": 11120,
+        "reachableNodes": 2422,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-ropes",
+      "type": "physics-paired",
+      "count": 131072,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 7.667712,
+          "min": 7.53664,
+          "p90": 8.257536
+        },
+        "loads-order32": {
+          "median": 5.767168,
+          "min": 5.505024,
+          "p90": 6.029312
+        },
+        "loads-order64": {
+          "median": 5.636096,
+          "min": 5.505024,
+          "p90": 5.963776
+        },
+        "rope": {
+          "median": 6.422528,
+          "min": 6.22592,
+          "p90": 6.5536
+        },
+        "rope-order32": {
+          "median": 4.325376,
+          "min": 4.25984,
+          "p90": 4.390912
+        },
+        "rope-order64": {
+          "median": 4.325376,
+          "min": 4.25984,
+          "p90": 4.521984
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.003202672881908904
+      },
+      "treeCheck": {
+        "usedNodes": 191268,
+        "reachableNodes": 66405,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-ropes",
+      "type": "physics-paired",
+      "count": 131072,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 7.602176,
+          "min": 7.405568,
+          "p90": 8.126464
+        },
+        "loads-order32": {
+          "median": 6.029312,
+          "min": 5.767168,
+          "p90": 6.291456
+        },
+        "loads-order64": {
+          "median": 5.701632,
+          "min": 5.57056,
+          "p90": 5.89824
+        },
+        "rope": {
+          "median": 6.029312,
+          "min": 5.963776,
+          "p90": 6.488064
+        },
+        "rope-order32": {
+          "median": 4.980736,
+          "min": 4.784128,
+          "p90": 5.308416
+        },
+        "rope-order64": {
+          "median": 4.718592,
+          "min": 4.58752,
+          "p90": 5.046272
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0017790809507408803
+      },
+      "treeCheck": {
+        "usedNodes": 176924,
+        "reachableNodes": 69193,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-ropes",
+      "type": "physics-paired",
+      "count": 262144,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 18.087936,
+          "min": 17.235968,
+          "p90": 18.808832
+        },
+        "loads-order32": {
+          "median": 13.303808,
+          "min": 12.910592,
+          "p90": 14.680064
+        },
+        "loads-order64": {
+          "median": 12.713984,
+          "min": 12.386304,
+          "p90": 13.172736
+        },
+        "rope": {
+          "median": 15.40096,
+          "min": 15.07328,
+          "p90": 16.318464
+        },
+        "rope-order32": {
+          "median": 10.81344,
+          "min": 10.48576,
+          "p90": 11.599872
+        },
+        "rope-order64": {
+          "median": 10.682368,
+          "min": 10.092544,
+          "p90": 11.14112
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.002857539118997033
+      },
+      "treeCheck": {
+        "usedNodes": 281150,
+        "reachableNodes": 128411,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-ropes",
+      "type": "physics-paired",
+      "count": 262144,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 17.956864,
+          "min": 17.36704,
+          "p90": 18.808832
+        },
+        "loads-order32": {
+          "median": 14.548992,
+          "min": 13.76256,
+          "p90": 15.794176
+        },
+        "loads-order64": {
+          "median": 13.76256,
+          "min": 13.1072,
+          "p90": 15.007744
+        },
+        "rope": {
+          "median": 14.680064,
+          "min": 14.221312,
+          "p90": 15.597568
+        },
+        "rope-order32": {
+          "median": 12.058624,
+          "min": 11.4688,
+          "p90": 12.582912
+        },
+        "rope-order64": {
+          "median": 10.944512,
+          "min": 10.747904,
+          "p90": 11.4688
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0015068250862403515
+      },
+      "treeCheck": {
+        "usedNodes": 270698,
+        "reachableNodes": 136892,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-ropes",
+      "type": "complete"
+    },
+    {
+      "run": "physics-full",
+      "type": "physics-environment",
+      "baselineCommit": "4e790f3",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    },
+    {
+      "run": "physics-full",
+      "type": "physics-full-step",
+      "count": 4096,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 0.524288,
+          "min": 0.458752,
+          "p90": 0.524288
+        },
+        "loads-order32": {
+          "median": 0.524288,
+          "min": 0.458752,
+          "p90": 0.524288
+        },
+        "loads-order64": {
+          "median": 0.720896,
+          "min": 0.65536,
+          "p90": 0.720896
+        },
+        "rope": {
+          "median": 0.524288,
+          "min": 0.524288,
+          "p90": 0.589824
+        },
+        "rope-order32": {
+          "median": 0.458752,
+          "min": 0.393216,
+          "p90": 0.458752
+        },
+        "rope-order64": {
+          "median": 0.65536,
+          "min": 0.65536,
+          "p90": 0.720896
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.005336495072305634
+      },
+      "treeCheck": {
+        "usedNodes": 11599,
+        "reachableNodes": 2422,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-full",
+      "type": "physics-full-step",
+      "count": 131072,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 8.388608,
+          "min": 7.995392,
+          "p90": 9.109504
+        },
+        "loads-order32": {
+          "median": 6.22592,
+          "min": 5.963776,
+          "p90": 6.5536
+        },
+        "loads-order64": {
+          "median": 6.22592,
+          "min": 5.89824,
+          "p90": 6.750208
+        },
+        "rope": {
+          "median": 6.815744,
+          "min": 6.422528,
+          "p90": 7.471104
+        },
+        "rope-order32": {
+          "median": 4.849664,
+          "min": 4.718592,
+          "p90": 5.046272
+        },
+        "rope-order64": {
+          "median": 4.9152,
+          "min": 4.718592,
+          "p90": 5.177344
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.003202672881908904
+      },
+      "treeCheck": {
+        "usedNodes": 223781,
+        "reachableNodes": 66405,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-full",
+      "type": "physics-full-step",
+      "count": 131072,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 8.060928,
+          "min": 7.929856,
+          "p90": 8.51968
+        },
+        "loads-order32": {
+          "median": 6.5536,
+          "min": 6.291456,
+          "p90": 6.750208
+        },
+        "loads-order64": {
+          "median": 6.356992,
+          "min": 6.160384,
+          "p90": 6.750208
+        },
+        "rope": {
+          "median": 6.619136,
+          "min": 6.356992,
+          "p90": 7.143424
+        },
+        "rope-order32": {
+          "median": 5.439488,
+          "min": 5.177344,
+          "p90": 5.57056
+        },
+        "rope-order64": {
+          "median": 5.177344,
+          "min": 4.849664,
+          "p90": 5.636096
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0017790809507408803
+      },
+      "treeCheck": {
+        "usedNodes": 208626,
+        "reachableNodes": 69193,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-full",
+      "type": "physics-full-step",
+      "count": 262144,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 18.808832,
+          "min": 18.0224,
+          "p90": 19.595264
+        },
+        "loads-order32": {
+          "median": 14.352384,
+          "min": 13.565952,
+          "p90": 16.187392
+        },
+        "loads-order64": {
+          "median": 13.631488,
+          "min": 13.1072,
+          "p90": 14.41792
+        },
+        "rope": {
+          "median": 15.925248,
+          "min": 15.07328,
+          "p90": 17.170432
+        },
+        "rope-order32": {
+          "median": 11.4688,
+          "min": 10.944512,
+          "p90": 13.041664
+        },
+        "rope-order64": {
+          "median": 11.337728,
+          "min": 10.420224,
+          "p90": 11.79648
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.002857539118997033
+      },
+      "treeCheck": {
+        "usedNodes": 286032,
+        "reachableNodes": 128411,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-full",
+      "type": "physics-full-step",
+      "count": 262144,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 18.743296,
+          "min": 18.284544,
+          "p90": 19.791872
+        },
+        "loads-order32": {
+          "median": 15.466496,
+          "min": 14.7456,
+          "p90": 16.777216
+        },
+        "loads-order64": {
+          "median": 14.680064,
+          "min": 14.024704,
+          "p90": 16.05632
+        },
+        "rope": {
+          "median": 15.990784,
+          "min": 14.942208,
+          "p90": 16.71168
+        },
+        "rope-order32": {
+          "median": 12.976128,
+          "min": 12.386304,
+          "p90": 13.369344
+        },
+        "rope-order64": {
+          "median": 11.862016,
+          "min": 11.403264,
+          "p90": 13.303808
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "loads-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "loads-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order32",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0015068250862403515
+      },
+      "treeCheck": {
+        "usedNodes": 304309,
+        "reachableNodes": 136892,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-full",
+      "type": "complete"
+    },
+    {
+      "run": "physics-evolving",
+      "type": "physics-environment",
+      "baselineCommit": "4e790f3",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    },
+    {
+      "run": "physics-evolving",
+      "type": "physics-full-step",
+      "count": 4096,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 100,
+      "samples": 120,
+      "warmup": 4,
+      "evolving": true,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 0.458752,
+          "min": 0.393216,
+          "p90": 0.589824
+        },
+        "rope-order64": {
+          "median": 0.720896,
+          "min": 0.589824,
+          "p90": 0.786432
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 124
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 124,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.003111137009156616
+      },
+      "treeCheck": {
+        "usedNodes": 10883,
+        "reachableNodes": 2344,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-evolving",
+      "type": "physics-full-step",
+      "count": 131072,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 100,
+      "samples": 120,
+      "warmup": 4,
+      "evolving": true,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 8.978432,
+          "min": 7.929856,
+          "p90": 10.027008
+        },
+        "rope-order64": {
+          "median": 5.111808,
+          "min": 4.128768,
+          "p90": 6.094848
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 124
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 124,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0046364496540543575
+      },
+      "treeCheck": {
+        "usedNodes": 213663,
+        "reachableNodes": 66742,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-evolving",
+      "type": "physics-full-step",
+      "count": 131072,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 100,
+      "samples": 120,
+      "warmup": 4,
+      "evolving": true,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 8.585216,
+          "min": 7.733248,
+          "p90": 9.8304
+        },
+        "rope-order64": {
+          "median": 5.439488,
+          "min": 4.58752,
+          "p90": 6.815744
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 124
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 124,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.002833613197616247
+      },
+      "treeCheck": {
+        "usedNodes": 185360,
+        "reachableNodes": 67533,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-evolving",
+      "type": "physics-full-step",
+      "count": 262144,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 100,
+      "samples": 120,
+      "warmup": 4,
+      "evolving": true,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 18.874368,
+          "min": 15.466496,
+          "p90": 21.168128
+        },
+        "rope-order64": {
+          "median": 10.747904,
+          "min": 7.667712,
+          "p90": 12.77952
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 124
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 124,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.003381017634326415
+      },
+      "treeCheck": {
+        "usedNodes": 260753,
+        "reachableNodes": 132396,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-evolving",
+      "type": "physics-full-step",
+      "count": 262144,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 100,
+      "samples": 120,
+      "warmup": 4,
+      "evolving": true,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 17.69472,
+          "min": 15.269888,
+          "p90": 20.381696
+        },
+        "rope-order64": {
+          "median": 11.403264,
+          "min": 8.716288,
+          "p90": 14.286848
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 124
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 124,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0034929963315647474
+      },
+      "treeCheck": {
+        "usedNodes": 253355,
+        "reachableNodes": 133461,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-evolving",
+      "type": "complete"
+    },
+    {
+      "run": "physics-edge",
+      "type": "physics-environment",
+      "baselineCommit": "4e790f3",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    },
+    {
+      "run": "physics-edge",
+      "type": "physics-full-step",
+      "count": 1,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 0,
+          "min": 0,
+          "p90": 0.065536
+        },
+        "rope-order64": {
+          "median": 0.262144,
+          "min": 0.262144,
+          "p90": 0.32768
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0
+      },
+      "treeCheck": {
+        "usedNodes": 1,
+        "reachableNodes": 1,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-edge",
+      "type": "physics-full-step",
+      "count": 2,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 0,
+          "min": 0,
+          "p90": 0.065536
+        },
+        "rope-order64": {
+          "median": 0.262144,
+          "min": 0.262144,
+          "p90": 0.32768
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 1.9739149450440583e-7
+      },
+      "treeCheck": {
+        "usedNodes": 1,
+        "reachableNodes": 1,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-edge",
+      "type": "physics-full-step",
+      "count": 63,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 0.065536,
+          "min": 0.065536,
+          "p90": 0.065536
+        },
+        "rope-order64": {
+          "median": 0.32768,
+          "min": 0.32768,
+          "p90": 0.393216
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0033775319844457953
+      },
+      "treeCheck": {
+        "usedNodes": 128,
+        "reachableNodes": 52,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-edge",
+      "type": "physics-full-step",
+      "count": 65,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 0.065536,
+          "min": 0.065536,
+          "p90": 0.065536
+        },
+        "rope-order64": {
+          "median": 0.32768,
+          "min": 0.32768,
+          "p90": 0.393216
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0032813691822840925
+      },
+      "treeCheck": {
+        "usedNodes": 132,
+        "reachableNodes": 54,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-edge",
+      "type": "physics-full-step",
+      "count": 255,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 0.196608,
+          "min": 0.131072,
+          "p90": 0.196608
+        },
+        "rope-order64": {
+          "median": 0.458752,
+          "min": 0.393216,
+          "p90": 0.458752
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0028687863841538254
+      },
+      "treeCheck": {
+        "usedNodes": 721,
+        "reachableNodes": 182,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-edge",
+      "type": "physics-full-step",
+      "count": 257,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 0.196608,
+          "min": 0.131072,
+          "p90": 0.196608
+        },
+        "rope-order64": {
+          "median": 0.458752,
+          "min": 0.393216,
+          "p90": 0.458752
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.003254052030930367
+      },
+      "treeCheck": {
+        "usedNodes": 557,
+        "reachableNodes": 184,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-edge",
+      "type": "physics-full-step",
+      "count": 4097,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 0.458752,
+          "min": 0.458752,
+          "p90": 0.524288
+        },
+        "rope-order64": {
+          "median": 0.65536,
+          "min": 0.65536,
+          "p90": 0.720896
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.005338261635739658
+      },
+      "treeCheck": {
+        "usedNodes": 9438,
+        "reachableNodes": 2423,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-edge",
+      "type": "complete"
+    },
+    {
+      "run": "physics-second-seed",
+      "type": "physics-environment",
+      "baselineCommit": "4e790f3",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    },
+    {
+      "run": "physics-second-seed",
+      "type": "physics-full-step",
+      "count": 4096,
+      "twin": false,
+      "seed": 987654321,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 0.524288,
+          "min": 0.458752,
+          "p90": 0.65536
+        },
+        "rope-order64": {
+          "median": 0.65536,
+          "min": 0.65536,
+          "p90": 0.720896
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0023090147401264314
+      },
+      "treeCheck": {
+        "usedNodes": 13018,
+        "reachableNodes": 2390,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-second-seed",
+      "type": "physics-full-step",
+      "count": 131072,
+      "twin": false,
+      "seed": 987654321,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 8.716288,
+          "min": 7.995392,
+          "p90": 9.043968
+        },
+        "rope-order64": {
+          "median": 5.308416,
+          "min": 4.784128,
+          "p90": 5.701632
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.004153437835378958
+      },
+      "treeCheck": {
+        "usedNodes": 210000,
+        "reachableNodes": 66351,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-second-seed",
+      "type": "physics-full-step",
+      "count": 131072,
+      "twin": true,
+      "seed": 987654321,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 8.126464,
+          "min": 7.798784,
+          "p90": 8.51968
+        },
+        "rope-order64": {
+          "median": 5.111808,
+          "min": 4.9152,
+          "p90": 5.308416
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0021788537025015423
+      },
+      "treeCheck": {
+        "usedNodes": 200133,
+        "reachableNodes": 69203,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-second-seed",
+      "type": "physics-full-step",
+      "count": 262144,
+      "twin": false,
+      "seed": 987654321,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 18.67776,
+          "min": 17.891328,
+          "p90": 20.119552
+        },
+        "rope-order64": {
+          "median": 11.272192,
+          "min": 10.420224,
+          "p90": 11.993088
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.00451486002676986
+      },
+      "treeCheck": {
+        "usedNodes": 261961,
+        "reachableNodes": 128079,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-second-seed",
+      "type": "physics-full-step",
+      "count": 262144,
+      "twin": true,
+      "seed": 987654321,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 18.939904,
+          "min": 18.219008,
+          "p90": 19.726336
+        },
+        "rope-order64": {
+          "median": 11.927552,
+          "min": 11.534336,
+          "p90": 12.386304
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "rope-order64",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0025279743076454617
+      },
+      "treeCheck": {
+        "usedNodes": 278331,
+        "reachableNodes": 136837,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-second-seed",
+      "type": "complete"
+    },
+    {
+      "run": "physics-production",
+      "type": "physics-environment",
+      "baselineCommit": "4e790f3",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    },
+    {
+      "run": "physics-production",
+      "type": "physics-full-step",
+      "count": 4096,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 0.458752,
+          "min": 0.458752,
+          "p90": 0.524288
+        },
+        "production": {
+          "median": 0.720896,
+          "min": 0.65536,
+          "p90": 0.720896
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "production",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.005336495072305634
+      },
+      "treeCheck": {
+        "usedNodes": 11747,
+        "reachableNodes": 2422,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-production",
+      "type": "physics-full-step",
+      "count": 131072,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 8.257536,
+          "min": 7.929856,
+          "p90": 8.912896
+        },
+        "production": {
+          "median": 5.046272,
+          "min": 4.718592,
+          "p90": 5.373952
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "production",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.003202672881908904
+      },
+      "treeCheck": {
+        "usedNodes": 202669,
+        "reachableNodes": 66405,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-production",
+      "type": "physics-full-step",
+      "count": 131072,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 8.126464,
+          "min": 7.86432,
+          "p90": 8.781824
+        },
+        "production": {
+          "median": 5.177344,
+          "min": 4.849664,
+          "p90": 5.505024
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "production",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0017790809507408803
+      },
+      "treeCheck": {
+        "usedNodes": 192125,
+        "reachableNodes": 69193,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-production",
+      "type": "physics-full-step",
+      "count": 262144,
+      "twin": false,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 19.00544,
+          "min": 17.891328,
+          "p90": 19.726336
+        },
+        "production": {
+          "median": 11.075584,
+          "min": 10.616832,
+          "p90": 11.862016
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "production",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.002857539118997033
+      },
+      "treeCheck": {
+        "usedNodes": 283557,
+        "reachableNodes": 128411,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-production",
+      "type": "physics-full-step",
+      "count": 262144,
+      "twin": true,
+      "seed": 123456789,
+      "gravity": 5,
+      "samples": 24,
+      "warmup": 4,
+      "evolving": false,
+      "shape": "disk",
+      "gpuMs": {
+        "baseline": {
+          "median": 18.874368,
+          "min": 18.153472,
+          "p90": 20.250624
+        },
+        "production": {
+          "median": 12.058624,
+          "min": 11.337728,
+          "p90": 13.041664
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "baseline",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2
+        },
+        {
+          "variant": "production",
+          "finite": true,
+          "maxAccelerationDifference": 0,
+          "maxVelocityDifference": 0,
+          "maxPositionDifference": 0,
+          "relativeRms": 0,
+          "checkedStates": 2,
+          "validPermutation": true
+        }
+      ],
+      "cpuCheck": {
+        "relativeRms": 0.0015068250862403515
+      },
+      "treeCheck": {
+        "usedNodes": 281490,
+        "reachableNodes": 136892,
+        "allBodiesInTree": true,
+        "validSuccessors": true
+      }
+    },
+    {
+      "run": "physics-production",
+      "type": "complete"
+    }
+  ]
+}

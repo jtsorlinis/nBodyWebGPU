@@ -1,5 +1,8 @@
 # GPU performance experiments
 
+The newer physics traversal improvements against commit `4e790f3` are documented
+in [PHYSICS.md](PHYSICS.md), with a separate baseline and saved measurements.
+
 Run `npm run benchmark`, then open one of the URLs below in a WebGPU browser.
 The server listens only on `127.0.0.1:5174`. `npm run benchmark:check` type-checks
 the harness. Results append to `results/runs.jsonl`; render comparisons also save
@@ -7,8 +10,7 @@ PNG images there. These generated files are ignored by Git.
 
 The immutable `baseline/` shaders were copied from commit
 `3d96af0e7fa5f79955f2677016458df2a93661fb`. `candidates/` contains the isolated
-experiments, including the rejected compact traversal. The production route reads
-the current application shaders. The normal build does not include this harness.
+experiments, including the rejected compact traversal. The `previous` route reads the first round's final snapshot; the `production` route uses the newer physics harness and current shaders. The normal build does not include this harness.
 
 ## Reproduce
 
@@ -17,17 +19,17 @@ Run one page at a time, with other GPU-intensive pages closed:
 | Experiment | URL after `http://127.0.0.1:5174` |
 | --- | --- |
 | Original compute | `/benchmarks/?run=baseline` |
-| Production compute | `/benchmarks/?run=production&production` |
+| Current production vs `4e790f3` | `/benchmarks/?run=production&production` |
 | Spheres/quads, full/half bloom | `/benchmarks/?run=render&render` |
 | Root reduction only | `/benchmarks/?run=root&reducedTree` |
 | Skip clearing node geometry | `/benchmarks/?run=geometry&clear=geometry` |
 | GPU-driven clearing of used nodes | `/benchmarks/?run=used&clear=used` |
 | 64-thread force workgroups | `/benchmarks/?run=wg64&workgroup=64` |
 | 128-thread force workgroups | `/benchmarks/?run=wg128&workgroup=128` |
-| Interleaved workgroup comparison on identical trees | `/benchmarks/?run=sweep&production&sweep` |
+| Interleaved workgroup comparison on identical trees | `/benchmarks/?run=sweep&previous&sweep` |
 | Compact traversal stack | `/benchmarks/?run=compact&compact` |
-| Partial workgroups and small counts | `/benchmarks/?run=edge&production&edge` |
-| 120 evolving steps at maximum gravity | `/benchmarks/?run=stress&production&evolve&gravity=100` |
+| Partial workgroups and small counts | `/benchmarks/?run=edge&previous&edge` |
+| 120 evolving steps at maximum gravity | `/benchmarks/?run=stress&previous&evolve&gravity=100` |
 
 Append `&quick` to use 4,096 and 131,072 bodies instead of including 262,144.
 Keep the page open until it says **Finished**. Errors are displayed and recorded.

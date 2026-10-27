@@ -16,7 +16,9 @@ import {
   createBHClearShader,
   createBHBoundsShader,
   createBHPrepareShader,
+  createBHTraversalShaders,
   BH_FORCE_WORKGROUP_SIZE,
+  BH_ORDER_BIN_COUNT,
 } from "./shaders";
 import { randRange } from "./utils";
 
@@ -58,12 +60,14 @@ const bhForcesShader = createBHForcesShader(engine);
 const bhClearShader = createBHClearShader(engine);
 const bhBoundsShader = createBHBoundsShader(engine);
 const bhPrepareShader = createBHPrepareShader(engine);
+const traversal = createBHTraversalShaders(engine);
 const computeShaders = [
   bodiesIntegrateShader,
   bhPrepareShader,
   bhClearShader,
   bhBoundsShader,
   bhTreeShader,
+  ...Object.values(traversal),
   bhForcesShader,
 ];
 let computeShadersReady = false;
@@ -98,6 +102,9 @@ bhForcesShader.setUniformBuffer("params", params);
 bhClearShader.setUniformBuffer("params", params);
 bhBoundsShader.setUniformBuffer("params", params);
 bhPrepareShader.setUniformBuffer("params", params);
+for (const shader of [traversal.parents, traversal.ropes, traversal.orderKeys, traversal.orderScatter]) {
+  shader.setUniformBuffer("params", params);
+}
 
 // Setup material and mesh
 const bodiesMat = createBodiesMaterial(scene);
@@ -133,6 +140,11 @@ let nodesBuffer: StorageBuffer;
 let allocatorBuffer: StorageBuffer;
 let boundsBuffer: StorageBuffer;
 let clearArgsBuffer: StorageBuffer;
+let parentsBuffer: StorageBuffer;
+let ropesBuffer: StorageBuffer;
+let orderCountsBuffer: StorageBuffer;
+let orderRanksBuffer: StorageBuffer;
+let bodyOrderBuffer: StorageBuffer;
 let swap = false;
 
 const setup = () => {
@@ -239,6 +251,29 @@ const setup = () => {
   bhPrepareShader.setStorageBuffer("clearArgs", clearArgsBuffer);
   bhClearShader.setStorageBuffer("clearArgs", clearArgsBuffer);
 
+  parentsBuffer = new StorageBuffer(engine, maxNodes * 8);
+  // Parent IDs are stored plus one. Root's zero sentinel survives every rebuild.
+  parentsBuffer.update(new Uint32Array([0, 0]));
+  ropesBuffer = new StorageBuffer(engine, maxNodes * 4);
+  orderCountsBuffer = new StorageBuffer(engine, BH_ORDER_BIN_COUNT * 4);
+  orderRanksBuffer = new StorageBuffer(engine, numBodies * 8);
+  bodyOrderBuffer = new StorageBuffer(engine, numBodies * 4);
+  for (const shader of [traversal.parents, traversal.ropes]) {
+    shader.setStorageBuffer("nodes", nodesBuffer);
+    shader.setStorageBuffer("allocator", allocatorBuffer);
+    shader.setStorageBuffer("parents", parentsBuffer);
+  }
+  traversal.ropes.setStorageBuffer("ropes", ropesBuffer);
+  for (const shader of [traversal.orderClear, traversal.orderKeys, traversal.orderScan, traversal.orderScatter]) {
+    shader.setStorageBuffer("counts", orderCountsBuffer);
+  }
+  traversal.orderKeys.setStorageBuffer("bounds", boundsBuffer);
+  traversal.orderKeys.setStorageBuffer("ranks", orderRanksBuffer);
+  traversal.orderScatter.setStorageBuffer("ranks", orderRanksBuffer);
+  traversal.orderScatter.setStorageBuffer("bodyOrder", bodyOrderBuffer);
+  bhForcesShader.setStorageBuffer("bodyOrder", bodyOrderBuffer);
+  bhForcesShader.setStorageBuffer("ropes", ropesBuffer);
+
   ballMesh.forcedInstanceCount = numBodies;
   bodiesMat.setStorageBuffer("bodies", bodiesBuffer);
   swap = false;
@@ -262,6 +297,11 @@ const restart = () => {
   allocatorBuffer.dispose();
   boundsBuffer.dispose();
   clearArgsBuffer.dispose();
+  parentsBuffer.dispose();
+  ropesBuffer.dispose();
+  orderCountsBuffer.dispose();
+  orderRanksBuffer.dispose();
+  bodyOrderBuffer.dispose();
   setup();
 };
 
@@ -319,7 +359,20 @@ const step = () => {
   bhTreeShader.setStorageBuffer("bounds", boundsBuffer);
   bhTreeShader.dispatch(Math.ceil(numBodies / 256));
 
-  // 2e: Compute Forces (Kick 2)
+  // 2e: Build subtree successor links for stackless force traversal. Each pass
+  // reads the completed previous pass; reachable parent links are rewritten each step.
+  traversal.parents.dispatch(Math.ceil(maxNodes / 256));
+  traversal.ropes.dispatch(Math.ceil(maxNodes / 256));
+
+  // 2f: Group nearby force targets by Morton cell so neighboring GPU lanes follow
+  // similar tree paths. This permutes invocation IDs only; body storage stays stable.
+  traversal.orderClear.dispatch(Math.ceil(BH_ORDER_BIN_COUNT / 256));
+  traversal.orderKeys.setStorageBuffer("bodies", bufferOut);
+  traversal.orderKeys.dispatch(Math.ceil(numBodies / 256));
+  traversal.orderScan.dispatch(1);
+  traversal.orderScatter.dispatch(Math.ceil(numBodies / 256));
+
+  // 2g: Compute Forces (Kick 2)
   bhForcesShader.setStorageBuffer("bodies", bufferOut);
   bhForcesShader.setStorageBuffer("nodes", nodesBuffer);
   bhForcesShader.dispatch(Math.ceil(numBodies / BH_FORCE_WORKGROUP_SIZE));

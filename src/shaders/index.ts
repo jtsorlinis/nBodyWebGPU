@@ -14,9 +14,44 @@ import bhForcesSource from "./compute/barnes-hut/bhForces.wgsl?raw";
 import bhClearSource from "./compute/barnes-hut/bhClear.wgsl?raw";
 import bhBoundsSource from "./compute/barnes-hut/bhBounds.wgsl?raw";
 import bhPrepareSource from "./compute/barnes-hut/bhPrepare.wgsl?raw";
+import bhParentsSource from "./compute/barnes-hut/bhParents.wgsl?raw";
+import bhRopesSource from "./compute/barnes-hut/bhRopes.wgsl?raw";
+import bhOrderClearSource from "./compute/barnes-hut/bhOrderClear.wgsl?raw";
+import bhOrderKeysSource from "./compute/barnes-hut/bhOrderKeys.wgsl?raw";
+import bhOrderScanSource from "./compute/barnes-hut/bhOrderScan.wgsl?raw";
+import bhOrderScatterSource from "./compute/barnes-hut/bhOrderScatter.wgsl?raw";
 
 // Share the dispatch size with main.ts so the shader and dispatch cannot drift apart.
 export const BH_FORCE_WORKGROUP_SIZE = 64;
+// A power-of-two grid makes the interleaved Morton keys contiguous histogram indices.
+export const BH_ORDER_GRID_SIZE = 64;
+export const BH_ORDER_BIN_COUNT = BH_ORDER_GRID_SIZE ** 3;
+
+// Also used by the GPU benchmark, so it checks the actual production shaders.
+export const bhTraversalSources = {
+  parents: bhParentsSource,
+  ropes: bhRopesSource,
+  orderClear: bhOrderClearSource,
+  orderKeys: bhOrderKeysSource.replace(/GRID_SIZE/g, `${BH_ORDER_GRID_SIZE}u`),
+  orderScan: bhOrderScanSource.replace(/BIN_COUNT/g, `${BH_ORDER_BIN_COUNT}u`),
+  orderScatter: bhOrderScatterSource,
+};
+
+export const createBHTraversalShaders = (engine: WebGPUEngine) => {
+  const create = (name: keyof typeof bhTraversalSources, bindings: string[]) =>
+    new ComputeShader(name, engine, { computeSource: bhTraversalSources[name] }, {
+      bindingsMapping: Object.fromEntries(bindings.map((name, binding) =>
+        [name, { group: 0, binding }])),
+    });
+  return {
+    parents: create("parents", ["params", "nodes", "allocator", "parents"]),
+    ropes: create("ropes", ["params", "nodes", "allocator", "parents", "ropes"]),
+    orderClear: create("orderClear", ["counts"]),
+    orderKeys: create("orderKeys", ["params", "bodies", "bounds", "counts", "ranks"]),
+    orderScan: create("orderScan", ["counts"]),
+    orderScatter: create("orderScatter", ["params", "counts", "ranks", "bodyOrder"]),
+  };
+};
 
 export const createBodiesMaterial = (scene: Scene) => {
   const material = new ShaderMaterial(
@@ -92,6 +127,8 @@ export const createBHForcesShader = (engine: WebGPUEngine) =>
         params: { group: 0, binding: 0 },
         bodies: { group: 0, binding: 1 },
         nodes: { group: 0, binding: 2 },
+        bodyOrder: { group: 0, binding: 3 },
+        ropes: { group: 0, binding: 4 },
       },
     },
   );

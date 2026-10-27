@@ -9,14 +9,15 @@ import geometryClearSource from './candidates/bhClearGeometry.wgsl?raw';
 import usedClearSource from './candidates/bhClearUsed.wgsl?raw';
 import prepareSource from './candidates/bhPrepare.wgsl?raw';
 import compactForceSource from './candidates/bhForcesCompact.wgsl?raw';
-import productionTree from '../src/shaders/compute/barnes-hut/bhTree.wgsl?raw';
-import productionClear from '../src/shaders/compute/barnes-hut/bhClear.wgsl?raw';
-import productionForce from '../src/shaders/compute/barnes-hut/bhForces.wgsl?raw';
-import productionPrepare from '../src/shaders/compute/barnes-hut/bhPrepare.wgsl?raw';
+import productionTree from './physics-baseline/bhTree.wgsl?raw';
+import productionClear from './physics-baseline/bhClear.wgsl?raw';
+import productionForce from './physics-baseline/bhForces.wgsl?raw';
+import productionPrepare from './physics-baseline/bhPrepare.wgsl?raw';
 import { BH_FORCE_WORKGROUP_SIZE } from '../src/shaders';
 
 async function computeBench() {
-  const production = options.has('production');
+  // Preserve the first optimization round's benchmark via &previous.
+  const production = options.has('previous');
   const forceWorkgroup = production ? BH_FORCE_WORKGROUP_SIZE : Number(options.get('workgroup') ?? 256);
   const usedClear = production || options.get('clear') === 'used';
   const iterations = options.has('evolve') ? 120 : 15;
@@ -193,7 +194,10 @@ async function computeBench() {
 }
 
 try {
-  if (options.has('render')) {
+  if (options.has('physics') || options.has('production')) {
+    const { benchmarkPhysics } = await import('./physics');
+    await benchmarkPhysics();
+  } else if (options.has('render')) {
     const { renderBench } = await import('./render');
     await renderBench();
   } else {
