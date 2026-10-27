@@ -13,19 +13,25 @@ import bhTreeSource from "./compute/barnes-hut/bhTree.wgsl?raw";
 import bhForcesSource from "./compute/barnes-hut/bhForces.wgsl?raw";
 import bhClearSource from "./compute/barnes-hut/bhClear.wgsl?raw";
 import bhBoundsSource from "./compute/barnes-hut/bhBounds.wgsl?raw";
+import bhPrepareSource from "./compute/barnes-hut/bhPrepare.wgsl?raw";
+
+// Share the dispatch size with main.ts so the shader and dispatch cannot drift apart.
+export const BH_FORCE_WORKGROUP_SIZE = 64;
 
 export const createBodiesMaterial = (scene: Scene) => {
-  return new ShaderMaterial(
+  const material = new ShaderMaterial(
     "bodiesMat",
     scene,
     { vertexSource: bodiesVertex, fragmentSource: bodiesFragment },
     {
-      attributes: ["position", "uv", "normal"],
+      attributes: ["position"],
       uniformBuffers: ["Scene", "Mesh"],
       storageBuffers: ["bodies"],
       shaderLanguage: ShaderLanguage.WGSL,
     },
   );
+  material.backFaceCulling = false;
+  return material;
 };
 
 export const createBodiesIntegrateShader = (engine: WebGPUEngine) =>
@@ -75,7 +81,12 @@ export const createBHForcesShader = (engine: WebGPUEngine) =>
   new ComputeShader(
     "bhForces",
     engine,
-    { computeSource: bhForcesSource },
+    {
+      computeSource: bhForcesSource.replace(
+        "FORCE_WORKGROUP_SIZE",
+        String(BH_FORCE_WORKGROUP_SIZE),
+      ),
+    },
     {
       bindingsMapping: {
         params: { group: 0, binding: 0 },
@@ -108,6 +119,22 @@ export const createBHClearShader = (engine: WebGPUEngine) =>
       bindingsMapping: {
         params: { group: 0, binding: 0 },
         nodes: { group: 0, binding: 1 },
+        clearArgs: { group: 0, binding: 2 },
+      },
+    },
+  );
+
+export const createBHPrepareShader = (engine: WebGPUEngine) =>
+  new ComputeShader(
+    "bhPrepare",
+    engine,
+    { computeSource: bhPrepareSource },
+    {
+      bindingsMapping: {
+        params: { group: 0, binding: 0 },
+        allocator: { group: 0, binding: 1 },
+        bounds: { group: 0, binding: 2 },
+        clearArgs: { group: 0, binding: 3 },
       },
     },
   );

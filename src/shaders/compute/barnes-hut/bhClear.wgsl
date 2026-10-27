@@ -22,9 +22,11 @@ struct Node {
 @group(0) @binding(0) var<uniform> params : Params;
 @group(0) @binding(1) var<storage, read_write> nodes : array<Node>;
 
+@group(0) @binding(2) var<storage, read> clearArgs: array<u32, 4>;
+
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-  if (id.x >= params.maxNodes) {
+  if (id.x >= min(clearArgs[3], params.maxNodes)) {
     return;
   }
   
@@ -32,11 +34,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   nodes[id.x].comXInt = 0;
   nodes[id.x].comYInt = 0;
   nodes[id.x].comZInt = 0;
-  // center and halfSize are written during allocation, no need to clear? 
-  // actually better to clear just in case (though tree build overwrites them)
-  nodes[id.x].center = vec3(0.0); 
-  nodes[id.x].halfSize = 0.0;
-
+  // Allocation overwrites center/halfSize before publishing a node.
   for (var i = 0; i < 8; i++) {
     nodes[id.x].children[i] = -1;
   }

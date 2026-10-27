@@ -33,6 +33,8 @@ struct Node {
 // Min xyz then max xyz of all body positions, as order-preserving uints (see bhBounds)
 @group(0) @binding(4) var<storage, read> bounds : array<u32, 6>;
 
+var<workgroup> rootSums: array<vec4<i32>, 256>;
+
 const MAX_DEPTH = 30u;
 
 fn orderedToFloat(bits: u32) -> f32 {
@@ -64,7 +66,8 @@ fn accumulate(nodeIdx: i32, body: Body, nodeMin: vec3<f32>, nodeMax: vec3<f32>) 
 }
 
 @compute @workgroup_size(256)
-fn main(@builtin(global_invocation_id) id : vec3<u32>) {
+fn main(@builtin(global_invocation_id) id : vec3<u32>,
+        @builtin(local_invocation_id) lid : vec3<u32>) {
   // Root is a cube around all bodies, padded so none sit exactly on its boundary
   let lo = vec3(orderedToFloat(bounds[0]), orderedToFloat(bounds[1]), orderedToFloat(bounds[2]));
   let hi = vec3(orderedToFloat(bounds[3]), orderedToFloat(bounds[4]), orderedToFloat(bounds[5]));
@@ -77,6 +80,29 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   if (id.x == 0u) {
      nodes[0].center = (rootMin + rootMax) * 0.5;
      nodes[0].halfSize = (rootMax.x - rootMin.x) * 0.5;
+  }
+
+  // Reduce the root's integer contributions within each workgroup. Rounding
+  // stays per body, so the mass and moments retain the original precision.
+  var contribution = vec4<i32>(0);
+  if (id.x < params.numBodies) {
+    let body = bodies[id.x];
+    let weight = body.mass * params.massScale;
+    let center = (rootMin + rootMax) * 0.5;
+    let moment = (body.pos - center) / ((rootMax.x - rootMin.x) * 0.5) * weight;
+    contribution = vec4<i32>(i32(round(weight)), vec3<i32>(round(moment)));
+  }
+  rootSums[lid.x] = contribution;
+  workgroupBarrier();
+  for (var stride = 128u; stride > 0u; stride >>= 1u) {
+    if (lid.x < stride) { rootSums[lid.x] += rootSums[lid.x + stride]; }
+    workgroupBarrier();
+  }
+  if (lid.x == 0u) {
+    atomicAdd(&nodes[0].massInt, rootSums[0].x);
+    atomicAdd(&nodes[0].comXInt, rootSums[0].y);
+    atomicAdd(&nodes[0].comYInt, rootSums[0].z);
+    atomicAdd(&nodes[0].comZInt, rootSums[0].w);
   }
 
   if (id.x >= params.numBodies) {
@@ -94,7 +120,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   loop {
     // Update Mass/COM for current node (using atomics)
-    accumulate(nodeIdx, body, min, max);
+    if (nodeIdx != 0) { accumulate(nodeIdx, body, min, max); }
 
     let octant = getOctant(body.pos, min, max);
     let childPtr = &nodes[nodeIdx].children[octant];

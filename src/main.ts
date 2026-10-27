@@ -1,4 +1,5 @@
 import {
+  Constants,
   DefaultRenderingPipeline,
   MeshBuilder,
   StorageBuffer,
@@ -14,6 +15,8 @@ import {
   createBHForcesShader,
   createBHClearShader,
   createBHBoundsShader,
+  createBHPrepareShader,
+  BH_FORCE_WORKGROUP_SIZE,
 } from "./shaders";
 import { randRange } from "./utils";
 
@@ -54,6 +57,16 @@ const bhTreeShader = createBHTreeShader(engine);
 const bhForcesShader = createBHForcesShader(engine);
 const bhClearShader = createBHClearShader(engine);
 const bhBoundsShader = createBHBoundsShader(engine);
+const bhPrepareShader = createBHPrepareShader(engine);
+const computeShaders = [
+  bodiesIntegrateShader,
+  bhPrepareShader,
+  bhClearShader,
+  bhBoundsShader,
+  bhTreeShader,
+  bhForcesShader,
+];
+let computeShadersReady = false;
 
 const params = new UniformBuffer(engine);
 // Layout must match the shaders (std140/uniform alignment rules)
@@ -84,6 +97,7 @@ bhTreeShader.setUniformBuffer("params", params);
 bhForcesShader.setUniformBuffer("params", params);
 bhClearShader.setUniformBuffer("params", params);
 bhBoundsShader.setUniformBuffer("params", params);
+bhPrepareShader.setUniformBuffer("params", params);
 
 // Setup material and mesh
 const bodiesMat = createBodiesMaterial(scene);
@@ -95,7 +109,8 @@ const updateColours = () => {
 };
 updateColours();
 
-const ballMesh = MeshBuilder.CreateSphere("ball", { segments: 8 });
+// The shaders turn a two-triangle billboard into a circular particle with spherical depth.
+const ballMesh = MeshBuilder.CreatePlane("bodies", { size: 1 });
 ballMesh.material = bodiesMat;
 ballMesh.buildBoundingInfo(
   new Vector3(-1000000, -1000000, -1000000),
@@ -107,7 +122,7 @@ var pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [
   camera,
 ]);
 pipeline.bloomEnabled = true;
-pipeline.bloomScale = 1;
+pipeline.bloomScale = 0.5;
 pipeline.bloomThreshold = 0.0;
 
 // Setup scene
@@ -117,12 +132,8 @@ let bodiesBuffer2: StorageBuffer;
 let nodesBuffer: StorageBuffer;
 let allocatorBuffer: StorageBuffer;
 let boundsBuffer: StorageBuffer;
+let clearArgsBuffer: StorageBuffer;
 let swap = false;
-
-// Bounds are reduced with atomicMin/Max on order-preserving uints, so start from the extremes
-const boundsReset = new Uint32Array([
-  0xffffffff, 0xffffffff, 0xffffffff, 0, 0, 0,
-]);
 
 const setup = () => {
   bodiesText.innerHTML = `Bodies: ${numBodies}`;
@@ -212,9 +223,21 @@ const setup = () => {
 
   // Allocator: 1 uint
   allocatorBuffer = new StorageBuffer(engine, 4);
+  // The first step clears the entire allocation. Later steps clear only nodes touched
+  // by the previous tree build, including allocations abandoned after a failed CAS.
+  allocatorBuffer.update(new Uint32Array([maxNodes]));
 
   // Bounds: min xyz, max xyz
-  boundsBuffer = new StorageBuffer(engine, boundsReset.byteLength);
+  boundsBuffer = new StorageBuffer(engine, 24);
+  clearArgsBuffer = new StorageBuffer(
+    engine,
+    16,
+    Constants.BUFFER_CREATIONFLAG_READWRITE | Constants.BUFFER_CREATIONFLAG_INDIRECT,
+  );
+  bhPrepareShader.setStorageBuffer("allocator", allocatorBuffer);
+  bhPrepareShader.setStorageBuffer("bounds", boundsBuffer);
+  bhPrepareShader.setStorageBuffer("clearArgs", clearArgsBuffer);
+  bhClearShader.setStorageBuffer("clearArgs", clearArgsBuffer);
 
   ballMesh.forcedInstanceCount = numBodies;
   bodiesMat.setStorageBuffer("bodies", bodiesBuffer);
@@ -238,6 +261,7 @@ const restart = () => {
   nodesBuffer.dispose();
   allocatorBuffer.dispose();
   boundsBuffer.dispose();
+  clearArgsBuffer.dispose();
   setup();
 };
 
@@ -258,6 +282,14 @@ moreBodiesToggle.onchange = () => {
 };
 
 const step = () => {
+  // A partial first step could reset the allocator before the clear shader is ready.
+  // Compile every compute effect before submitting any part of the simulation step.
+  if (!computeShadersReady) {
+    computeShadersReady = computeShaders
+      .map(shader => shader.isReady())
+      .every(Boolean);
+    if (!computeShadersReady) return false;
+  }
   const bufferIn = swap ? bodiesBuffer2 : bodiesBuffer;
   const bufferOut = swap ? bodiesBuffer : bodiesBuffer2;
 
@@ -267,13 +299,13 @@ const step = () => {
   bodiesIntegrateShader.dispatch(Math.ceil(numBodies / 256));
 
   // Pass 2: Barnes-Hut
-  // 2a: Clear Nodes
-  bhClearShader.setStorageBuffer("nodes", nodesBuffer);
-  bhClearShader.dispatch(Math.ceil(maxNodes / 256));
+  // 2a: Save the previous allocation count as indirect dispatch arguments and reset
+  // the allocator/bounds on the GPU, without per-step uploads or CPU readback.
+  bhPrepareShader.dispatch(1);
 
-  // 2b: Reset Allocator (Root is 0, so next free is 1) and Bounds
-  allocatorBuffer.update(new Uint32Array([1]));
-  boundsBuffer.update(boundsReset);
+  // 2b: Clear only previously allocated nodes.
+  bhClearShader.setStorageBuffer("nodes", nodesBuffer);
+  bhClearShader.dispatchIndirect(clearArgsBuffer);
 
   // 2c: Compute Bounds of all bodies (Root of the tree)
   bhBoundsShader.setStorageBuffer("bodies", bufferOut);
@@ -290,11 +322,12 @@ const step = () => {
   // 2e: Compute Forces (Kick 2)
   bhForcesShader.setStorageBuffer("bodies", bufferOut);
   bhForcesShader.setStorageBuffer("nodes", nodesBuffer);
-  bhForcesShader.dispatch(Math.ceil(numBodies / 256));
+  bhForcesShader.dispatch(Math.ceil(numBodies / BH_FORCE_WORKGROUP_SIZE));
 
   bodiesMat.setStorageBuffer("bodies", bufferOut);
 
   swap = !swap;
+  return true;
 };
 
 // Fixed timestep keeps the leapfrog integrator stable and results independent of frame rate.
@@ -311,8 +344,7 @@ engine.runRenderLoop(async () => {
     2 * simDt,
   );
   if (timeAccumulator >= simDt) {
-    step();
-    timeAccumulator -= simDt;
+    if (step()) timeAccumulator -= simDt;
   }
 
   // Draw bodies where they'd be by now, so motion stays smooth at any refresh rate
