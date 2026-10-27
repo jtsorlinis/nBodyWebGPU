@@ -9,13 +9,6 @@ struct Params {
   massScale: f32,
 }
 
-struct Body {
-  pos : vec3<f32>,
-  vel : vec3<f32>,
-  acc : vec3<f32>,
-  mass : f32,
-};
-
 // Floats are stored as order-preserving uints so they can be reduced with atomicMin/Max
 struct Bounds {
   minBits: array<atomic<u32>, 3>,
@@ -23,8 +16,10 @@ struct Bounds {
 };
 
 @group(0) @binding(0) var<uniform> params : Params;
-@group(0) @binding(1) var<storage, read> bodies : array<Body>;
+// xyz = position, w = mass
+@group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read_write> bounds : Bounds;
+@group(0) @binding(3) var<storage, read_write> allocator : u32;
 
 var<workgroup> localMin : array<atomic<u32>, 3>;
 var<workgroup> localMax : array<atomic<u32>, 3>;
@@ -39,6 +34,12 @@ fn floatToOrdered(f: f32) -> u32 {
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>,
         @builtin(local_invocation_id) lid : vec3<u32>) {
+  // Reset the tree's node allocator for this step's build (root is 0, so next free is 1).
+  // bhClear has already used last step's count, and bhTree runs after this pass.
+  if (id.x == 0u) {
+    allocator = 1u;
+  }
+
   if (lid.x < 3u) {
     atomicStore(&localMin[lid.x], 0xFFFFFFFFu);
     atomicStore(&localMax[lid.x], 0u);
@@ -46,7 +47,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
   workgroupBarrier();
 
   if (id.x < params.numBodies) {
-    let pos = bodies[id.x].pos;
+    let pos = posMass[id.x].xyz;
     for (var i = 0u; i < 3u; i++) {
       let bits = floatToOrdered(pos[i]);
       atomicMin(&localMin[i], bits);

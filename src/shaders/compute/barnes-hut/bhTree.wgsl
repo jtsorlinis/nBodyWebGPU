@@ -9,13 +9,8 @@ struct Params {
   massScale: f32,
 }
 
-struct Body {
-  pos : vec3<f32>,
-  vel : vec3<f32>,
-  acc : vec3<f32>,
-  mass : f32,
-};
-
+// Child slots: 0 = empty, > 0 = node index (the root is never a child), < 0 = body (-1 - bodyIdx).
+// A zeroed node is therefore an empty node, which is what bhClear resets nodes to.
 struct Node {
   massInt: atomic<i32>,
   comXInt: atomic<i32>,
@@ -27,11 +22,14 @@ struct Node {
 };
 
 @group(0) @binding(0) var<uniform> params : Params;
-@group(0) @binding(1) var<storage, read_write> bodies : array<Body>;
+// xyz = position, w = mass
+@group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read_write> nodes : array<Node>;
 @group(0) @binding(3) var<storage, read_write> allocator : atomic<u32>;
 // Min xyz then max xyz of all body positions, as order-preserving uints (see bhBounds)
 @group(0) @binding(4) var<storage, read> bounds : array<u32, 6>;
+// Number of bodies under each node, for putting bodies in tree order (see bhOrder)
+@group(0) @binding(5) var<storage, read_write> counts : array<atomic<u32>>;
 
 const MAX_DEPTH = 30u;
 
@@ -52,15 +50,16 @@ fn getOctant(pos: vec3<f32>, min: vec3<f32>, max: vec3<f32>) -> u32 {
 // The moment is stored relative to the node's centre in units of its half size, so each
 // body contributes at most +-mass * massScale per axis (sums can't overflow) and the
 // precision is the same at every depth. bhForces decodes it back to a centre of mass.
-fn accumulate(nodeIdx: i32, body: Body, nodeMin: vec3<f32>, nodeMax: vec3<f32>) {
+fn accumulate(nodeIdx: i32, body: vec4<f32>, nodeMin: vec3<f32>, nodeMax: vec3<f32>) {
   let center = (nodeMin + nodeMax) * 0.5;
   let halfSize = (nodeMax.x - nodeMin.x) * 0.5;
-  let weight = body.mass * params.massScale;
-  let moment = (body.pos - center) / halfSize * weight;
+  let weight = body.w * params.massScale;
+  let moment = (body.xyz - center) / halfSize * weight;
   atomicAdd(&nodes[nodeIdx].massInt, i32(round(weight)));
   atomicAdd(&nodes[nodeIdx].comXInt, i32(round(moment.x)));
   atomicAdd(&nodes[nodeIdx].comYInt, i32(round(moment.y)));
   atomicAdd(&nodes[nodeIdx].comZInt, i32(round(moment.z)));
+  atomicAdd(&counts[nodeIdx], 1u);
 }
 
 @compute @workgroup_size(256)
@@ -84,7 +83,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   }
 
   let bodyIdx = i32(id.x);
-  let body = bodies[bodyIdx];
+  let body = posMass[bodyIdx];
 
   // Start insertion from Root
   var nodeIdx = 0i;
@@ -92,99 +91,93 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   var min = rootMin;
   var max = rootMax;
 
+  // A node this thread allocated but lost the race to link in, kept for its next split.
+  // Without reuse, every thread that loses a race leaks a node, which adds up to several
+  // times the tree's size; with it, at most one node per thread goes unused.
+  var spareNode = -1i;
+
   loop {
     // Update Mass/COM for current node (using atomics)
     accumulate(nodeIdx, body, min, max);
 
-    let octant = getOctant(body.pos, min, max);
+    let octant = getOctant(body.xyz, min, max);
     let childPtr = &nodes[nodeIdx].children[octant];
-    
-    // CAS loop to insert or descend
+
+    // Bounds of the child octant
+    let center = (min + max) * 0.5;
+    var childMin = min;
+    var childMax = max;
+    if ((octant & 1u) != 0u) { childMin.x = center.x; } else { childMax.x = center.x; }
+    if ((octant & 2u) != 0u) { childMin.y = center.y; } else { childMax.y = center.y; }
+    if ((octant & 4u) != 0u) { childMin.z = center.z; } else { childMax.z = center.z; }
+
+    // CAS loop to insert or descend.
+    // This is lock-free on purpose: WebGPU doesn't guarantee threads waiting on a lock let
+    // the thread holding it run, so a spin lock here can hang the GPU.
     var done = false;
+    var childNode = 0i;
     loop {
       let oldVal = atomicLoad(childPtr);
-      
-      // Case 1: Empty (-1). Insert Body.
-      // Body encoded as: -2 - bodyIdx
-      let bodyEncoded = -2 - bodyIdx;
-      
-      if (oldVal == -1) {
-        let res = atomicCompareExchangeWeak(childPtr, -1, bodyEncoded);
-        if (res.exchanged) {
-          done = true; 
-          break;
+
+      if (oldVal == 0) {
+        // Case 1: Empty. Insert Body (encoded as -1 - bodyIdx)
+        done = atomicCompareExchangeWeak(childPtr, 0, -1 - bodyIdx).exchanged;
+      } else if (oldVal > 0) {
+        // Case 2: It's a Node. Descend into it
+        childNode = oldVal;
+      } else {
+        // Case 3: It's another Body. We need to split.
+        var newNodeIdx = spareNode;
+        if (newNodeIdx < 0) {
+          newNodeIdx = i32(atomicAdd(&allocator, 1u));
         }
-        continue; // Retry
-      }
-      
-      // Case 2: It's a Node (>= 0)
-      if (oldVal >= 0) {
-        nodeIdx = oldVal;
-        // Update bounds
-        let center = (min + max) * 0.5;
-        if ((octant & 1u) != 0u) { min.x = center.x; } else { max.x = center.x; }
-        if ((octant & 2u) != 0u) { min.y = center.y; } else { max.y = center.y; }
-        if ((octant & 4u) != 0u) { min.z = center.z; } else { max.z = center.z; }
-        depth++;
-        break; // Break inner loop, continue outer loop
-      }
-      
-      // Case 3: It's another Body (<= -2)
-      // We need to split.
-      if (oldVal <= -2) {
-        let otherBodyIdx = -oldVal - 2;
-        
-        // Allocate new node
-        let newNodeIdx = i32(atomicAdd(&allocator, 1u));
-        // Check for overflow
+
         if (u32(newNodeIdx) >= params.maxNodes) {
-           done = true; // Drop this body (or just stop descending)
-           break;
-        }
-        
-        let center = (min + max) * 0.5;
-        var childMin = min;
-        var childMax = max;
-        if ((octant & 1u) != 0u) { childMin.x = center.x; } else { childMax.x = center.x; }
-        if ((octant & 2u) != 0u) { childMin.y = center.y; } else { childMax.y = center.y; }
-        if ((octant & 4u) != 0u) { childMin.z = center.z; } else { childMax.z = center.z; }
-        
-        // IMPORTANT: Write new node geometry
-        let newCenter = (childMin + childMax) * 0.5;
-        let newHalfSize = (childMax.x - childMin.x) * 0.5;
-        nodes[newNodeIdx].center = newCenter;
-        nodes[newNodeIdx].halfSize = newHalfSize;
-        
-        let otherBody = bodies[otherBodyIdx];
-        
-        // Update Mass/COM for the new node (it will contain the other body)
-        accumulate(newNodeIdx, otherBody, childMin, childMax);
-        
-        // Put other body into the new node
-        let otherOctant = getOctant(otherBody.pos, childMin, childMax);
-        atomicStore(&nodes[newNodeIdx].children[otherOctant], -2 - otherBodyIdx);
-        
-        // Try to swap [Old Body] -> [New Node] in Parent
-        let res = atomicCompareExchangeWeak(childPtr, oldVal, newNodeIdx);
-        if (res.exchanged) {
-          // Success. Now we are at the new node.
-          // We continue the loop to insert OURSELVES into this new node.
-          nodeIdx = newNodeIdx;
-          min = childMin;
-          max = childMax;
-          depth++;
-          break; // Continue outer loop
+          // Out of nodes: drop this body
+          done = true;
         } else {
-          // Failed (someone else modified the child pointer).
-          // Retrying inner loop.
-          // Note: newNodeIdx is leaked (unused). This is acceptable for lock-free, 
-          // but if contention is high we might run out of nodes.
-          continue;
+          // Write new node geometry (the rest of the node is zero: from bhClear, or from
+          // the undo below if this is a reused spare)
+          nodes[newNodeIdx].center = (childMin + childMax) * 0.5;
+          nodes[newNodeIdx].halfSize = (childMax.x - childMin.x) * 0.5;
+
+          // Put the other body into the new node
+          let otherBodyIdx = -oldVal - 1;
+          let otherBody = posMass[otherBodyIdx];
+          accumulate(newNodeIdx, otherBody, childMin, childMax);
+          let otherOctant = getOctant(otherBody.xyz, childMin, childMax);
+          let otherChildPtr = &nodes[newNodeIdx].children[otherOctant];
+          atomicStore(otherChildPtr, -1 - otherBodyIdx);
+
+          // Try to swap [Old Body] -> [New Node] in Parent
+          if (atomicCompareExchangeWeak(childPtr, oldVal, newNodeIdx).exchanged) {
+            spareNode = -1;
+            childNode = newNodeIdx;
+          } else {
+            // Someone else changed the slot first. Nobody else can see the new node yet,
+            // so undo it and keep it for this thread's next split
+            atomicStore(&nodes[newNodeIdx].massInt, 0);
+            atomicStore(&nodes[newNodeIdx].comXInt, 0);
+            atomicStore(&nodes[newNodeIdx].comYInt, 0);
+            atomicStore(&nodes[newNodeIdx].comZInt, 0);
+            atomicStore(&counts[newNodeIdx], 0u);
+            atomicStore(otherChildPtr, 0);
+            spareNode = newNodeIdx;
+          }
         }
       }
+      // Otherwise a CAS failed: retry
+
+      if (done || childNode > 0) { break; }
     }
-    
+
     if (done) { break; }
+
+    // Continue the loop to insert OURSELVES into the child node
+    nodeIdx = childNode;
+    min = childMin;
+    max = childMax;
+    depth++;
     if (depth > MAX_DEPTH) { break; }
   }
 }

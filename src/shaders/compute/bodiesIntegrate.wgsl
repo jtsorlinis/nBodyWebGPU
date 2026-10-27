@@ -9,16 +9,15 @@ struct Params {
   massScale: f32,
 }
 
-struct Body {
-  pos : vec3<f32>,
+struct Motion {
   vel : vec3<f32>,
   acc : vec3<f32>,
-  mass : f32,
 };
 
 @group(0) @binding(0) var<uniform> params : Params;
-@group(0) @binding(1) var<storage,read> bodiesIn : array<Body>;
-@group(0) @binding(2) var<storage,read_write> bodiesOut : array<Body>;
+// xyz = position, w = mass
+@group(0) @binding(1) var<storage, read_write> posMass : array<vec4<f32>>;
+@group(0) @binding(2) var<storage, read_write> motion : array<Motion>;
 
 @compute @workgroup_size(256, 1, 1)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
@@ -26,13 +25,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     return;
   }
 
-  var body = bodiesIn[id.x];
+  var body = motion[id.x];
 
   // First "Kick": Half update of the velocity
   body.vel += 0.5 * body.acc * params.deltaTime;
 
   // "Drift": Full update of the position
-  body.pos += body.vel * params.deltaTime;
-
-  bodiesOut[id.x] = body;
+  posMass[id.x] = vec4(posMass[id.x].xyz + body.vel * params.deltaTime, posMass[id.x].w);
+  motion[id.x].vel = body.vel;
 }

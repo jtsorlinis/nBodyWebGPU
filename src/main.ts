@@ -14,13 +14,15 @@ import {
   createBHForcesShader,
   createBHClearShader,
   createBHBoundsShader,
+  createBHOrderShader,
+  createBHSummarizeShader,
 } from "./shaders";
 import { randRange } from "./utils";
 
 // Constants
 const initialNumBodies = 1 << 17;
 let numBodies = initialNumBodies;
-let maxNodes = numBodies * 8; // Estimate for octree nodes
+let maxNodes = numBodies * 2; // Octree nodes (a tree typically uses ~0.5x)
 let gravity = 5;
 let blackHoleMass = numBodies / 2;
 const softening = 3.0;
@@ -54,6 +56,8 @@ const bhTreeShader = createBHTreeShader(engine);
 const bhForcesShader = createBHForcesShader(engine);
 const bhClearShader = createBHClearShader(engine);
 const bhBoundsShader = createBHBoundsShader(engine);
+const bhOrderShader = createBHOrderShader(engine);
+const bhSummarizeShader = createBHSummarizeShader(engine);
 
 const params = new UniformBuffer(engine);
 // Layout must match the shaders (std140/uniform alignment rules)
@@ -84,6 +88,8 @@ bhTreeShader.setUniformBuffer("params", params);
 bhForcesShader.setUniformBuffer("params", params);
 bhClearShader.setUniformBuffer("params", params);
 bhBoundsShader.setUniformBuffer("params", params);
+bhOrderShader.setUniformBuffer("params", params);
+bhSummarizeShader.setUniformBuffer("params", params);
 
 // Setup material and mesh
 const bodiesMat = createBodiesMaterial(scene);
@@ -95,9 +101,10 @@ const updateColours = () => {
 };
 updateColours();
 
-const ballMesh = MeshBuilder.CreateSphere("ball", { segments: 8 });
-ballMesh.material = bodiesMat;
-ballMesh.buildBoundingInfo(
+// Bodies are drawn as camera-facing discs (see bodiesVertex)
+const bodyMesh = MeshBuilder.CreatePlane("body", { size: 1 });
+bodyMesh.material = bodiesMat;
+bodyMesh.buildBoundingInfo(
   new Vector3(-1000000, -1000000, -1000000),
   new Vector3(1000000, 1000000, 1000000),
 );
@@ -111,18 +118,13 @@ pipeline.bloomScale = 1;
 pipeline.bloomThreshold = 0.0;
 
 // Setup scene
-let bodiesArr: Float32Array;
-let bodiesBuffer: StorageBuffer;
-let bodiesBuffer2: StorageBuffer;
+let posMassBuffer: StorageBuffer;
+let motionBuffer: StorageBuffer;
 let nodesBuffer: StorageBuffer;
 let allocatorBuffer: StorageBuffer;
 let boundsBuffer: StorageBuffer;
-let swap = false;
-
-// Bounds are reduced with atomicMin/Max on order-preserving uints, so start from the extremes
-const boundsReset = new Uint32Array([
-  0xffffffff, 0xffffffff, 0xffffffff, 0, 0, 0,
-]);
+let countsBuffer: StorageBuffer;
+let orderBuffer: StorageBuffer;
 
 const setup = () => {
   bodiesText.innerHTML = `Bodies: ${numBodies}`;
@@ -153,14 +155,17 @@ const setup = () => {
 
   let galaxy1Offset = twinGalaxies ? -spaceLimit * 1.5 : 0;
   let galaxy2Offset = twinGalaxies ? spaceLimit * 1.5 : 0;
-  // Intialize buffer with positions
-  bodiesArr = new Float32Array(numBodies * 12);
+  // Intialize buffers
+  // posMass: xyz = position, w = mass
+  // motion: velocity, acceleration (vec3s padded to 4 floats)
+  const posMassArr = new Float32Array(numBodies * 4);
+  const motionArr = new Float32Array(numBodies * 8);
   for (let i = 0; i < numBodies; i++) {
     const pos = randomPointInDisk(innerRadius, spaceLimit);
     const offset = i < numBodies / 2 ? galaxy1Offset : galaxy2Offset;
-    bodiesArr[i * 12] = pos.x + offset;
-    bodiesArr[i * 12 + 1] = pos.z;
-    bodiesArr[i * 12 + 2] = pos.y;
+    posMassArr[i * 4] = pos.x + offset;
+    posMassArr[i * 4 + 1] = pos.z;
+    posMassArr[i * 4 + 2] = pos.y;
 
     // Circular Orbital Velocity
     const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
@@ -169,23 +174,21 @@ const setup = () => {
     // Add some random noise to velocity to make it less perfect
     const speedNoise = randRange(0.8, 1.2);
 
-    bodiesArr[i * 12 + 4] = (-pos.y / dist) * speed * speedNoise;
-    bodiesArr[i * 12 + 5] = 0;
-    bodiesArr[i * 12 + 6] = (pos.x / dist) * speed * speedNoise;
+    motionArr[i * 8] = (-pos.y / dist) * speed * speedNoise;
+    motionArr[i * 8 + 1] = 0;
+    motionArr[i * 8 + 2] = (pos.x / dist) * speed * speedNoise;
 
     // Set mass
-    bodiesArr[i * 12 + 11] = randRange(0.5, 1.5);
+    posMassArr[i * 4 + 3] = randRange(0.5, 1.5);
   }
 
   // Black hole(s)
-  bodiesArr.set([galaxy1Offset, 0, 0], 0); // Pos
-  bodiesArr.set([0, 0, 0], 4); // Vel
-  bodiesArr[11] = blackHoleMass;
+  posMassArr.set([galaxy1Offset, 0, 0, blackHoleMass], 0); // Pos, Mass
+  motionArr.set([0, 0, 0], 0); // Vel
 
   if (twinGalaxies) {
-    bodiesArr.set([galaxy2Offset, 0, 0], 12); // Pos
-    bodiesArr.set([0, 0, 0], 16); // Vel
-    bodiesArr[23] = blackHoleMass;
+    posMassArr.set([galaxy2Offset, 0, 0, blackHoleMass], 4); // Pos, Mass
+    motionArr.set([0, 0, 0], 8); // Vel
   }
 
   // Set params
@@ -202,23 +205,54 @@ const setup = () => {
   params.update();
 
   // Copy data to GPU
-  bodiesBuffer = new StorageBuffer(engine, bodiesArr.byteLength);
-  bodiesBuffer2 = new StorageBuffer(engine, bodiesArr.byteLength);
-  bodiesBuffer.update(bodiesArr);
-  bodiesBuffer2.update(bodiesArr);
+  posMassBuffer = new StorageBuffer(engine, posMassArr.byteLength);
+  posMassBuffer.update(posMassArr);
+  motionBuffer = new StorageBuffer(engine, motionArr.byteLength);
+  motionBuffer.update(motionArr);
 
-  // Nodes Buffer: 64 bytes per node
+  // Nodes Buffer: 64 bytes per node. New buffers are zeroed, which is an empty tree
   nodesBuffer = new StorageBuffer(engine, maxNodes * 64);
 
   // Allocator: 1 uint
   allocatorBuffer = new StorageBuffer(engine, 4);
 
   // Bounds: min xyz, max xyz
-  boundsBuffer = new StorageBuffer(engine, boundsReset.byteLength);
+  boundsBuffer = new StorageBuffer(engine, 6 * 4);
 
-  ballMesh.forcedInstanceCount = numBodies;
-  bodiesMat.setStorageBuffer("bodies", bodiesBuffer);
-  swap = false;
+  // Bodies under each node, and body indices in tree order: 1 uint each
+  countsBuffer = new StorageBuffer(engine, maxNodes * 4);
+  orderBuffer = new StorageBuffer(engine, numBodies * 4);
+
+  // Bodies are updated in place, so the buffers only need binding once
+  bodiesIntegrateShader.setStorageBuffer("posMass", posMassBuffer);
+  bodiesIntegrateShader.setStorageBuffer("motion", motionBuffer);
+  bhClearShader.setStorageBuffer("nodes", nodesBuffer);
+  bhClearShader.setStorageBuffer("allocator", allocatorBuffer);
+  bhClearShader.setStorageBuffer("bounds", boundsBuffer);
+  bhClearShader.setStorageBuffer("counts", countsBuffer);
+  bhClearShader.setStorageBuffer("order", orderBuffer);
+  bhBoundsShader.setStorageBuffer("posMass", posMassBuffer);
+  bhBoundsShader.setStorageBuffer("bounds", boundsBuffer);
+  bhBoundsShader.setStorageBuffer("allocator", allocatorBuffer);
+  bhTreeShader.setStorageBuffer("posMass", posMassBuffer);
+  bhTreeShader.setStorageBuffer("nodes", nodesBuffer);
+  bhTreeShader.setStorageBuffer("allocator", allocatorBuffer);
+  bhTreeShader.setStorageBuffer("bounds", boundsBuffer);
+  bhTreeShader.setStorageBuffer("counts", countsBuffer);
+  bhSummarizeShader.setStorageBuffer("nodes", nodesBuffer);
+  bhSummarizeShader.setStorageBuffer("allocator", allocatorBuffer);
+  bhOrderShader.setStorageBuffer("posMass", posMassBuffer);
+  bhOrderShader.setStorageBuffer("nodes", nodesBuffer);
+  bhOrderShader.setStorageBuffer("counts", countsBuffer);
+  bhOrderShader.setStorageBuffer("order", orderBuffer);
+  bhForcesShader.setStorageBuffer("posMass", posMassBuffer);
+  bhForcesShader.setStorageBuffer("motion", motionBuffer);
+  bhForcesShader.setStorageBuffer("nodes", nodesBuffer);
+  bhForcesShader.setStorageBuffer("order", orderBuffer);
+  bodiesMat.setStorageBuffer("posMass", posMassBuffer);
+  bodiesMat.setStorageBuffer("motion", motionBuffer);
+
+  bodyMesh.forcedInstanceCount = numBodies;
 };
 
 setup();
@@ -233,11 +267,13 @@ gravitySlider.oninput = () => {
 };
 
 const restart = () => {
-  bodiesBuffer.dispose();
-  bodiesBuffer2.dispose();
+  posMassBuffer.dispose();
+  motionBuffer.dispose();
   nodesBuffer.dispose();
   allocatorBuffer.dispose();
   boundsBuffer.dispose();
+  countsBuffer.dispose();
+  orderBuffer.dispose();
   setup();
 };
 
@@ -252,64 +288,52 @@ moreBodiesToggle.onchange = () => {
   numBodies = moreBodiesToggle.checked
     ? initialNumBodies * 2
     : initialNumBodies;
-  maxNodes = numBodies * 8;
+  maxNodes = numBodies * 2;
   blackHoleMass = numBodies / 2;
   restart();
 };
 
 const step = () => {
-  const bufferIn = swap ? bodiesBuffer2 : bodiesBuffer;
-  const bufferOut = swap ? bodiesBuffer : bodiesBuffer2;
-
   // Pass 1: Integrate (Drift + Kick 1)
-  bodiesIntegrateShader.setStorageBuffer("bodiesIn", bufferIn);
-  bodiesIntegrateShader.setStorageBuffer("bodiesOut", bufferOut);
   bodiesIntegrateShader.dispatch(Math.ceil(numBodies / 256));
 
   // Pass 2: Barnes-Hut
-  // 2a: Clear Nodes
-  bhClearShader.setStorageBuffer("nodes", nodesBuffer);
+  // 2a: Clear the Nodes the last tree used, and reset Bounds
   bhClearShader.dispatch(Math.ceil(maxNodes / 256));
 
-  // 2b: Reset Allocator (Root is 0, so next free is 1) and Bounds
-  allocatorBuffer.update(new Uint32Array([1]));
-  boundsBuffer.update(boundsReset);
-
-  // 2c: Compute Bounds of all bodies (Root of the tree)
-  bhBoundsShader.setStorageBuffer("bodies", bufferOut);
-  bhBoundsShader.setStorageBuffer("bounds", boundsBuffer);
+  // 2b: Compute Bounds of all bodies (Root of the tree), and reset Allocator
   bhBoundsShader.dispatch(Math.ceil(numBodies / 256));
 
-  // 2d: Build Tree
-  bhTreeShader.setStorageBuffer("bodies", bufferOut);
-  bhTreeShader.setStorageBuffer("nodes", nodesBuffer);
-  bhTreeShader.setStorageBuffer("allocator", allocatorBuffer);
-  bhTreeShader.setStorageBuffer("bounds", boundsBuffer);
+  // 2c: Build Tree
   bhTreeShader.dispatch(Math.ceil(numBodies / 256));
 
-  // 2e: Compute Forces (Kick 2)
-  bhForcesShader.setStorageBuffer("bodies", bufferOut);
-  bhForcesShader.setStorageBuffer("nodes", nodesBuffer);
+  // 2d: Precompute each node's centre of mass for the force pass
+  bhSummarizeShader.dispatch(Math.ceil(maxNodes / 256));
+
+  // 2e: Put bodies in tree order
+  bhOrderShader.dispatch(Math.ceil(numBodies / 256));
+
+  // 2f: Compute Forces (Kick 2)
   bhForcesShader.dispatch(Math.ceil(numBodies / 256));
-
-  bodiesMat.setStorageBuffer("bodies", bufferOut);
-
-  swap = !swap;
 };
 
 // Fixed timestep keeps the leapfrog integrator stable and results independent of frame rate.
 // At most one step runs per frame: if the GPU can't keep up (or the tab was hidden) the
 // simulation slows down instead of taking bigger, less accurate steps.
 let timeAccumulator = 0;
+let fpsTimer = 0;
 
 engine.runRenderLoop(async () => {
-  const fps = engine.getFps();
-  fpsText.innerHTML = `FPS: ${fps.toFixed(2)}`;
+  const frameTime = engine.getDeltaTime() / 1000;
 
-  timeAccumulator = Math.min(
-    timeAccumulator + engine.getDeltaTime() / 1000,
-    2 * simDt,
-  );
+  // Setting the text forces a layout, so only update it a few times a second
+  fpsTimer += frameTime;
+  if (fpsTimer >= 0.25) {
+    fpsText.textContent = `FPS: ${engine.getFps().toFixed(2)}`;
+    fpsTimer = 0;
+  }
+
+  timeAccumulator = Math.min(timeAccumulator + frameTime, 2 * simDt);
   if (timeAccumulator >= simDt) {
     step();
     timeAccumulator -= simDt;

@@ -9,26 +9,34 @@ struct Params {
   massScale: f32,
 }
 
-struct Body {
-  pos : vec3<f32>,
+struct Motion {
   vel : vec3<f32>,
   acc : vec3<f32>,
-  mass : f32,
 };
 
+// As prepared by bhSummarize
 struct Node {
-  massInt: i32,
-  comXInt: i32,
-  comYInt: i32,
-  comZInt: i32,
-  center: vec3<f32>,
-  halfSize: f32,
-  children: array<i32, 8>,
+  com: vec4<f32>, // centre of mass xyz, mass
+  geom: vec4<f32>, // center xyz, squared distance beyond which the node can be approximated
+  children: array<i32, 8>, // 0 = empty, > 0 = node, < 0 = body (-1 - bodyIdx)
 };
 
 @group(0) @binding(0) var<uniform> params : Params;
-@group(0) @binding(1) var<storage, read_write> bodies : array<Body>;
-@group(0) @binding(2) var<storage, read> nodes : array<Node>;
+// xyz = position, w = mass
+@group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;
+@group(0) @binding(2) var<storage, read_write> motion : array<Motion>;
+@group(0) @binding(3) var<storage, read> nodes : array<Node>;
+// Body indices in tree order (see bhOrder)
+@group(0) @binding(4) var<storage, read> order : array<u32>;
+
+// Nodes waiting to be opened. Any that don't fit are approximated instead
+const STACK_SIZE = 64;
+
+// Softened acceleration towards a point mass at offset r
+fn attraction(r: vec3<f32>, mass: f32) -> vec3<f32> {
+  let invDist = inverseSqrt(dot(r, r) + params.softening * params.softening);
+  return r * (params.gravity * mass * invDist * invDist * invDist);
+}
 
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
@@ -36,71 +44,53 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     return;
   }
 
-  var body = bodies[id.x];
+  // Process bodies in tree order so neighbouring threads walk similar paths.
+  // Bodies that were left out of the tree this step have no slot and are skipped.
+  let bodyIdx = order[id.x];
+  if (bodyIdx >= params.numBodies) {
+    return;
+  }
+
+  let pos = posMass[bodyIdx].xyz;
   var newAcc = vec3(0.0);
 
-  // Stack for traversal (just indices now, much lighter)
-  var stack: array<i32, 256>;
-  var stackPtr = 0;
-
-  // Push Root
+  // Stack of nodes to open, starting at the Root (which always contains this body).
+  // Children are tested as soon as their parent is opened, so only nodes that need
+  // opening go on the stack.
+  var stack: array<i32, STACK_SIZE>;
   stack[0] = 0;
-  stackPtr = 1;
-
-  let thetaSq = params.theta * params.theta;
-  let softeningSq = params.softening * params.softening;
+  var stackPtr = 1;
 
   while (stackPtr > 0) {
     stackPtr--;
     let nodeIdx = stack[stackPtr];
-    let node = nodes[nodeIdx]; // Read from global memory (cached)
 
-    let mass = f32(node.massInt) / params.massScale;
-
-    if (mass <= 0.0) { continue; }
-
-    // Moment is relative to the node centre in units of its half size (see bhTree)
-    let moment = vec3(f32(node.comXInt), f32(node.comYInt), f32(node.comZInt));
-    let com = node.center + moment / f32(node.massInt) * node.halfSize;
-
-    let r = com - body.pos;
-    let distSq = dot(r, r);
-    
-    let halfSize = node.halfSize;
-    let size = halfSize * 2.0;
-
-    // Check if we can approximate (Squared check)
-    // size < theta * dist => size^2 < theta^2 * distSq
-    if (distSq > 0.0 && (size * size) < (thetaSq * distSq)) {
-        let softenedDistSq = distSq + softeningSq;
-        let invDist = inverseSqrt(softenedDistSq);
-        let f = params.gravity * mass * invDist * invDist * invDist;
-        newAcc += r * f;
-    } else {
-        // Open the node
-        for (var i = 0; i < 8; i++) {
-           let child = node.children[i];
-           if (child == -1) { continue; }
-           
-           if (child <= -2) {
-               // It's a Body
-               let otherBodyIdx = -child - 2;
-               if (u32(otherBodyIdx) != id.x) {
-                   let otherBody = bodies[otherBodyIdx];
-                   let r_b = otherBody.pos - body.pos;
-                   let d2 = dot(r_b, r_b) + softeningSq;
-                   let invD = inverseSqrt(d2);
-                   let f_b = params.gravity * otherBody.mass * invD * invD * invD;
-                   newAcc += r_b * f_b;
-               }
-           } else {
-               // It's a Node
-               if (stackPtr < 256) {
-                   stack[stackPtr] = child;
-                   stackPtr++;
-               }
-           }
+    for (var i = 0; i < 8; i++) {
+      let child = nodes[nodeIdx].children[i];
+      if (child < 0) {
+        // It's a Body
+        let otherBodyIdx = u32(-child - 1);
+        if (otherBodyIdx != bodyIdx) {
+          let other = posMass[otherBodyIdx];
+          newAcc += attraction(other.xyz - pos, other.w);
         }
+      } else if (child > 0) {
+        // It's a Node. Only its first half is needed unless it gets opened
+        let node = nodes[child].com;
+        if (node.w <= 0.0) { continue; }
+
+        let r = node.xyz - pos;
+        let distSq = dot(r, r);
+
+        // Check if we can approximate: size / dist < theta
+        // If the stack is full, the point mass is used rather than dropping the node
+        if (distSq > nodes[child].geom.w || stackPtr >= STACK_SIZE) {
+          newAcc += attraction(r, node.w);
+        } else {
+          stack[stackPtr] = child;
+          stackPtr++;
+        }
+      }
     }
   }
 
@@ -110,14 +100,14 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     newAcc = normalize(newAcc) * 1000.0;
   }
 
-  bodies[id.x].acc = newAcc;
-  
   // Second Kick
-  bodies[id.x].vel += 0.5 * newAcc * params.deltaTime;
-  
+  var vel = motion[bodyIdx].vel + 0.5 * newAcc * params.deltaTime;
+
   // Limit velocity
-  let speed = length(bodies[id.x].vel);
+  let speed = length(vel);
   if (speed > 1000.0) {
-     bodies[id.x].vel = normalize(bodies[id.x].vel) * 1000.0;
+    vel = normalize(vel) * 1000.0;
   }
+
+  motion[bodyIdx] = Motion(vel, newAcc);
 }
