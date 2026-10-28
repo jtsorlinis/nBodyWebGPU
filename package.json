@@ -7,8 +7,6 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "benchmark": "node benchmarks/server.mjs",
-    "benchmark:check": "tsc --project benchmarks/tsconfig.json",
     "deploy": "tsc && vite build --base=/nBodyWebGPU/ && gh-pages -d dist"
   },
   "devDependencies": {
