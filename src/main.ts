@@ -16,7 +16,7 @@ import {
   createBHBoundsShader,
   createBHOrderShader,
   createBHSummarizeShader,
-  getBHForceWorkgroupSize,
+  getBHForceBodiesPerWorkgroup,
 } from "./shaders";
 import { randRange } from "./utils";
 
@@ -81,7 +81,7 @@ const bhBoundsShader = createBHBoundsShader(engine);
 const bhOrderShader = createBHOrderShader(engine);
 const bhSummarizeShader = createBHSummarizeShader(engine);
 
-const forceWorkgroupSize = getBHForceWorkgroupSize(engine);
+const forceBodiesPerWorkgroup = getBHForceBodiesPerWorkgroup(engine);
 const computeShaders = [bodiesIntegrateShader, bhClearShader, bhBoundsShader,
   bhTreeShader, bhSummarizeShader, bhOrderShader, bhForcesShader];
 let computeShadersReady = false;
@@ -351,7 +351,7 @@ const step = () => {
   bhOrderShader.dispatch(Math.ceil(numBodies / 256));
 
   // 2f: Compute Forces (Kick 2)
-  bhForcesShader.dispatch(Math.ceil(numBodies / forceWorkgroupSize));
+  bhForcesShader.dispatch(Math.ceil(numBodies / forceBodiesPerWorkgroup));
   return true;
 };
 

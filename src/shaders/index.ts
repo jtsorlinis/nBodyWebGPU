@@ -25,8 +25,9 @@ export const supportsCoherentTraversal = (engine: WebGPUEngine) => {
   return engine._device.features.has("subgroups") &&
     language.wgslLanguageFeatures?.has("subgroup_uniformity") === true;
 };
-export const getBHForceWorkgroupSize = (engine: WebGPUEngine) =>
-  supportsCoherentTraversal(engine) ? 128 : 256;
+// The coherent shader handles four targets per invocation, with 128 invocations.
+export const getBHForceBodiesPerWorkgroup = (engine: WebGPUEngine) =>
+  supportsCoherentTraversal(engine) ? 128 * 4 : 256;
 
 export const createBodiesMaterial = (scene: Scene) => {
   const material = new ShaderMaterial(

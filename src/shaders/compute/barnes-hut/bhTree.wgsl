@@ -31,8 +31,22 @@ struct Node {
 // Number of bodies under each node, for putting bodies in tree order (see bhOrder)
 @group(0) @binding(5) var<storage, read_write> counts : array<atomic<u32>>;
 
+// Reserve a complete three-level prefix: 1 + 8 + 64 + 512 nodes, in breadth-first
+// order. bhBounds reserves the same prefix before dynamic allocation starts.
+// Workgroup aggregation removes most global atomic contention near the root.
+const TOP_LEVELS = 3u;
+const TOP_NODES = 585u;
+const TOP_INTERNAL = 73u;
+struct TopSum {
+  mass: atomic<i32>,
+  x: atomic<i32>,
+  y: atomic<i32>,
+  z: atomic<i32>,
+  count: atomic<u32>,
+}
+// Together these use 15,776 bytes, within WebGPU's 16 KiB baseline limit.
 var<workgroup> rootSums: array<vec4<i32>, 256>;
-
+var<workgroup> topSums: array<TopSum, TOP_NODES - 1u>;
 const MAX_DEPTH = 30u;
 
 fn orderedToFloat(bits: u32) -> f32 {
@@ -74,12 +88,88 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   let rootMin = (lo + hi) * 0.5 - vec3(rootHalfSize);
   let rootMax = (lo + hi) * 0.5 + vec3(rootHalfSize);
 
-  // Thread 0 initializes the Root Node (0)
-  if (id.x == 0u) {
-     nodes[0].center = (rootMin + rootMax) * 0.5;
-     nodes[0].halfSize = (rootMax.x - rootMin.x) * 0.5;
-  }
+  // Small trees retain root-only seeding so the prefix doesn't consume most of
+  // their allocation budget. Keep this condition in sync with bhBounds.
+  let seedPrefix = params.numBodies >= 1024u && params.maxNodes >= TOP_NODES;
+  let topLevels = select(0u, TOP_LEVELS, seedPrefix);
+  let topNodes = select(1u, TOP_NODES, seedPrefix);
 
+  // Only the first workgroup initializes the prefix. Its strided loop covers all
+  // 585 nodes even when fewer than 585 body invocations are dispatched.
+  // Insertion starts BELOW its internal links and computes geometry locally, so
+  // no insertion reads these writes; the next dispatch observes the finished tree.
+  if (id.x < 256u) {
+    for (var index = lid.x; index < topNodes; index += 256u) {
+      var path: array<u32, TOP_LEVELS>;
+      var n = index;
+      var depth = 0u;
+      while (n > 0u) {
+        path[depth] = (n - 1u) % 8u;
+        n = (n - 1u) / 8u;
+        depth++;
+      }
+      var lo = rootMin;
+      var hi = rootMax;
+      while (depth > 0u) {
+        depth--;
+        let octant = path[depth];
+        let upper = vec3<bool>((octant & 1u) != 0u, (octant & 2u) != 0u, (octant & 4u) != 0u);
+        let center = (lo + hi) * 0.5;
+        lo = select(lo, center, upper);
+        hi = select(center, hi, upper);
+      }
+      nodes[index].center = (lo + hi) * 0.5;
+      nodes[index].halfSize = (hi.x - lo.x) * 0.5;
+      if (topLevels > 0u && index < TOP_INTERNAL) {
+        for (var octant = 0u; octant < 8u; octant++) {
+          atomicStore(&nodes[index].children[octant], i32(index * 8u + 1u + octant));
+        }
+      }
+    }
+  }
+  for (var n = lid.x; n < topNodes - 1u; n += 256u) {
+    atomicStore(&topSums[n].mass, 0);
+    atomicStore(&topSums[n].x, 0);
+    atomicStore(&topSums[n].y, 0);
+    atomicStore(&topSums[n].z, 0);
+    atomicStore(&topSums[n].count, 0u);
+  }
+  workgroupBarrier();
+
+  var startNode = 0u;
+  var startMin = rootMin;
+  var startMax = rootMax;
+  if (id.x < params.numBodies) {
+    let body = posMass[id.x];
+    let weight = body.w * params.massScale;
+    for (var depth = 0u; depth < topLevels; depth++) {
+      let octant = getOctant(body.xyz, startMin, startMax);
+      let upper = vec3<bool>((octant & 1u) != 0u, (octant & 2u) != 0u, (octant & 4u) != 0u);
+      let center = (startMin + startMax) * 0.5;
+      startMin = select(startMin, center, upper);
+      startMax = select(center, startMax, upper);
+      startNode = startNode * 8u + 1u + octant;
+      let moment = (body.xyz - (startMin + startMax) * 0.5) / ((startMax.x - startMin.x) * 0.5) * weight;
+      let n = startNode - 1u;
+      // Round each body's contribution before reduction, just as accumulate does.
+      atomicAdd(&topSums[n].mass, i32(round(weight)));
+      atomicAdd(&topSums[n].x, i32(round(moment.x)));
+      atomicAdd(&topSums[n].y, i32(round(moment.y)));
+      atomicAdd(&topSums[n].z, i32(round(moment.z)));
+      atomicAdd(&topSums[n].count, 1u);
+    }
+  }
+  workgroupBarrier();
+  for (var n = lid.x; n < topNodes - 1u; n += 256u) {
+    let count = atomicLoad(&topSums[n].count);
+    if (count > 0u) {
+      atomicAdd(&nodes[n + 1u].massInt, atomicLoad(&topSums[n].mass));
+      atomicAdd(&nodes[n + 1u].comXInt, atomicLoad(&topSums[n].x));
+      atomicAdd(&nodes[n + 1u].comYInt, atomicLoad(&topSums[n].y));
+      atomicAdd(&nodes[n + 1u].comZInt, atomicLoad(&topSums[n].z));
+      atomicAdd(&counts[n + 1u], count);
+    }
+  }
 
   var contribution = vec4<i32>(0);
   if (id.x < params.numBodies) {
@@ -108,11 +198,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   let bodyIdx = i32(id.x);
   let body = posMass[bodyIdx];
 
-  // Start insertion from Root
-  var nodeIdx = 0i;
-  var depth = 0u;
-  var min = rootMin;
-  var max = rootMax;
+  // The prefix already contains this body's contributions; build only below it.
+  var nodeIdx = i32(startNode);
+  var depth = topLevels;
+  var min = startMin;
+  var max = startMax;
 
   // A node this thread allocated but lost the race to link in, kept for its next split.
   // Without reuse, every thread that loses a race leaks a node, which adds up to several
@@ -121,7 +211,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
 
   loop {
     // Update Mass/COM for current node (using atomics)
-    if (nodeIdx != 0) { accumulate(nodeIdx, body, min, max); }
+    if (depth > topLevels) { accumulate(nodeIdx, body, min, max); }
 
     let octant = getOctant(body.xyz, min, max);
     let childPtr = &nodes[nodeIdx].children[octant];

@@ -34,10 +34,11 @@ fn floatToOrdered(f: f32) -> u32 {
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>,
         @builtin(local_invocation_id) lid : vec3<u32>) {
-  // Reset the tree's node allocator for this step's build (root is 0, so next free is 1).
+  // Reserve bhTree's complete three-level prefix (1 + 8 + 64 + 512 nodes).
+  // Small trees seed only the root. This condition must match bhTree.
   // bhClear has already used last step's count, and bhTree runs after this pass.
   if (id.x == 0u) {
-    allocator = 1u;
+    allocator = select(1u, 585u, params.numBodies >= 1024u && params.maxNodes >= 585u);
   }
 
   if (lid.x < 3u) {

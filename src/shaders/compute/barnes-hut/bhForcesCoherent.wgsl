@@ -4,7 +4,8 @@ enable subgroups;
 // comes from subgroupBroadcastFirst, and every push decision comes from subgroupAll.
 // Thus all lanes in a subgroup execute each collective in the same control flow.
 // The compiler cannot prove the private-stack invariant across the loop.
-// Leaf self-exclusion rejoins before the next collective; padded lanes never write.
+// Each lane owns four targets; all four opening tests join the collective.
+// Padded targets participate using a clamped position, but never access motion.
 diagnostic(off, subgroup_uniformity);
 struct Params {
   numBodies: u32,
@@ -47,20 +48,51 @@ fn attraction(r: vec3<f32>, mass: f32) -> vec3<f32> {
   return r * (params.gravity * mass * invDist * invDist * invDist);
 }
 
+// Called only for a valid, uniquely owned target, after all subgroup collectives.
+fn finishBody(bodyIdx: u32, acceleration: vec3<f32>) {
+  var acc = acceleration;
+  let accLen = length(acc);
+  if (accLen > 1000.0) { acc *= 1000.0 / accLen; }
+  var vel = motion[bodyIdx].vel + 0.5 * acc * params.deltaTime;
+  let speed = length(vel);
+  if (speed > 1000.0) { vel *= 1000.0 / speed; }
+  motion[bodyIdx] = Motion(vel, acc);
+}
+
 @compute @workgroup_size(128)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-  let requestedBody = order[min(id.x, params.numBodies - 1u)];
-  let valid = id.x < params.numBodies && requestedBody < params.numBodies;
+  // Four adjacent targets amortize node loads and traversal over more force work.
+  // Keep the accumulators explicit so they stay in registers. No subgroup width
+  // or relationship between lane IDs and invocation IDs is assumed.
+  let rank0 = id.x * 4u;
+  let requested0 = order[min(rank0, params.numBodies - 1u)];
+  let valid0 = rank0 < params.numBodies && requested0 < params.numBodies;
+  let body0 = min(requested0, params.numBodies - 1u);
+  let pos0 = posMass[body0].xyz;
+  var acc0 = vec3(0.0);
 
-  // Process bodies in tree order so neighbouring threads walk similar paths.
-  // Invalid/padded targets still participate in collectives but never write.
-  let bodyIdx = min(requestedBody, params.numBodies - 1u);
+  let rank1 = rank0 + 1u;
+  let requested1 = order[min(rank1, params.numBodies - 1u)];
+  let valid1 = rank1 < params.numBodies && requested1 < params.numBodies;
+  let body1 = min(requested1, params.numBodies - 1u);
+  let pos1 = posMass[body1].xyz;
+  var acc1 = vec3(0.0);
 
+  let rank2 = rank0 + 2u;
+  let requested2 = order[min(rank2, params.numBodies - 1u)];
+  let valid2 = rank2 < params.numBodies && requested2 < params.numBodies;
+  let body2 = min(requested2, params.numBodies - 1u);
+  let pos2 = posMass[body2].xyz;
+  var acc2 = vec3(0.0);
 
-  let pos = posMass[bodyIdx].xyz;
-  var newAcc = vec3(0.0);
+  let rank3 = rank0 + 3u;
+  let requested3 = order[min(rank3, params.numBodies - 1u)];
+  let valid3 = rank3 < params.numBodies && requested3 < params.numBodies;
+  let body3 = min(requested3, params.numBodies - 1u);
+  let pos3 = posMass[body3].xyz;
+  var acc3 = vec3(0.0);
 
-  // Stack of nodes to open, starting at the Root (which always contains this body).
+  // Stack of nodes to open, starting at the root (which contains every target).
   // Children are tested as soon as their parent is opened, so only nodes that need
   // opening go on the stack.
   var stack: array<i32, STACK_SIZE>;
@@ -76,22 +108,33 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
       if (child < 0) {
         // It's a Body
         let otherBodyIdx = u32(-child - 1);
-        if (otherBodyIdx != bodyIdx) {
-          let other = posMass[otherBodyIdx];
-          newAcc += attraction(other.xyz - pos, other.w);
-        }
+        let other = posMass[otherBodyIdx];
+        // Self attraction is exactly zero: displacement is zero and softening > 0.
+        acc0 += attraction(other.xyz - pos0, other.w);
+        acc1 += attraction(other.xyz - pos1, other.w);
+        acc2 += attraction(other.xyz - pos2, other.w);
+        acc3 += attraction(other.xyz - pos3, other.w);
       } else if (child > 0) {
         // It's a Node. Only its first half is needed unless it gets opened
         let node = subgroupBroadcastFirst(nodes[child].com);
         if (node.w <= 0.0) { continue; }
 
-        let r = node.xyz - pos;
-        let distSq = dot(r, r);
+        let r0 = node.xyz - pos0;
+        let r1 = node.xyz - pos1;
+        let r2 = node.xyz - pos2;
+        let r3 = node.xyz - pos3;
 
-        // Check if we can approximate: size / dist < theta
+        // Approximate only if EVERY target in EVERY participating lane passes
+        // size / dist < theta. Batching can only make this test more conservative.
         // If the stack is full, the point mass is used rather than dropping the node
-        if (subgroupBroadcastFirst(u32(subgroupAll(distSq > nodes[child].geom.w))) != 0u || stackPtr >= STACK_SIZE) {
-          newAcc += attraction(r, node.w);
+        let threshold = nodes[child].geom.w;
+        let canApproximate = dot(r0, r0) > threshold && dot(r1, r1) > threshold &&
+          dot(r2, r2) > threshold && dot(r3, r3) > threshold;
+        if (subgroupBroadcastFirst(u32(subgroupAll(canApproximate))) != 0u || stackPtr >= STACK_SIZE) {
+          acc0 += attraction(r0, node.w);
+          acc1 += attraction(r1, node.w);
+          acc2 += attraction(r2, node.w);
+          acc3 += attraction(r3, node.w);
         } else {
           stack[stackPtr] = child;
           stackPtr++;
@@ -99,23 +142,10 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
       }
     }
   }
-
-  // Limit acceleration
-  let accLen = length(newAcc);
-  if (accLen > 1000.0) {
-    newAcc = normalize(newAcc) * 1000.0;
-  }
-
-  // Padded lanes must not read motion while the owning lane writes it.
-  if (valid) {
-    // Second Kick
-    var vel = motion[bodyIdx].vel + 0.5 * newAcc * params.deltaTime;
-
-    // Limit velocity
-    let speed = length(vel);
-    if (speed > 1000.0) {
-      vel = normalize(vel) * 1000.0;
-    }
-    motion[bodyIdx] = Motion(vel, newAcc);
-  }
+  // Write each owned target once. Padded targets must not even read motion while
+  // the invocation owning that clamped body updates it.
+  if (valid0) { finishBody(body0, acc0); }
+  if (valid1) { finishBody(body1, acc1); }
+  if (valid2) { finishBody(body2, acc2); }
+  if (valid3) { finishBody(body3, acc3); }
 }
