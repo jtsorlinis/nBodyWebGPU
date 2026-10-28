@@ -2,12 +2,16 @@ import { Scene, UniversalCamera, Vector3, WebGPUEngine } from "@babylonjs/core";
 
 export const initScene = async () => {
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
-  canvas.onpointerdown = () => {
-    canvas.requestPointerLock();
+  canvas.onpointerdown = (event) => {
+    if (event.pointerType === "mouse") {
+      void canvas.requestPointerLock?.()?.catch(() => {
+        // Babylon's normal drag controls still work when pointer lock is unavailable.
+      });
+    }
   };
 
   canvas.onpointerup = () => {
-    document.exitPointerLock();
+    document.exitPointerLock?.();
   };
 
   const engine = new WebGPUEngine(canvas, {
@@ -15,6 +19,7 @@ export const initScene = async () => {
     enableAllFeatures: true,
   });
   await engine.initAsync();
+  window.addEventListener("resize", () => engine.resize());
 
   const scene = new Scene(engine);
   scene.clearColor.set(0, 0, 0, 1);

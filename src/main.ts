@@ -40,16 +40,37 @@ const gravityText = document.getElementById("gravityText") as HTMLElement;
 const gravitySlider = document.getElementById(
   "gravitySlider",
 ) as HTMLInputElement;
-gravityText.innerText = `Gravity: ${gravity}`;
+const updateGravityDisplay = () => {
+  gravityText.textContent = String(gravity);
+  const min = Number(gravitySlider.min);
+  const max = Number(gravitySlider.max);
+  gravitySlider.style.setProperty("--range-progress", `${(gravity - min) / (max - min) * 100}%`);
+};
+updateGravityDisplay();
 
 const restartButton = document.getElementById("restartButton") as HTMLElement;
 const twinGalaxiesToggle = document.getElementById(
   "twinGalaxiesToggle",
 ) as HTMLInputElement;
 
-const moreBodiesToggle = document.getElementById(
-  "moreBodiesToggle",
-) as HTMLInputElement;
+const bodyCountButtons = document.querySelectorAll<HTMLButtonElement>(
+  "#bodyCountButtons button",
+);
+// The 64-byte tree nodes are the largest buffer; keep eight nodes per body.
+const maxTreeBytes = Math.min(
+  engine._device.limits.maxStorageBufferBindingSize,
+  engine._device.limits.maxBufferSize,
+);
+for (const button of bodyCountButtons) {
+  const count = Number(button.value);
+  button.setAttribute("aria-pressed", String(count === numBodies));
+  button.title = `${count.toLocaleString()} bodies`;
+  if (count * 8 * 64 > maxTreeBytes ||
+      Math.ceil(count * 8 / 256) > engine._device.limits.maxComputeWorkgroupsPerDimension) {
+    button.disabled = true;
+    button.title = "Unavailable on this GPU";
+  }
+}
 
 // Setup compute shaders
 const bodiesIntegrateShader = createBodiesIntegrateShader(engine);
@@ -105,7 +126,6 @@ const updateColours = () => {
   const maxAcc = Math.sqrt((numBodies + blackHoleMass) * gravity) / 15;
   bodiesMat.setFloat("maxAcc", maxAcc);
 };
-updateColours();
 
 // Bodies are drawn as camera-facing discs (see bodiesVertex)
 const bodyMesh = MeshBuilder.CreatePlane("body", { size: 1 });
@@ -133,7 +153,8 @@ let countsBuffer: StorageBuffer;
 let orderBuffer: StorageBuffer;
 
 const setup = () => {
-  bodiesText.innerHTML = `Bodies: ${numBodies}`;
+  bodiesText.textContent = numBodies.toLocaleString();
+  updateColours();
 
   // Setup size based on number of bodies
   const numGalaxies = twinGalaxies ? 2 : 1;
@@ -266,7 +287,7 @@ setup();
 // UI interaction
 gravitySlider.oninput = () => {
   gravity = gravitySlider.valueAsNumber;
-  gravityText.innerText = `Gravity: ${gravity}`;
+  updateGravityDisplay();
   params.updateFloat("gravity", gravity);
   params.update();
   updateColours();
@@ -290,14 +311,19 @@ twinGalaxiesToggle.onchange = () => {
   restart();
 };
 
-moreBodiesToggle.onchange = () => {
-  numBodies = moreBodiesToggle.checked
-    ? initialNumBodies * 2
-    : initialNumBodies;
-  maxNodes = numBodies * 8;
-  blackHoleMass = numBodies / 2;
-  restart();
-};
+for (const button of bodyCountButtons) {
+  button.onclick = () => {
+    const count = Number(button.value);
+    if (count === numBodies) return;
+    numBodies = count;
+    maxNodes = numBodies * 8;
+    blackHoleMass = numBodies / 2;
+    for (const other of bodyCountButtons) {
+      other.setAttribute("aria-pressed", String(Number(other.value) === numBodies));
+    }
+    restart();
+  };
+}
 
 const step = () => {
   // Avoid partial first steps while asynchronous shader compilation is pending.
@@ -341,7 +367,7 @@ engine.runRenderLoop(async () => {
   // Setting the text forces a layout, so only update it a few times a second
   fpsTimer += frameTime;
   if (fpsTimer >= 0.25) {
-    fpsText.textContent = `FPS: ${engine.getFps().toFixed(2)}`;
+    fpsText.textContent = Math.round(engine.getFps()).toLocaleString();
     fpsTimer = 0;
   }
 

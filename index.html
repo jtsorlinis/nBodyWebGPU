@@ -1,45 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WebGPU nBody</title>
+  <meta name="theme-color" content="#08090d" />
+  <title>N-body · Gravity simulation</title>
 </head>
-
 <body>
-  <div id="ui">
-    <div id="fpsText">FPS: 00</div>
-    <hr />
-    <div id="bodiesText">Bodies: 0</div>
-    <label class="uiCb">
-      <input type="checkbox" id="moreBodiesToggle" />
-      <span>More bodies</span>
-    </label>
-    <hr />
-    <button id="restartButton">Restart</button>
-    <hr />
-    <label>
-      <div id="gravityText">Gravity: 0</div>
-      <input type="range" id="gravitySlider" min="1" max="100" value="5" />
-    </label>
+  <details id="ui" open aria-label="Simulation controls">
+    <summary class="panel-header" title="Show or hide controls">
+      <svg class="app-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <ellipse cx="16" cy="16" rx="13" ry="6" transform="rotate(-35 16 16)" />
+        <ellipse cx="16" cy="16" rx="6" ry="13" transform="rotate(-35 16 16)" />
+        <circle cx="16" cy="16" r="2.5" />
+      </svg>
+      <span class="brand-copy">
+        <span class="app-title">N-body</span>
+        <span class="app-subtitle">Gravity simulation</span>
+      </span>
+      <span class="performance" aria-label="Frames per second">
+        <span id="fpsText">—</span><span class="fps-unit">fps</span>
+      </span>
+      <svg class="panel-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="m4 6 4 4 4-4" />
+      </svg>
+    </summary>
 
-    <hr />
-    <label class="uiCb">
-      <input type="checkbox" id="twinGalaxiesToggle" />
-      <span>Twin galaxies</span>
-    </label>
-  </div>
+    <div class="panel-content">
+      <section class="control-section" aria-labelledby="particleLabel">
+        <div class="control-heading">
+          <h2 id="particleLabel">Particles</h2>
+          <output id="bodiesText" class="readout">131,072</output>
+        </div>
+        <div id="bodyCountButtons" role="group" aria-labelledby="particleLabel">
+          <button type="button" value="131072" aria-pressed="true">128k</button>
+          <button type="button" value="524288" aria-pressed="false">512k</button>
+          <button type="button" value="1048576" aria-pressed="false">1mil</button>
+        </div>
+      </section>
 
-  <a href="https://github.com/jtsorlinis/nBodyWebGPU" target="_blank" rel="noopener noreferrer" id="sourceButton">
-    <svg style="width: 24px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">
-      <!--! Font Awesome Pro 6.4.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2023 Fonticons, Inc. -->
-      <path
-        d="M392.8 1.2c-17-4.9-34.7 5-39.6 22l-128 448c-4.9 17 5 34.7 22 39.6s34.7-5 39.6-22l128-448c4.9-17-5-34.7-22-39.6zm80.6 120.1c-12.5 12.5-12.5 32.8 0 45.3L562.7 256l-89.4 89.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l112-112c12.5-12.5 12.5-32.8 0-45.3l-112-112c-12.5-12.5-32.8-12.5-45.3 0zm-306.7 0c-12.5-12.5-32.8-12.5-45.3 0l-112 112c-12.5 12.5-12.5 32.8 0 45.3l112 112c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L77.3 256l89.4-89.4c12.5-12.5 12.5-32.8 0-45.3z" />
+      <section class="control-section gravity-control">
+        <div class="control-heading">
+          <label for="gravitySlider">Gravity</label>
+          <output id="gravityText" class="readout gravity-value" for="gravitySlider">5</output>
+        </div>
+        <input type="range" id="gravitySlider" min="1" max="100" value="5" />
+        <div class="range-labels" aria-hidden="true"><span>Gentle</span><span>Strong</span></div>
+      </section>
+
+      <label class="switch-row" for="twinGalaxiesToggle">
+        <span>Twin galaxies</span>
+        <input type="checkbox" id="twinGalaxiesToggle" role="switch" />
+      </label>
+
+      <button id="restartButton" type="button">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M4 7a6.5 6.5 0 1 1-.4 5M4 3v4h4" />
+        </svg>
+        Restart simulation
+      </button>
+      <div class="navigation-hint"><span>Drag to look</span><span><kbd>WASD</kbd> to move</span></div>
+    </div>
+  </details>
+
+  <a href="https://github.com/jtsorlinis/nBodyWebGPU" target="_blank" rel="noopener noreferrer" id="sourceButton" aria-label="View source on GitHub (opens in a new tab)">
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="m6 6-4 4 4 4m8-8 4 4-4 4M12 3 8 17" />
     </svg>
+    <span>View source</span>
+    <span class="external-arrow" aria-hidden="true">↗</span>
   </a>
-  <canvas id="renderCanvas" touch-action="none"></canvas>
+  <canvas id="renderCanvas" touch-action="none" aria-label="Interactive galaxy simulation"></canvas>
   <script type="module" src="/src/main.ts"></script>
 </body>
-
 </html>
