@@ -6,24 +6,24 @@ struct Params {
   softening: f32,
 }
 
-struct Body {
-  pos : vec3<f32>,
+struct Motion {
   vel : vec3<f32>,
   acc : vec3<f32>,
-  mass : f32,
 };
 
 @group(0) @binding(0) var<uniform> params : Params;
-@group(0) @binding(1) var<storage,read_write> bodies : array<Body>;
+// xyz = position, w = mass
+@group(0) @binding(1) var<storage,read> posMass : array<vec4<f32>>;
+@group(0) @binding(2) var<storage,read_write> motion : array<Motion>;
 
-var<workgroup> localBodies : array<Body, 256>;
+var<workgroup> localBodies : array<vec4<f32>, 256>;
 
 @compute @workgroup_size(256, 1, 1)
-fn main(@builtin(global_invocation_id) id : vec3<u32>, 
+fn main(@builtin(global_invocation_id) id : vec3<u32>,
         @builtin(local_invocation_id) lid : vec3<u32>,
         @builtin(num_workgroups) numGroups : vec3<u32>) {
-  
-  var body = bodies[id.x];
+
+  let pos = posMass[id.x].xyz;
 
   // Compute new acceleration
   var newAcc = vec3(0.0);
@@ -32,21 +32,21 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
     // Load the body into shared memory if it's in bounds
     let loadIndex = lid.x + tile * 256;
     if (loadIndex < params.numBodies) {
-      localBodies[lid.x] = bodies[loadIndex];
+      localBodies[lid.x] = posMass[loadIndex];
     } else {
-      localBodies[lid.x] = Body();
+      localBodies[lid.x] = vec4(0.0);
     }
     workgroupBarrier();
-    
+
     for (var i = 0u; i < 256; i++) {
         let otherIndex = i + tile * 256;
         if (id.x != otherIndex) {
             let other = localBodies[i];
-            let r = other.pos - body.pos;
+            let r = other.xyz - pos;
             // Add softening to prevent singularities and unrealistic close encounters
-            let distSq = dot(r, r) + params.softening * params.softening; 
+            let distSq = dot(r, r) + params.softening * params.softening;
             let invDist = inverseSqrt(distSq);
-            let f = params.gravity * other.mass * invDist * invDist * invDist;
+            let f = params.gravity * other.w * invDist * invDist * invDist;
             newAcc += r * f;
         }
     }
@@ -64,23 +64,15 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
     newAcc = normalize(newAcc) * 1000.0;
   }
 
-  // Store the new acceleration for the next timestep
-  body.acc = newAcc;
-
   // Second "Kick": Another half update of the velocity
-  body.vel += 0.5 * body.acc * params.deltaTime;
+  var vel = motion[id.x].vel + 0.5 * newAcc * params.deltaTime;
 
   // Limit velocity to prevent ejections from high-mass interactions
-  let speed = length(body.vel);
+  let speed = length(vel);
   if (speed > 1000.0) {
-    body.vel = normalize(body.vel) * 1000.0;
+    vel = normalize(vel) * 1000.0;
   }
 
-  // Update black hole masses
-  if(body.mass > 1000) {
-    body.mass = params.blackHoleMass;
-  }
-
-  // Write the updated body back to the buffer
-  bodies[id.x] = body;
+  // Store the new acceleration for the next timestep
+  motion[id.x] = Motion(vel, newAcc);
 }

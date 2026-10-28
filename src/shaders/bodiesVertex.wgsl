@@ -1,12 +1,8 @@
 #include<sceneUboDeclaration>
 
-struct Body {
-  pos: vec3<f32>,
-  vel: vec3<f32>,
-  acc: vec3<f32>,
-  mass: f32,
-};
-var<storage, read> bodies: array<Body>;
+struct Motion { vel: vec3<f32>, acc: vec3<f32>, };
+var<storage, read> posMass: array<vec4<f32>>;
+var<storage, read> motion: array<Motion>;
 uniform maxAcc: f32;
 uniform extrapolationTime: f32;
 attribute position: vec3<f32>;
@@ -16,8 +12,8 @@ varying viewCenter: vec3<f32>;
 
 @vertex
 fn main(input: VertexInputs) -> FragmentInputs {
-  let body = bodies[input.instanceIndex];
-  let pos = body.pos + body.vel * uniforms.extrapolationTime;
+  let body = motion[input.instanceIndex];
+  let pos = posMass[input.instanceIndex].xyz + body.vel * uniforms.extrapolationTime;
   let center = (scene.view * vec4<f32>(pos, 1.0)).xyz;
   vertexOutputs.position = scene.projection * vec4<f32>(center + vec3<f32>(vertexInputs.position.xy, 0.0), 1.0);
   vertexOutputs.particleOffset = vertexInputs.position.xy;
