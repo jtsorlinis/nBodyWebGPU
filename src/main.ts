@@ -23,7 +23,11 @@ import { randRange } from "./utils";
 // Constants
 const initialNumBodies = 1 << 17;
 let numBodies = initialNumBodies;
-let maxNodes = numBodies * 8; // Retain the existing tree capacity; reuse failed allocations during insertion.
+// Every node gets eight contiguous child records for the force pass, so the tree's
+// capacity is also the record capacity. Trees have used at most 0.84 nodes per body,
+// including failed allocations that insertion reuses.
+const nodesPerBody = 2;
+let maxNodes = numBodies * nodesPerBody;
 let gravity = 5;
 let blackHoleMass = numBodies / 2;
 const softening = 3.0;
@@ -56,8 +60,9 @@ const twinGalaxiesToggle = document.getElementById(
 const bodyCountButtons = document.querySelectorAll<HTMLButtonElement>(
   "#bodyCountButtons button",
 );
-// The 64-byte tree nodes are the largest buffer; keep eight nodes per body.
-const maxTreeBytes = Math.min(
+// The 128-byte child records are the largest buffer, and summarize dispatches two
+// invocations per node.
+const maxBufferBytes = Math.min(
   engine._device.limits.maxStorageBufferBindingSize,
   engine._device.limits.maxBufferSize,
 );
@@ -65,8 +70,8 @@ for (const button of bodyCountButtons) {
   const count = Number(button.value);
   button.setAttribute("aria-pressed", String(count === numBodies));
   button.title = `${count.toLocaleString()} bodies`;
-  if (count * 8 * 64 > maxTreeBytes ||
-      Math.ceil(count * 8 / 256) > engine._device.limits.maxComputeWorkgroupsPerDimension) {
+  if (count * nodesPerBody * 128 > maxBufferBytes ||
+      Math.ceil(count * nodesPerBody * 2 / 256) > engine._device.limits.maxComputeWorkgroupsPerDimension) {
     button.disabled = true;
     button.title = "Unavailable on this GPU";
   }
@@ -151,6 +156,7 @@ let allocatorBuffer: StorageBuffer;
 let boundsBuffer: StorageBuffer;
 let countsBuffer: StorageBuffer;
 let orderBuffer: StorageBuffer;
+let recordsBuffer: StorageBuffer;
 
 const setup = () => {
   bodiesText.textContent = numBodies.toLocaleString();
@@ -250,6 +256,9 @@ const setup = () => {
   countsBuffer = new StorageBuffer(engine, maxNodes * 4);
   orderBuffer = new StorageBuffer(engine, numBodies * 4);
 
+  // Child records: 8 x (centre of mass xyz, mass) per node, rebuilt every step
+  recordsBuffer = new StorageBuffer(engine, maxNodes * 8 * 16);
+
   // Bodies are updated in place, so the buffers only need binding once
   bodiesIntegrateShader.setStorageBuffer("posMass", posMassBuffer);
   bodiesIntegrateShader.setStorageBuffer("motion", motionBuffer);
@@ -268,6 +277,8 @@ const setup = () => {
   bhTreeShader.setStorageBuffer("counts", countsBuffer);
   bhSummarizeShader.setStorageBuffer("nodes", nodesBuffer);
   bhSummarizeShader.setStorageBuffer("allocator", allocatorBuffer);
+  bhSummarizeShader.setStorageBuffer("posMass", posMassBuffer);
+  bhSummarizeShader.setStorageBuffer("records", recordsBuffer);
   bhOrderShader.setStorageBuffer("posMass", posMassBuffer);
   bhOrderShader.setStorageBuffer("nodes", nodesBuffer);
   bhOrderShader.setStorageBuffer("counts", countsBuffer);
@@ -276,6 +287,7 @@ const setup = () => {
   bhForcesShader.setStorageBuffer("motion", motionBuffer);
   bhForcesShader.setStorageBuffer("nodes", nodesBuffer);
   bhForcesShader.setStorageBuffer("order", orderBuffer);
+  bhForcesShader.setStorageBuffer("records", recordsBuffer);
   bodiesMat.setStorageBuffer("posMass", posMassBuffer);
   bodiesMat.setStorageBuffer("motion", motionBuffer);
 
@@ -301,6 +313,7 @@ const restart = () => {
   boundsBuffer.dispose();
   countsBuffer.dispose();
   orderBuffer.dispose();
+  recordsBuffer.dispose();
   setup();
 };
 
@@ -316,7 +329,7 @@ for (const button of bodyCountButtons) {
     const count = Number(button.value);
     if (count === numBodies) return;
     numBodies = count;
-    maxNodes = numBodies * 8;
+    maxNodes = numBodies * nodesPerBody;
     blackHoleMass = numBodies / 2;
     for (const other of bodyCountButtons) {
       other.setAttribute("aria-pressed", String(Number(other.value) === numBodies));
@@ -344,8 +357,8 @@ const step = () => {
   // 2c: Build Tree
   bhTreeShader.dispatch(Math.ceil(numBodies / 256));
 
-  // 2d: Precompute each node's centre of mass for the force pass
-  bhSummarizeShader.dispatch(Math.ceil(maxNodes / 256));
+  // 2d: Gather each node's child centres of mass into contiguous records for the force pass
+  bhSummarizeShader.dispatch(Math.ceil(maxNodes * 2 / 256));
 
   // 2e: Put bodies in tree order
   bhOrderShader.dispatch(Math.ceil(numBodies / 256));

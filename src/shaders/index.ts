@@ -102,6 +102,7 @@ export const createBHForcesShader = (engine: WebGPUEngine) =>
         motion: { group: 0, binding: 2 },
         nodes: { group: 0, binding: 3 },
         order: { group: 0, binding: 4 },
+        records: { group: 0, binding: 5 },
       },
     },
   );
@@ -131,6 +132,8 @@ export const createBHSummarizeShader = (engine: WebGPUEngine) =>
         params: { group: 0, binding: 0 },
         nodes: { group: 0, binding: 1 },
         allocator: { group: 0, binding: 2 },
+        posMass: { group: 0, binding: 3 },
+        records: { group: 0, binding: 4 },
       },
     },
   );

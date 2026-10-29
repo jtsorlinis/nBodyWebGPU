@@ -14,10 +14,10 @@ struct Motion {
   acc : vec3<f32>,
 };
 
-// As prepared by bhSummarize
+// As built by bhTree (bhSummarize leaves nodes unchanged)
 struct Node {
-  com: vec4<f32>, // centre of mass xyz, mass
-  geom: vec4<f32>, // center xyz, squared distance beyond which the node can be approximated
+  sums: vec4<i32>, // integer mass, then moment relative to the centre in half sizes
+  geom: vec4<f32>, // center xyz, half size
   children: array<i32, 8>, // 0 = empty, > 0 = node, < 0 = body (-1 - bodyIdx)
 };
 
@@ -28,6 +28,8 @@ struct Node {
 @group(0) @binding(3) var<storage, read> nodes : array<Node>;
 // Body indices in tree order (see bhOrder)
 @group(0) @binding(4) var<storage, read> order : array<u32>;
+// Each node's eight child records: centre of mass xyz, mass (see bhSummarize)
+@group(0) @binding(5) var<storage, read> records : array<vec4<f32>>;
 
 // MAX_DEPTH=30 permits internal children through depth 31. A depth-first walk
 // needs at most 1 + 7*31 pending nodes, so 256 entries cover every valid tree.
@@ -55,6 +57,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   let pos = posMass[bodyIdx].xyz;
   var newAcc = vec3(0.0);
 
+  // A node can be approximated when size / dist < theta. A child's size is its
+  // parent's half size, so each child's squared-distance threshold comes from the
+  // popped node rather than being fetched per child.
+  let invThetaSq = 1.0 / (params.theta * params.theta);
+
   // Stack of nodes to open, starting at the Root (which always contains this body).
   // Children are tested as soon as their parent is opened, so only nodes that need
   // opening go on the stack.
@@ -65,28 +72,30 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   while (stackPtr > 0) {
     stackPtr--;
     let nodeIdx = stack[stackPtr];
+    let halfSize = nodes[nodeIdx].geom.w;
+    let threshold = halfSize * halfSize * invThetaSq;
 
-    for (var i = 0; i < 8; i++) {
+    // Invocations traverse independently here, so unlike bhForcesCoherent, only
+    // load the records of occupied slots
+    for (var i = 0u; i < 8u; i++) {
       let child = nodes[nodeIdx].children[i];
+      if (child == 0) { continue; }
+      let source = records[u32(nodeIdx) * 8u + i];
+      // Empty cells of bhTree's fixed prefix have no mass
+      if (source.w <= 0.0) { continue; }
+
+      let r = source.xyz - pos;
       if (child < 0) {
         // It's a Body
-        let otherBodyIdx = u32(-child - 1);
-        if (otherBodyIdx != bodyIdx) {
-          let other = posMass[otherBodyIdx];
-          newAcc += attraction(other.xyz - pos, other.w);
+        if (u32(-child - 1) != bodyIdx) {
+          newAcc += attraction(r, source.w);
         }
-      } else if (child > 0) {
-        // It's a Node. Only its first half is needed unless it gets opened
-        let node = nodes[child].com;
-        if (node.w <= 0.0) { continue; }
-
-        let r = node.xyz - pos;
-        let distSq = dot(r, r);
-
-        // Check if we can approximate: size / dist < theta
+      } else {
+        // It's a Node. Check if we can approximate: size / dist < theta
         // If the stack is full, the point mass is used rather than dropping the node
-        if (distSq > nodes[child].geom.w || stackPtr >= STACK_SIZE) {
-          newAcc += attraction(r, node.w);
+        let distSq = dot(r, r);
+        if (distSq > threshold || stackPtr >= STACK_SIZE) {
+          newAcc += attraction(r, source.w);
         } else {
           stack[stackPtr] = child;
           stackPtr++;

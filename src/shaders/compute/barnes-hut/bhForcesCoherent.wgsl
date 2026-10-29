@@ -23,10 +23,10 @@ struct Motion {
   acc : vec3<f32>,
 };
 
-// As prepared by bhSummarize
+// As built by bhTree (bhSummarize leaves nodes unchanged)
 struct Node {
-  com: vec4<f32>, // centre of mass xyz, mass
-  geom: vec4<f32>, // center xyz, squared distance beyond which the node can be approximated
+  sums: vec4<i32>, // integer mass, then moment relative to the centre in half sizes
+  geom: vec4<f32>, // center xyz, half size
   children: array<i32, 8>, // 0 = empty, > 0 = node, < 0 = body (-1 - bodyIdx)
 };
 
@@ -37,6 +37,8 @@ struct Node {
 @group(0) @binding(3) var<storage, read> nodes : array<Node>;
 // Body indices in tree order (see bhOrder)
 @group(0) @binding(4) var<storage, read> order : array<u32>;
+// Each node's eight child records: centre of mass xyz, mass (see bhSummarize)
+@group(0) @binding(5) var<storage, read> records : array<vec4<f32>>;
 
 // MAX_DEPTH=30 permits internal children through depth 31. A depth-first walk
 // needs at most 1 + 7*31 pending nodes, so 256 entries cover every valid tree.
@@ -92,6 +94,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   let pos3 = posMass[body3].xyz;
   var acc3 = vec3(0.0);
 
+  // A node can be approximated when size / dist < theta. A child's size is its
+  // parent's half size, so each child's squared-distance threshold comes from the
+  // popped node rather than being fetched per child.
+  let invThetaSq = 1.0 / (params.theta * params.theta);
+
   // Stack of nodes to open, starting at the root (which contains every target).
   // Children are tested as soon as their parent is opened, so only nodes that need
   // opening go on the stack.
@@ -102,39 +109,41 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   while (stackPtr > 0) {
     stackPtr--;
     let nodeIdx = stack[stackPtr];
+    let halfSize = subgroupBroadcastFirst(nodes[nodeIdx].geom.w);
+    let threshold = halfSize * halfSize * invThetaSq;
 
-    for (var i = 0; i < 8; i++) {
-      let child = subgroupBroadcastFirst(nodes[nodeIdx].children[i]);
+    // Issue every load for this node before using any of them, so they overlap
+    let children = nodes[nodeIdx].children;
+    var childRecords: array<vec4<f32>, 8>;
+    for (var i = 0u; i < 8u; i++) { childRecords[i] = records[u32(nodeIdx) * 8u + i]; }
+
+    for (var i = 0u; i < 8u; i++) {
+      let child = subgroupBroadcastFirst(children[i]);
+      let source = childRecords[i];
+      // Empty slots, and empty cells of bhTree's fixed prefix, have no mass
+      if (subgroupBroadcastFirst(source.w) <= 0.0) { continue; }
+
+      let r0 = source.xyz - pos0;
+      let r1 = source.xyz - pos1;
+      let r2 = source.xyz - pos2;
+      let r3 = source.xyz - pos3;
       if (child < 0) {
-        // It's a Body
-        let otherBodyIdx = u32(-child - 1);
-        let other = posMass[otherBodyIdx];
-        // Self attraction is exactly zero: displacement is zero and softening > 0.
-        acc0 += attraction(other.xyz - pos0, other.w);
-        acc1 += attraction(other.xyz - pos1, other.w);
-        acc2 += attraction(other.xyz - pos2, other.w);
-        acc3 += attraction(other.xyz - pos3, other.w);
-      } else if (child > 0) {
-        // It's a Node. Only its first half is needed unless it gets opened
-        let node = subgroupBroadcastFirst(nodes[child].com);
-        if (node.w <= 0.0) { continue; }
-
-        let r0 = node.xyz - pos0;
-        let r1 = node.xyz - pos1;
-        let r2 = node.xyz - pos2;
-        let r3 = node.xyz - pos3;
-
-        // Approximate only if EVERY target in EVERY participating lane passes
-        // size / dist < theta. Batching can only make this test more conservative.
+        // It's a Body. Self attraction is exactly zero: displacement is zero and softening > 0.
+        acc0 += attraction(r0, source.w);
+        acc1 += attraction(r1, source.w);
+        acc2 += attraction(r2, source.w);
+        acc3 += attraction(r3, source.w);
+      } else {
+        // It's a Node. Approximate only if EVERY target in EVERY participating lane
+        // passes size / dist < theta. Batching can only make this test more conservative.
         // If the stack is full, the point mass is used rather than dropping the node
-        let threshold = nodes[child].geom.w;
         let canApproximate = dot(r0, r0) > threshold && dot(r1, r1) > threshold &&
           dot(r2, r2) > threshold && dot(r3, r3) > threshold;
         if (subgroupBroadcastFirst(u32(subgroupAll(canApproximate))) != 0u || stackPtr >= STACK_SIZE) {
-          acc0 += attraction(r0, node.w);
-          acc1 += attraction(r1, node.w);
-          acc2 += attraction(r2, node.w);
-          acc3 += attraction(r3, node.w);
+          acc0 += attraction(r0, source.w);
+          acc1 += attraction(r1, source.w);
+          acc2 += attraction(r2, source.w);
+          acc3 += attraction(r3, source.w);
         } else {
           stack[stackPtr] = child;
           stackPtr++;
