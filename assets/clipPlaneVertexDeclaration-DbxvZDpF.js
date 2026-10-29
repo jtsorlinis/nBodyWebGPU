@@ -1,0 +1,1 @@
+export{t as clipPlaneVertexDeclarationWGSL}from"./clipPlaneVertexDeclaration-CAg6OFbU.js";

@@ -1,0 +1,1 @@
+export{t as openpbrPixelShaderWGSL}from"./openpbr.fragment-COdV-F-A.js";

@@ -1,0 +1,1 @@
+export{t as spritesVertexShaderWGSL}from"./sprites.vertex-DgnaO95m.js";

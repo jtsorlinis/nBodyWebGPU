@@ -1,0 +1,1 @@
+export{t as fogFragmentDeclaration}from"./fogFragmentDeclaration-kXoGw5iI.js";

@@ -1,0 +1,1 @@
+export{t as morphTargetsVertexGlobalWGSL}from"./morphTargetsVertexGlobal-CH8bCQ4f.js";

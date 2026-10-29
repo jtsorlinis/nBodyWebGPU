@@ -1,0 +1,1 @@
+export{t as boundingBoxRendererVertexShader}from"./boundingBoxRenderer.vertex-BHeTipRD.js";

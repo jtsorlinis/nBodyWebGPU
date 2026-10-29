@@ -1,46 +1,498 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WebGPU nBody</title>
-  <script type="module" crossorigin src="/nBodyWebGPU/assets/index-C2NVfa-p.js"></script>
-  <link rel="stylesheet" crossorigin href="/nBodyWebGPU/assets/index-CHOnMY8n.css">
+  <meta name="theme-color" content="#08090d" />
+  <title>N-body · Gravity simulation</title>
+  <script type="module" crossorigin src="/nBodyWebGPU/assets/index-DNvzLXl3.js"></script>
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/math.scalar.functions-D08Q5IJG.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/observable.pure-H-M_hi7F.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/performanceConfigurator-UtxC_Odd.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/engineStore-B_7KzytD.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/math.vector.pure-CxFT28G4.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/logger-CuBYPcDK.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/tools.functions-CkKvTgVX.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/webRequest-dqz0dHXK.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/precisionDate-CfCevjl-.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/halfFloat-Ce77JD5z.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/tools.pure-AHMhjzaH.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/math.color.pure-CZEplqOg.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/decorators-BS-fGYfw.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/baseTexture.pure-6N55lhE5.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shaderStore-D-XQlhUT.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/internalTexture-CIqq8xFB.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/thinEngine.pure-DnrfEbW5.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/dumpTools.pure-DGhwh6E-.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/cubemapToSphericalPolynomial-BJoz-JSM.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/baseTexture.polynomial.pure-DwLJCJpP.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/basis.pure--2i93Msa.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/webAudioBaseSubGraph-SC87iUI7.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/spatialWebAudio-Ey8QHks_.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/abstractSoundSource-C6AH8daY.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/webAudioSoundSource-pUxjUuww.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/abstractSoundInstance-CmeguWx6.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/webAudioStaticSound-BljhX3oB.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/webAudioStreamingSound-D8LCzaZz.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/packingFunctions-DpGwbupU.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bonesDeclaration-oDxSsnww.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bakedVertexAnimation-7XIMgH6x.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/morphTargetsVertexGlobalDeclaration-D6da8uHC.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/morphTargetsVertexDeclaration-DQIU8BV5.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/instancesDeclaration-CJBvtBV5.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/morphTargetsVertexGlobal-Bo-wqe4M.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/morphTargetsVertex-Uz52QWNe.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/instancesVertex-C-FoRQR1.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bonesVertex-BZbvWQw2.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/packingFunctions-CINwVZs6.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bonesDeclaration-CyjXpdlz.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bakedVertexAnimationDeclaration-C-g0vyVW.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/morphTargetsVertexGlobalDeclaration-B4Uhgd1q.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/morphTargetsVertexDeclaration-D7nvpAib.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/instancesDeclaration-DsiFqYXH.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/morphTargetsVertexGlobal-CH8bCQ4f.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/morphTargetsVertex-wwizyQUK.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/instancesVertex-Dty6qjVO.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bonesVertex-3u5jVDJW.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bakedVertexAnimation-CP3BNGXM.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iesTextureLoader-CGowuHyG.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/clearQuad.vertex-BQfweATK.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/clearQuad.fragment-DQbPmvKE.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/helperFunctions-BH8P-eyq.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fresnelFunction-BmNPQIdN.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/meshUboDeclaration-BATNZvmb.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/sceneUboDeclaration-B96Tfx7b.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/decalFragment-CvBK6CMD.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/helperFunctions-gEnZbjN3.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/clipPlaneFragmentDeclaration-LJdlhFDo.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/clipPlaneFragment-B_IgbgTE.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/glowMapGeneration.fragment-CC9Dobn3.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/clipPlaneVertexDeclaration-Be-obVGF.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/clipPlaneVertex-6IHcna3I.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/glowMapGeneration.vertex-DwVmGY3T.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/clipPlaneFragmentDeclaration-DYuu9Qqk.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/clipPlaneFragment-F6cElb9_.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/glowMapGeneration.fragment-C11c6HsF.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/clipPlaneVertexDeclaration-CAg6OFbU.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/clipPlaneVertex-C1oDvPhB.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/glowMapGeneration.vertex-DZqYChpV.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/glowMapMerge.fragment-CIlfDC9k.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/glowMapMerge.vertex-CtwQbAck.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/glowBlurPostProcess.fragment-Dp3tYO8K.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/glowMapMerge.fragment-CojDcYlj.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/glowMapMerge.vertex-B-TRhNbm.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/glowBlurPostProcess.fragment-yvGDH0n0.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/layer.fragment-DZOK0Dtc.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/layer.vertex-C95prOVo.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/layer.fragment-D3aJ7vjg.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/layer.vertex-BcW4T4Gq.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lensFlare.fragment-CDJ24MHq.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lensFlare.vertex-B6JKrhRR.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lensFlare.fragment-CRAJnNY8.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lensFlare.vertex-tI91zxcb.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowMapFragment-DwkJ2ApE.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowMap.fragment-Bod6kGsA.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowMapVertexMetric-HtItRIkv.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowMap.vertex-PEYnD5t7.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/depthBoxBlur.fragment-UH9NCD7W.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowMapFragmentSoftTransparentShadow-Bg6eppO9.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowMapFragment-DXnMjnBX.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowMap.fragment-DDDedjsD.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/sceneVertexDeclaration-CluTp-RC.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/meshVertexDeclaration-CPlGPeEg.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/sceneUboDeclaration-B5VhSG0v.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/meshUboDeclaration-BmNu2KU_.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowMapVertexMetric-DLVzym1s.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowMap.vertex-Ch31isFK.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/depthBoxBlur.fragment-DUVdI0D5.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowMapFragmentSoftTransparentShadow-Bxc4o10v.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightProxy.fragment-BGXIUNiN.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/clusteredLightingFunctions-BFCOODPn.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightProxy.vertex-CveTSR7E.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightProxy.fragment-DyDshaAT.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/clusteredLightingFunctions-DNqaoQCj.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightProxy.vertex-D9yVVdY7.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/hdr-Bd1UllnH.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fogVertexDeclaration-CiHbVcSR.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightVxUboDeclaration-DpF0MCXt.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/logDepthDeclaration-DYYUVTrx.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fogVertex-D0bmc4KF.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowsVertex-B6Zq19z5.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/logDepthVertex-DSD5XdGw.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/backgroundUboDeclaration-ClJLip40.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/background.vertex-nvciwNe2.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/reflectionFunction-BvFXGAfy.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/imageProcessingDeclaration-Bb7hft1z.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightUboDeclaration-tC-Focp5.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/ltcHelperFunctions-D8BySwCQ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightsFragmentFunctions-CdWoT-tT.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowsFragmentFunctions-BTj6RIto.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/imageProcessingFunctions-BdsOoAXj.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fogFragmentDeclaration-CWCikRBp.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightFragment-B2GfWPKU.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/logDepthFragment-CxtJswLx.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fogFragment-C9E3EVJj.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/background.fragment-DqbWKOFx.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/backgroundUboDeclaration-i4MsxPq1.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fogVertexDeclaration-Bb9kDbrL.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightVxFragmentDeclaration-CD-1zlIv.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightVxUboDeclaration-CMPrkkNu.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/logDepthDeclaration-3gXGtHbI.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fogVertex-B90wzaBe.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowsVertex-DIqkUAF8.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/logDepthVertex-D5IUM6qd.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/background.vertex-BQnJOcRH.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/reflectionFunction-HDr5zz8L.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/imageProcessingDeclaration-D-Jk7MeR.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightFragmentDeclaration-gxhjod80.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightUboDeclaration-DK1S79Am.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/ltcHelperFunctions-DS3Utz6C.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightsFragmentFunctions-aBLPObVn.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/shadowsFragmentFunctions-Co6NG7kN.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/imageProcessingFunctions-Cqomo2bJ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fogFragmentDeclaration-kXoGw5iI.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lightFragment-5DmvFIcs.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/logDepthFragment-C5lxT4l1.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fogFragment-CKCGTcJi.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/background.fragment-U3VeODru.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/color.fragment-CRV5V1He.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/vertexColorMixing-DPW6Is9y.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/color.vertex-BTHE--wo.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pbrBRDFFunctions-DxfbxN23.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/vertexColorMixing-UCrnwszu.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pbrUboDeclaration-BPdnc_7Y.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/samplerVertexImplementation-CEwsh6W2.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/mainUVVaryingDeclaration-B_7d0nc3.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/harmonicsFunctions-CMr56qfT.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bumpVertexDeclaration-I4Guxw_q.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/vertexPullingDeclaration-bSzsf5ND.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bumpVertex-DRq4BZvD.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pbr.vertex-BU7ghHw6.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/oitFragment-BX3jW996.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/objectIdFunctions-0O_zsAzb.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/meshBlendTagFragmentOutput-C4_wL4oQ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pbrDebug-BrRjjwX-.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/samplerFragmentDeclaration-CEHqUfAO.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pbrIBLFunctions-b8fwQKtH.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/subSurfaceScatteringFunctions-kzIx-1Od.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/hdrFilteringFunctions-Da1yugu7.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bumpFragmentMainFunctions-B84fMbkg.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bumpFragmentFunctions-DbpDnX-7.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bumpFragment-46KCSlZ3.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pbr.fragment-d9Kk2FIQ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/samplerVertexImplementation-DUwTGCgo.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pbrUboDeclaration--xFZEw0i.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/mainUVVaryingDeclaration-BBamQlxR.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pbrBRDFFunctions-BCNINF-p.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/harmonicsFunctions-QSz_WdsQ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bumpVertexDeclaration-Cb04kLz9.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bumpVertex-CWhdIpqj.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pbr.vertex-Dcakudhb.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/objectIdFunctions-BCg-H1o3.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/prePassDeclaration-BXhzfxgD.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/oitFragment-DbgsmPZH.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pbrDebug-BqaGz1G1.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/samplerFragmentDeclaration-3yaLawFX.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pbrIBLFunctions-CSlJv7qb.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/subSurfaceScatteringFunctions-D1w5631e.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/hdrFilteringFunctions-Dw0rQ8Bu.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bumpFragmentMainFunctions-D9FnEtix.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bumpFragmentFunctions-Hq-zEncP.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/decalFragment-DYiNNNYb.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bumpFragment-BeWLWDhL.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pbr.fragment-DaThAR_p.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/openpbrUboDeclaration-DsEnzkeE.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/openpbr.vertex-AJSab5S3.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/openpbrSubsurfaceLayerData-DpsV2wgM.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/openpbr.fragment-COdV-F-A.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/openpbrUboDeclaration-CbPGRvOI.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/openpbr.vertex-DFVpk965.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/sceneFragmentDeclaration-ql3RpL9u.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/openpbrSubsurfaceLayerData-DZgp0Qa4.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/openpbr.fragment-DlrJTqqW.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/exrTextureLoader-Ceh0UBZi.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/tga-BzdOB8-c.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/procedural.vertex-CLx-NHx5.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/procedural.vertex-Cqvl7fIT.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/hdrFiltering.vertex-NEq4YZTx.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/hdrFiltering.fragment-C9mS-rtf.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/hdrFiltering.vertex-DhT_p849.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/hdrFiltering.fragment-CPqHZQn1.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/hdrIrradianceFiltering.vertex-CixBei1J.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/hdrIrradianceFiltering.fragment-CE2I2YPC.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/hdrIrradianceFiltering.vertex-CEte0Jfn.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/hdrIrradianceFiltering.fragment-CWJ_7JzV.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianSplattingVertexDeclaration-41qUyjEL.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianSplattingShared-ByBJQ-9z.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianSplatting-CysUpaX1.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianSplattingVertexDeclaration-Dh4gQSYF.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianSplatting-CBuouMIC.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianSplattingFragmentDeclaration-BUkYdklu.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianSplattingFragmentDeclaration-DuANFXRd.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/postprocess.vertex-D9d0Du8L.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/postprocess.vertex-qbpNH4iO.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianSplattingUboDeclaration-D-E5L1Sy.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianPointSplattingBlit.vertex-BWKtsHuK.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianPointSplattingBlit.fragment-5526p2v2.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianPointSplattingDepthBlit.fragment-CPAIUXnj.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/defaultUboDeclaration-C53xcSdv.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fresnelFunction-BZ6swLux.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/default.fragment-D_TL43eD.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pointCloudVertex-CmkEsLzf.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/default.vertex-CnKqAEuT.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/defaultUboDeclaration-DVoEMIF5.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/default.fragment-B8RDwxYo.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/default.vertex-BZFieZ58.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/greasedLine.fragment-BMMGOfLV.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/greasedLine.vertex-D8htcPLd.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/greasedLine.fragment-BUMkgZEW.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/greasedLine.vertex-C4WgKbdC.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/geometryRenderingFragment-DZg0Y277.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/sprites.fragment-HuL6XjeI.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/geometryRenderingFragment-BrNs9Tou.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/sprites.fragment-BJZz7qq6.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianPointSplatting-UwjdZPb8.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gpsPreprocess.compute-BtfY3Z5i.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gaussianPointSplattingScan-COj6jNKT.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gpsScanBlocks.compute-BDv4azRD.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gpsScanSums.compute-ClvI-nKK.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gpsScanAdd.compute--A5cyEdJ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gpsPartition.compute-DUMTj9lq.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gpsSplat.compute-DKlkiZlf.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gpsResolve.compute--yeuEi-d.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/gpsHiZBuild.compute-BjbJ3xbM.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/color.fragment-By6n-NB_.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/color.vertex-DJODYwTz.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lodCube.fragment-BeX_D0cd.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lod.fragment-CXdd8T0h.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lodCube.fragment-DUH6CNsf.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/lod.fragment-DrWsAjxF.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/minmaxRedux.fragment-BmG2Lipt.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/minmaxRedux.fragment-OXmjUL6q.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/rgbdDecode.fragment-p3fhgR6H.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/rgbdEncode.fragment-BGFyjQZF.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/rgbdDecode.fragment-CKoeb-se.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/rgbdEncode.fragment-Dt4EBrz3.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/copyTextureToTexture.fragment-CskK7nSv.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/copyTextureToTexture.fragment-CP09nTR-.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/particles.fragment-B5MNUP41.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/particles.vertex-D3cim01f.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/particles.fragment--oQUvbhH.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/particles.vertex-Bb7EBjRX.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/chromaticAberration.fragment-C218wWA9.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/ssaoCombine.fragment-D5-OGhw6.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/ssao2.fragment-Cg0jsPm2.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/ssao2.fragment-CeqpF8QC.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/ssaoCombine.fragment-DdrMvyKm.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/screenSpaceRayTrace-BZRnp6Bu.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/screenSpaceReflection2.fragment-lLCPdVyj.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/screenSpaceReflection2Blur.fragment-D1TlfxAO.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/screenSpaceReflection2BlurCombiner.fragment-B183nlwe.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/screenSpaceRayTrace-Z74_Mvl0.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/screenSpaceReflection2.fragment-Jxk0epN7.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/screenSpaceReflection2Blur.fragment-Bdfttzwz.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/screenSpaceReflection2BlurCombiner.fragment-Cth6N2_n.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/taa.fragment-CYEdllCB.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/taa.fragment-gKZoVtzT.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/sharpen.fragment-DeQPBy65.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/depth.vertex-gQ4Zc4gY.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/volumetricLightScattering.fragment-BH2C9ogL.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/volumetricLightScatteringPass.vertex-DkNg8l7j.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/volumetricLightScatteringPass.fragment-SVT3C0Wr.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/volumetricLightScattering.fragment-BWZaE6dA.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/volumetricLightScatteringPass.vertex-C7_w8kn-.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/volumetricLightScatteringPass.fragment-DnPk7UOC.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/screenSpaceCurvature.fragment-CZJV0LqC.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/kernelBlurVaryingDeclaration-DP2Wr9Oc.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/kernelBlur.fragment-BM4mwjp4.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/kernelBlur.vertex-BoEq3ZzB.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/kernelBlurVaryingDeclaration-g2Ge9lzd.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/kernelBlur.fragment-BO94JKXs.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/kernelBlur.vertex-CN1QFKHJ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pass.fragment-Z2Xbcktk.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/passCube.fragment-DfWfpmDG.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/pass.fragment-Chy1JYTV.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/passCube.fragment-CVlgZk8U.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/vrDistortionCorrection.fragment-Vo46tRsF.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/vrDistortionCorrection.fragment-D1OgY0iU.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/imageProcessing.fragment-B30xOQ9k.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/imageProcessing.fragment-JLT-W0H2.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/sharpen.fragment-oUoLOvNk.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/grain.fragment-Da2aK5Gq.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/grain.fragment-s20LwfC2.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/chromaticAberration.fragment-p3lPYYzZ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/depthOfFieldMerge.fragment-DsYWDYy1.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/depthOfFieldMerge.fragment-CHoaKsS8.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/circleOfConfusion.fragment-C2QL-Mcd.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/circleOfConfusion.fragment-DOLTaJCZ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bloomMerge.fragment-Qzo6dx3O.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bloomMerge.fragment-Bw-XCjN3.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/extractHighlights.fragment-Zv3KUQ6J.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/extractHighlights.fragment-DTiejokt.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fxaa.fragment-BF_2fD90.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fxaa.vertex-R0q1-gDY.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fxaa.fragment-4YCE2gkS.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fxaa.vertex-B9kEZvtG.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/blackAndWhite.fragment-CxuU5gCZ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/blackAndWhite.fragment-CeHNgjuX.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/anaglyph.fragment-BcHV5jOo.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/anaglyph.fragment-CEHwYhKp.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/convolution.fragment-DToT_z6y.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/convolution.fragment-fWKPc-Nm.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/colorCorrection.fragment-CWhh5JrA.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/colorCorrection.fragment-DBfCBOEr.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/motionBlur.fragment-Ct3J1bvM.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/motionBlur.fragment-mdONWWbS.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/filter.fragment-q067xKgl.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/filter.fragment-K3Hy3Rjo.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/displayPass.fragment-BqmEVKM9.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/displayPass.fragment-CqDTLaEl.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/tonemap.fragment-DT72b1n5.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/tonemap.fragment-O46cxVmD.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/depth.fragment-BUY6Vjt2.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/depth.fragment-B937KjIc.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/depth.vertex-BOskaAv2.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingParticleDepth.vertex-CTX2AlHI.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingParticleDepth.fragment-B-fz9wll.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingParticleThickness.vertex-CLxFon9M.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingParticleThickness.fragment-DMFJn_D1.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingParticleDiffuse.fragment-DLLt4TMp.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingBilateralBlur.fragment-Djq8_AIE.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingStandardBlur.fragment-DV7_3Du1.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingRender.fragment-CnGY6CDW.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingParticleDepth.vertex-DcKXdDtd.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingParticleDepth.fragment-BI3wqGEj.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingParticleThickness.vertex-CqYRtZLU.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingParticleThickness.fragment-CX-me4pp.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingParticleDiffuse.fragment-Db-zgGYp.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingBilateralBlur.fragment-Dol9CvEZ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingStandardBlur.fragment-uz2VEEIC.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/fluidRenderingRender.fragment-CX6yV2CP.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bilateralBlur.fragment-ButW7oLY.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bilateralBlurQuality.fragment-DNE9dhK_.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/rsmGlobalIllumination.fragment-Dc8c-96p.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/rsmFullGlobalIllumination.fragment-D3RbDfPi.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bilateralBlur.fragment-CzXWh7vp.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/bilateralBlurQuality.fragment-D52rlq68.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/rsmGlobalIllumination.fragment-BEAX4Itd.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/rsmFullGlobalIllumination.fragment-DbdDyauJ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/mrtFragmentDeclaration-BZpfWb0R.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/geometry.fragment-MGjwlObO.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/geometry.vertex-DMONnM_5.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/geometry.fragment-Cb9mKTMr.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/geometry.vertex-BT4R1QSP.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/boundingBoxRendererUboDeclaration-p4IHL4lf.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/boundingBoxRenderer.fragment-DJo3-x0H.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/boundingBoxRenderer.vertex-BHeTipRD.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/boundingBoxRenderer.fragment-DoDiyFZE.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/boundingBoxRenderer.vertex-C4LdaFIT.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/line.fragment-LPHopDAC.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/line.vertex-Dfphv-BQ.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/line.fragment-BUv7Ocqt.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/line.vertex-DmKaCwcE.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/outline.fragment-Ctyr_qkb.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/outline.vertex-CDjCY8EG.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/outline.fragment-BpGFCx5_.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/outline.vertex-dqlupI3m.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/copyTexture3DLayerToTexture.fragment-BPqpQtgV.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/copyTexture3DLayerToTexture.fragment-D3C6mXZl.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblShadowVoxelTracing.fragment-BKatSmby.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblShadowVoxelTracing.fragment-BUrs79en.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblShadowSpatialBlur.fragment-C78T7meT.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblShadowSpatialBlur.fragment-B2si0IrB.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblShadowAccumulation.fragment-ClMjwfwu.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblShadowAccumulation.fragment-CEI-zDRB.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblCombineVoxelGrids.fragment-DR9_cEHt.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblCombineVoxelGrids.fragment-5KDkQYo1.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblGenerateVoxelMip.fragment-wSzbc-7i.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblGenerateVoxelMip.fragment-D5mBP1Gl.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblCdfx.fragment-DvcCzIoC.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblCdfx.fragment-gGmftUVO.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblCdfy.fragment-CQb2awV6.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblCdfy.fragment-B5meikVL.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblIcdf.fragment-C6NNGfdE.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblIcdf.fragment-BWKW8vCR.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblCdfDebug.fragment-C-KdOWEG.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblCdfDebug.fragment-DYKaTIjj.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblScaledLuminance.fragment-CS72igDu.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblScaledLuminance.fragment-BgGmnPZu.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblDominantDirection.fragment-CYpCO1y6.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblDominantDirection.fragment-D-AvJO79.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblVoxelGrid.fragment-Ct9XrYcd.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblVoxelGrid.vertex-BJozGvyk.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblVoxelOpacityAtomicMax-C9BLvW0W.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblVoxelGrid.fragment-DgSEEYDK.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/iblVoxelGrid.vertex-BXMRRUdd.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/oitBackBlend.fragment-Bjb14Y7n.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/oitBackBlend.fragment-B8s0OqM6.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/sprites.vertex-CL2Rmll8.js">
+  <link rel="modulepreload" crossorigin href="/nBodyWebGPU/assets/sprites.vertex-DgnaO95m.js">
+  <link rel="stylesheet" crossorigin href="/nBodyWebGPU/assets/index-Fy_xjYD7.css">
 </head>
-
 <body>
-  <div id="ui">
-    <div id="fpsText">FPS: 00</div>
-    <hr />
-    <div id="bodiesText">Bodies: 0</div>
-    <label class="uiCb">
-      <input type="checkbox" id="moreBodiesToggle" />
-      <span>More bodies</span>
-    </label>
-    <hr />
-    <button id="restartButton">Restart</button>
-    <hr />
-    <label>
-      <div id="gravityText">Gravity: 0</div>
-      <input type="range" id="gravitySlider" min="1" max="100" value="5" />
-    </label>
+  <details id="ui" open aria-label="Simulation controls">
+    <summary class="panel-header" title="Show or hide controls">
+      <svg class="app-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <ellipse cx="16" cy="16" rx="13" ry="6" transform="rotate(-35 16 16)" />
+        <ellipse cx="16" cy="16" rx="6" ry="13" transform="rotate(-35 16 16)" />
+        <circle cx="16" cy="16" r="2.5" />
+      </svg>
+      <span class="brand-copy">
+        <span class="app-title">N-body</span>
+        <span class="app-subtitle">Gravity simulation</span>
+      </span>
+      <span class="performance" aria-label="Frames per second">
+        <span id="fpsText">—</span><span class="fps-unit">fps</span>
+      </span>
+      <svg class="panel-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="m4 6 4 4 4-4" />
+      </svg>
+    </summary>
 
-    <hr />
-    <label class="uiCb">
-      <input type="checkbox" id="twinGalaxiesToggle" />
-      <span>Twin galaxies</span>
-    </label>
-  </div>
+    <div class="panel-content">
+      <section class="control-section" aria-labelledby="particleLabel">
+        <div class="control-heading">
+          <h2 id="particleLabel">Particles</h2>
+          <output id="bodiesText" class="readout">131,072</output>
+        </div>
+        <div id="bodyCountButtons" role="group" aria-labelledby="particleLabel">
+          <button type="button" value="131072" aria-pressed="true">128k</button>
+          <button type="button" value="524288" aria-pressed="false">512k</button>
+          <button type="button" value="1048576" aria-pressed="false">1mil</button>
+        </div>
+      </section>
 
-  <a href="https://github.com/jtsorlinis/nBodyWebGPU" target="_blank" rel="noopener noreferrer" id="sourceButton">
-    <svg style="width: 24px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">
-      <!--! Font Awesome Pro 6.4.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2023 Fonticons, Inc. -->
-      <path
-        d="M392.8 1.2c-17-4.9-34.7 5-39.6 22l-128 448c-4.9 17 5 34.7 22 39.6s34.7-5 39.6-22l128-448c4.9-17-5-34.7-22-39.6zm80.6 120.1c-12.5 12.5-12.5 32.8 0 45.3L562.7 256l-89.4 89.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l112-112c12.5-12.5 12.5-32.8 0-45.3l-112-112c-12.5-12.5-32.8-12.5-45.3 0zm-306.7 0c-12.5-12.5-32.8-12.5-45.3 0l-112 112c-12.5 12.5-12.5 32.8 0 45.3l112 112c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L77.3 256l89.4-89.4c12.5-12.5 12.5-32.8 0-45.3z" />
+      <section class="control-section gravity-control">
+        <div class="control-heading">
+          <label for="gravitySlider">Gravity</label>
+          <output id="gravityText" class="readout gravity-value" for="gravitySlider">5</output>
+        </div>
+        <input type="range" id="gravitySlider" min="1" max="100" value="5" />
+        <div class="range-labels" aria-hidden="true"><span>Gentle</span><span>Strong</span></div>
+      </section>
+
+      <label class="switch-row" for="twinGalaxiesToggle">
+        <span>Twin galaxies</span>
+        <input type="checkbox" id="twinGalaxiesToggle" role="switch" />
+      </label>
+
+      <button id="restartButton" type="button">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M4 7a6.5 6.5 0 1 1-.4 5M4 3v4h4" />
+        </svg>
+        Restart simulation
+      </button>
+      <div class="navigation-hint"><span>Drag to look</span><span><kbd>WASD</kbd> to move</span></div>
+    </div>
+  </details>
+
+  <a href="https://github.com/jtsorlinis/nBodyWebGPU" target="_blank" rel="noopener noreferrer" id="sourceButton" aria-label="View source on GitHub (opens in a new tab)">
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="m6 6-4 4 4 4m8-8 4 4-4 4M12 3 8 17" />
     </svg>
+    <span>View source</span>
+    <span class="external-arrow" aria-hidden="true">↗</span>
   </a>
-  <canvas id="renderCanvas" touch-action="none"></canvas>
+  <canvas id="renderCanvas" touch-action="none" aria-label="Interactive galaxy simulation"></canvas>
 </body>
-
 </html>

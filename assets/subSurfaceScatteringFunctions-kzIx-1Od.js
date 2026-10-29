@@ -1,0 +1,2 @@
+import{t as e}from"./shaderStore-D-XQlhUT.js";var t=`subSurfaceScatteringFunctions`,n=`fn testLightingForSSS(diffusionProfile: f32)->bool
+{return diffusionProfile<1.;}`;e.IncludesShadersStoreWGSL[t]||(e.IncludesShadersStoreWGSL[t]=n);var r={name:t,shader:n};export{r as t};

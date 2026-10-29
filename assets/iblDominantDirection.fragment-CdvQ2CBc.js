@@ -1,0 +1,1 @@
+export{t as iblDominantDirectionPixelShaderWGSL}from"./iblDominantDirection.fragment-CYpCO1y6.js";

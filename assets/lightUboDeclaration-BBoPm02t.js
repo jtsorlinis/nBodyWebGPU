@@ -1,0 +1,1 @@
+export{t as lightUboDeclarationWGSL}from"./lightUboDeclaration-tC-Focp5.js";

@@ -1,0 +1,1 @@
+export{t as iblGenerateVoxelMipPixelShader}from"./iblGenerateVoxelMip.fragment-wSzbc-7i.js";

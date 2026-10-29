@@ -1,0 +1,1 @@
+export{t as lightFragmentDeclaration}from"./lightFragmentDeclaration-gxhjod80.js";

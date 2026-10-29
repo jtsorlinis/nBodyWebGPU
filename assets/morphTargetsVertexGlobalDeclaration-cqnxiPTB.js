@@ -1,0 +1,1 @@
+export{t as morphTargetsVertexGlobalDeclaration}from"./morphTargetsVertexGlobalDeclaration-D6da8uHC.js";

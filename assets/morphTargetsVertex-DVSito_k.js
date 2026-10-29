@@ -1,0 +1,1 @@
+export{t as morphTargetsVertexWGSL}from"./morphTargetsVertex-wwizyQUK.js";

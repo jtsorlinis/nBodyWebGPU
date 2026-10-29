@@ -1,0 +1,1 @@
+export{t as spritesVertexShader}from"./sprites.vertex-CL2Rmll8.js";

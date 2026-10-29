@@ -1,0 +1,1 @@
+export{t as bonesVertex}from"./bonesVertex-BZbvWQw2.js";

@@ -1,0 +1,2 @@
+import{t as e}from"./shaderStore-D-XQlhUT.js";var t=`meshVertexDeclaration`,n=`uniform mat4 world;uniform float visibility;
+`;e.IncludesShadersStore[t]||(e.IncludesShadersStore[t]=n);var r={name:t,shader:n};export{r as t};

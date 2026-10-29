@@ -1,0 +1,1 @@
+export{t as extractHighlightsPixelShaderWGSL}from"./extractHighlights.fragment-DTiejokt.js";

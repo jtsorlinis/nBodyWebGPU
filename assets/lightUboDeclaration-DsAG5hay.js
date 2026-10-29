@@ -1,0 +1,1 @@
+export{t as lightUboDeclaration}from"./lightUboDeclaration-DK1S79Am.js";

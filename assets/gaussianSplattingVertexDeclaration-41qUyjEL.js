@@ -1,0 +1,1 @@
+import{t as e}from"./shaderStore-D-XQlhUT.js";var t=`gaussianSplattingVertexDeclaration`,n=`attribute position: vec3f;attribute splatIndex0: vec4f;attribute splatIndex1: vec4f;attribute splatIndex2: vec4f;attribute splatIndex3: vec4f;`;e.IncludesShadersStoreWGSL[t]||(e.IncludesShadersStoreWGSL[t]=n);var r={name:t,shader:n};export{r as t};

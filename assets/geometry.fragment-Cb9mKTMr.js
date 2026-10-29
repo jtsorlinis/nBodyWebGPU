@@ -1,0 +1,304 @@
+import{t as e}from"./shaderStore-D-XQlhUT.js";import{t}from"./helperFunctions-BH8P-eyq.js";import{t as n}from"./sceneUboDeclaration-B96Tfx7b.js";import{t as r}from"./clipPlaneFragmentDeclaration-DYuu9Qqk.js";import{t as i}from"./clipPlaneFragment-F6cElb9_.js";import{t as a}from"./reflectionFunction-BvFXGAfy.js";import{t as o}from"./pbrBRDFFunctions-DxfbxN23.js";import{t as s}from"./objectIdFunctions-0O_zsAzb.js";import{t as c}from"./samplerFragmentDeclaration-CEHqUfAO.js";import{n as l,t as u}from"./pbrIBLFunctions-b8fwQKtH.js";import{t as d}from"./bumpFragmentMainFunctions-B84fMbkg.js";import{t as f}from"./bumpFragmentFunctions-DbpDnX-7.js";import{t as p}from"./bumpFragment-46KCSlZ3.js";import{a as m,i as h,n as g,r as _,t as v}from"./openpbrSubsurfaceLayerData-DpsV2wgM.js";var y=`geometryPixelShader`,b=`#ifdef BUMP
+varying vWorldView0: vec4f;varying vWorldView1: vec4f;varying vWorldView2: vec4f;varying vWorldView3: vec4f;varying vNormalW: vec3f;
+#else
+varying vNormalV: vec3f;
+#endif
+varying vViewPos: vec4f;
+#if defined(POSITION) || defined(BUMP) || defined(IRRADIANCE)
+varying vPositionW: vec3f;
+#endif
+#if defined(VELOCITY) || defined(VELOCITY_LINEAR)
+varying vCurrentPosition: vec4f;varying vPreviousPosition: vec4f;
+#endif
+#ifdef NEED_UV
+varying vUV: vec2f;
+#endif
+#ifdef BUMP
+uniform vBumpInfos: vec3f;uniform vTangentSpaceParams: vec2f;
+#endif
+#if defined(REFLECTIVITY)
+#if defined(ORMTEXTURE) || defined(SPECULARGLOSSINESSTEXTURE) || defined(REFLECTIVITYTEXTURE)
+var reflectivitySamplerSampler: sampler;var reflectivitySampler: texture_2d<f32>;varying vReflectivityUV: vec2f;
+#else
+#ifdef METALLIC_TEXTURE
+var metallicSamplerSampler: sampler;var metallicSampler: texture_2d<f32>;varying vMetallicUV: vec2f;
+#endif
+#ifdef ROUGHNESS_TEXTURE
+var roughnessSamplerSampler: sampler;var roughnessSampler: texture_2d<f32>;varying vRoughnessUV: vec2f;
+#endif
+#endif
+#ifdef ALBEDOTEXTURE
+varying vAlbedoUV: vec2f;var albedoSamplerSampler: sampler;var albedoSampler: texture_2d<f32>;
+#endif
+#ifdef REFLECTIVITYCOLOR
+uniform reflectivityColor: vec3f;
+#endif
+#ifdef ALBEDOCOLOR
+uniform albedoColor: vec3f;
+#endif
+#ifdef METALLIC
+uniform metallic: f32;
+#endif
+#if defined(ROUGHNESS) || defined(GLOSSINESS)
+uniform glossiness: f32;
+#endif
+#endif
+#if defined(ALPHATEST) && defined(NEED_UV)
+var diffuseSamplerSampler: sampler;var diffuseSampler: texture_2d<f32>;uniform alphaCutOff: f32;
+#endif
+#ifdef OBJECT_ID
+uniform objectId: f32;
+#include<objectIdFunctions>
+#endif
+#ifdef MESH_BLEND_TAG
+uniform meshBlendTag: i32;
+#endif
+#include<clipPlaneFragmentDeclaration>
+#include<bumpFragmentMainFunctions>
+#include<bumpFragmentFunctions>
+#include<helperFunctions>
+#ifdef IRRADIANCE
+#include<pbrFragmentReflectionDeclaration>
+#ifdef REFLECTION
+#ifdef USEIRRADIANCEMAP
+#include<sceneUboDeclaration>
+uniform reflectionMatrix: mat4x4f;uniform vReflectionInfos: vec2f;uniform vReflectionDominantDirection: vec3f;
+#include<pbrBRDFFunctions>
+#include<openpbrDielectricReflectance>
+#include<pbrIBLFunctions>
+#include<reflectionFunction>
+#include<openpbrGeometryInfo>
+#include<openpbrIblFunctions>
+#elif defined(USESPHERICALFROMREFLECTIONMAP)
+varying vEnvironmentIrradiance: vec3f;
+#endif
+#ifdef IBL_SHADOW_TEXTURE
+var iblShadowSampler: texture_2d<f32>;var iblShadowSamplerSampler: sampler;uniform shadowTextureSize: vec2f;
+#endif
+#ifdef IRRADIANCE_SCATTER_MASK
+uniform vSubsurfaceWeight: f32;
+#include<samplerFragmentDeclaration>(_DEFINENAME_,SUBSURFACE_WEIGHT,_VARYINGNAME_,SubsurfaceWeight,_SAMPLERNAME_,subsurfaceWeight)
+uniform vSubsurfaceScatterAnisotropy: f32;uniform vTransmissionWeight: f32;
+#include<samplerFragmentDeclaration>(_DEFINENAME_,TRANSMISSION_WEIGHT,_VARYINGNAME_,TransmissionWeight,_SAMPLERNAME_,transmissionWeight)
+uniform vTransmissionScatterAnisotropy: f32;
+#endif
+#endif
+#endif
+@fragment
+fn main(input: FragmentInputs)->FragmentOutputs {
+#include<clipPlaneFragment>
+#ifdef ALPHATEST
+if (textureSample(diffuseSampler,diffuseSamplerSampler,input.vUV).a<uniforms.alphaCutOff) {discard;}
+#endif
+var normalOutput: vec3f;
+#ifdef BUMP
+var normalW: vec3f=normalize(input.vNormalW);
+#include<bumpFragment>
+#ifdef NORMAL_WORLDSPACE
+normalOutput=normalW;
+#else
+normalOutput=normalize( (mat4x4f(input.vWorldView0,input.vWorldView1,input.vWorldView2,input.vWorldView3)* vec4f(normalW,0.0)).xyz);
+#endif
+#elif defined(HAS_NORMAL_ATTRIBUTE)
+normalOutput=normalize(input.vNormalV);
+#elif defined(POSITION)
+normalOutput=normalize(-cross(dpdx(input.vPositionW),dpdy(input.vPositionW)));
+#endif
+#ifdef ENCODE_NORMAL
+normalOutput=normalOutput*0.5+0.5;
+#endif
+var fragData: array<vec4<f32>,SCENE_MRT_COUNT>;
+#ifdef DEPTH
+fragData[DEPTH_INDEX]=vec4f(input.vViewPos.z/input.vViewPos.w,0.0,0.0,1.0);
+#endif
+#ifdef NORMAL
+fragData[NORMAL_INDEX]=vec4f(normalOutput,1.0);
+#endif
+#ifdef SCREENSPACE_DEPTH
+fragData[SCREENSPACE_DEPTH_INDEX]=vec4f(fragmentInputs.position.z,0.0,0.0,1.0);
+#endif
+#ifdef POSITION
+fragData[POSITION_INDEX]= vec4f(input.vPositionW,1.0);
+#endif
+#ifdef OBJECT_ID
+fragData[OBJECT_ID_INDEX]=encodeObjectId(uniforms.objectId);
+#endif
+#ifdef VELOCITY
+var a: vec2f=(input.vCurrentPosition.xy/input.vCurrentPosition.w)*0.5+0.5;var b: vec2f=(input.vPreviousPosition.xy/input.vPreviousPosition.w)*0.5+0.5;var velocity: vec2f=abs(a-b);velocity= vec2f(pow(velocity.x,1.0/3.0),pow(velocity.y,1.0/3.0))*sign(a-b)*0.5+0.5;fragData[VELOCITY_INDEX]= vec4f(velocity,0.0,1.0);
+#endif
+#ifdef VELOCITY_LINEAR
+var velocity : vec2f=vec2f(0.5)*((input.vPreviousPosition.xy /
+input.vPreviousPosition.w) -
+(input.vCurrentPosition.xy /
+input.vCurrentPosition.w));fragData[VELOCITY_LINEAR_INDEX]=vec4f(velocity,0.0,1.0);
+#endif
+#ifdef REFLECTIVITY
+var reflectivity: vec4f= vec4f(0.0,0.0,0.0,1.0);
+#ifdef METALLICWORKFLOW
+var metal: f32=1.0;var roughness: f32=1.0;
+#ifdef ORMTEXTURE
+metal*=textureSample(reflectivitySampler,reflectivitySamplerSampler,input.vReflectivityUV).b;roughness*=textureSample(reflectivitySampler,reflectivitySamplerSampler,input.vReflectivityUV).g;
+#else
+#ifdef METALLIC_TEXTURE
+metal*=textureSample(metallicSampler,metallicSamplerSampler,input.vMetallicUV).r;
+#endif
+#ifdef ROUGHNESS_TEXTURE
+roughness*=textureSample(roughnessSampler,roughnessSamplerSampler,input.vRoughnessUV).r;
+#endif
+#endif
+#ifdef METALLIC
+metal*=uniforms.metallic;
+#endif
+#ifdef ROUGHNESS
+roughness*=(1.0-uniforms.glossiness); 
+#endif
+reflectivity=vec4f(reflectivity.rgb,reflectivity.a-roughness);var color: vec3f= vec3f(1.0);
+#ifdef ALBEDOTEXTURE
+color=textureSample(albedoSampler,albedoSamplerSampler,input.vAlbedoUV).rgb;
+#ifdef GAMMAALBEDO
+color=toLinearSpaceVec4(color);
+#endif
+#endif
+#ifdef ALBEDOCOLOR
+color*=uniforms.albedoColor.xyz;
+#endif
+reflectivity=vec4f(mix( vec3f(0.04),color,metal),reflectivity.a);
+#else
+#if defined(SPECULARGLOSSINESSTEXTURE) || defined(REFLECTIVITYTEXTURE)
+reflectivity=textureSample(reflectivitySampler,reflectivitySamplerSampler,input.vReflectivityUV);
+#ifdef GAMMAREFLECTIVITYTEXTURE
+reflectivity=vec4f(toLinearSpaceVec3(reflectivity.rgb),reflectivity.a);
+#endif
+#else 
+#ifdef REFLECTIVITYCOLOR
+reflectivity=vec4f(toLinearSpaceVec3(uniforms.reflectivityColor.xyz),1.0);
+#endif
+#endif
+#ifdef GLOSSINESSS
+reflectivity=vec4f(reflectivity.rgb,reflectivity.a*glossiness); 
+#endif
+#endif
+fragData[REFLECTIVITY_INDEX]=reflectivity;
+#endif
+#ifdef IRRADIANCE
+var irradiance: vec3f=vec3f(0.0);var irradiance_alpha: f32=1.0;
+#ifdef REFLECTION
+#ifdef IRRADIANCE_SCATTER_MASK
+#ifndef BUMP
+let uvOffset: vec2f=vec2f(0.0);
+#endif
+var vSubsurfaceColor: vec3f=vec3f(1.0);var vSubsurfaceRadius: f32=0.0;var vSubsurfaceRadiusScale: vec3f=vec3f(1.0);
+#include<openpbrSubsurfaceLayerData>(uniforms.vSubsurfaceColor,vSubsurfaceColor,uniforms.vSubsurfaceRadius,vSubsurfaceRadius,uniforms.vSubsurfaceRadiusScale,vSubsurfaceRadiusScale)
+var vTransmissionDepth: f32=1.0;var vTransmissionColor: vec3f=vec3f(1.0);var vTransmissionScatter: vec3f=vec3f(0.0);var vTransmissionDispersionScale: f32=0.0;var vTransmissionDispersionAbbeNumber: f32=0.0;
+#include<openpbrTransmissionLayerData>(uniforms.vTransmissionDispersionScale,vTransmissionDispersionScale,uniforms.vTransmissionDispersionAbbeNumber,vTransmissionDispersionAbbeNumber,uniforms.vTransmissionColor,vTransmissionColor,uniforms.vTransmissionDepth,vTransmissionDepth,uniforms.vTransmissionScatter\\.,vTransmissionScatter.)
+#endif
+#ifdef IBL_SHADOW_TEXTURE
+#ifdef COLORED_IBL_SHADOWS
+let iblShadowValue: vec3f=textureSample(iblShadowSampler,iblShadowSamplerSampler,fragmentInputs.position.xy/uniforms.shadowTextureSize).rgb;
+#else
+let iblShadowValue: vec3f=vec3f(textureSample(iblShadowSampler,iblShadowSamplerSampler,fragmentInputs.position.xy/uniforms.shadowTextureSize).r);
+#endif
+#endif
+#if defined(USEIRRADIANCEMAP)
+#ifdef IRRADIANCE_SCATTER_MASK
+let bendAmount: f32=subsurface_weight*-min(subsurface_scatter_anisotropy,0.0);let mixedBendAmount: f32=mix(bendAmount,-min(transmission_scatter_anisotropy,0.0),transmission_weight);let viewVector: vec3f=normalize(scene.vEyePosition.xyz-input.vPositionW);let bentNormal: vec3f=mix(normalOutput,viewVector,mixedBendAmount*dot(normalOutput,viewVector));
+#else
+let bentNormal: vec3f=normalOutput;
+#endif
+irradiance=sampleIrradiance(
+bentNormal
+#if defined(NORMAL) && defined(USESPHERICALINVERTEX)
+,input.vEnvironmentIrradiance
+#endif
+#if (defined(USESPHERICALFROMREFLECTIONMAP) && (!defined(NORMAL) || !defined(USESPHERICALINVERTEX))) || (defined(USEIRRADIANCEMAP) && defined(REFLECTIONMAP_3D))
+,uniforms.reflectionMatrix
+#endif
+#ifdef USEIRRADIANCEMAP
+,irradianceSampler
+,irradianceSamplerSampler
+#ifdef USE_IRRADIANCE_DOMINANT_DIRECTION
+,uniforms.vReflectionDominantDirection
+#endif
+#endif
+#ifdef REALTIME_FILTERING
+,uniforms.vReflectionFilteringInfo
+#ifdef IBL_CDF_FILTERING
+,icdfSampler
+,icdfSamplerSampler
+#endif
+#endif
+,uniforms.vReflectionInfos
+,input.vViewPos.xyz
+,1.0
+,vec3f(1.0)
+);
+#elif defined(USESPHERICALFROMREFLECTIONMAP)
+irradiance=input.vEnvironmentIrradiance;
+#endif
+#ifdef IBL_SHADOW_TEXTURE
+irradiance*=iblShadowValue;
+#endif
+#ifdef IRRADIANCE_SCATTER_MASK
+irradiance_alpha=min(subsurface_weight+transmission_weight,1.0);
+#endif
+#endif
+fragData[IRRADIANCE_INDEX]=vec4f(irradiance,irradiance_alpha);
+#endif
+#if SCENE_MRT_COUNT>0
+#if defined(MESH_BLEND_TAG) && MESH_BLEND_TAG_INDEX==0
+fragmentOutputs.fragData0=vec4u(u32(uniforms.meshBlendTag),0u,0u,0u);
+#else
+fragmentOutputs.fragData0=fragData[0];
+#endif
+#endif
+#if SCENE_MRT_COUNT>1
+#if defined(MESH_BLEND_TAG) && MESH_BLEND_TAG_INDEX==1
+fragmentOutputs.fragData1=vec4u(u32(uniforms.meshBlendTag),0u,0u,0u);
+#else
+fragmentOutputs.fragData1=fragData[1];
+#endif
+#endif
+#if SCENE_MRT_COUNT>2
+#if defined(MESH_BLEND_TAG) && MESH_BLEND_TAG_INDEX==2
+fragmentOutputs.fragData2=vec4u(u32(uniforms.meshBlendTag),0u,0u,0u);
+#else
+fragmentOutputs.fragData2=fragData[2];
+#endif
+#endif
+#if SCENE_MRT_COUNT>3
+#if defined(MESH_BLEND_TAG) && MESH_BLEND_TAG_INDEX==3
+fragmentOutputs.fragData3=vec4u(u32(uniforms.meshBlendTag),0u,0u,0u);
+#else
+fragmentOutputs.fragData3=fragData[3];
+#endif
+#endif
+#if SCENE_MRT_COUNT>4
+#if defined(MESH_BLEND_TAG) && MESH_BLEND_TAG_INDEX==4
+fragmentOutputs.fragData4=vec4u(u32(uniforms.meshBlendTag),0u,0u,0u);
+#else
+fragmentOutputs.fragData4=fragData[4];
+#endif
+#endif
+#if SCENE_MRT_COUNT>5
+#if defined(MESH_BLEND_TAG) && MESH_BLEND_TAG_INDEX==5
+fragmentOutputs.fragData5=vec4u(u32(uniforms.meshBlendTag),0u,0u,0u);
+#else
+fragmentOutputs.fragData5=fragData[5];
+#endif
+#endif
+#if SCENE_MRT_COUNT>6
+#if defined(MESH_BLEND_TAG) && MESH_BLEND_TAG_INDEX==6
+fragmentOutputs.fragData6=vec4u(u32(uniforms.meshBlendTag),0u,0u,0u);
+#else
+fragmentOutputs.fragData6=fragData[6];
+#endif
+#endif
+#if SCENE_MRT_COUNT>7
+#if defined(MESH_BLEND_TAG) && MESH_BLEND_TAG_INDEX==7
+fragmentOutputs.fragData7=vec4u(u32(uniforms.meshBlendTag),0u,0u,0u);
+#else
+fragmentOutputs.fragData7=fragData[7];
+#endif
+#endif
+}
+`;e.ShadersStoreWGSL[y]||(e.ShadersStoreWGSL[y]=b);var x=[s,r,d,c,f,t,l,n,o,m,u,a,h,_,i,p,v,g];for(let t of x)e.IncludesShadersStoreWGSL[t.name]||(e.IncludesShadersStoreWGSL[t.name]=t.shader);var S={name:y,shader:b};export{S as t};

@@ -1,0 +1,1 @@
+import{n as e}from"./observable.pure-H-M_hi7F.js";var t=class{static get LastCreatedEngine(){return this.Instances.length===0?null:this.Instances[this.Instances.length-1]}static get LastCreatedScene(){return this._LastCreatedScene}};t.Instances=[],t.OnEnginesDisposedObservable=new e,t._LastCreatedScene=null,t.UseFallbackTexture=!0,t.FallbackTexture=``;export{t};

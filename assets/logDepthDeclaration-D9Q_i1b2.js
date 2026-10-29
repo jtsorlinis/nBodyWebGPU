@@ -1,0 +1,1 @@
+export{t as logDepthDeclaration}from"./logDepthDeclaration-3gXGtHbI.js";

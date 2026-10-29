@@ -1,0 +1,1 @@
+export{t as clipPlaneVertexDeclaration}from"./clipPlaneVertexDeclaration-Be-obVGF.js";

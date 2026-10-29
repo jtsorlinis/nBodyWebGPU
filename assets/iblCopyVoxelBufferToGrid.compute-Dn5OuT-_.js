@@ -1,0 +1,4 @@
+import{t as e}from"./shaderStore-D-XQlhUT.js";var t=`iblCopyVoxelBufferToGridComputeShader`,n=`@group(0) @binding(0) var<storage,read> voxelOpacityBuffer: array<u32>;@group(0) @binding(1) var voxelGridTarget: texture_storage_3d<r8unorm,write>;@compute @workgroup_size(4,4,4)
+fn main(@builtin(global_invocation_id) id: vec3<u32>) {let size: vec3<u32>=textureDimensions(voxelGridTarget);if (id.x>=size.x || id.y>=size.y || id.z>=size.z) {return;}
+let res: u32=size.x;let vidx: u32=id.x+id.y*res+id.z*res*res;let word: u32=voxelOpacityBuffer[vidx>>2u];let byteVal: u32=(word>>((vidx & 3u)*8u)) & 0xFFu;let opacity: f32=f32(byteVal)/255.0;textureStore(voxelGridTarget,vec3<i32>(id),vec4f(opacity,0.0,0.0,1.0));}
+`;e.ShadersStoreWGSL[t]||(e.ShadersStoreWGSL[t]=n);var r={name:t,shader:n};export{r as iblCopyVoxelBufferToGridComputeShaderWGSL};
