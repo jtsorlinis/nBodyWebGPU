@@ -535,15 +535,18 @@ ${t}
 };`}_getWGSLStructBinding(e,t,n,r=0,i=0){let a=e+`Struct`;return`${this._getWGSLStruct(a,t)}
 @binding( ${r} ) @group( ${i} )
 var<${n}> ${e} : ${a};`}},mN=new sM,hN=new cM,gN=new Map([[Int8Array,[`sint8`,`snorm8`]],[Uint8Array,[`uint8`,`unorm8`]],[Int16Array,[`sint16`,`snorm16`]],[Uint16Array,[`uint16`,`unorm16`]],[Int32Array,[`sint32`]],[Uint32Array,[`uint32`]],[Float32Array,[`float32`]]]);typeof Float16Array<`u`&&gN.set(Float16Array,[`float16`]);var _N=new Map([[Gr,[`float16`]]]),vN=new Map([[Int32Array,`sint32`],[Uint32Array,`uint32`],[Float32Array,`float32`]]),yN=class{constructor(e){this.backend=e}createAttribute(e,t){let n=this._getBufferAttribute(e),r=this.backend,i=r.get(n),a=i.buffer;if(a===void 0){let o=r.device,s=n.array;if(e.normalized===!1&&e.isInterleavedBufferAttribute!==!0){if(s.constructor===Int16Array||s.constructor===Int8Array)s=new Int32Array(s);else if((s.constructor===Uint16Array||s.constructor===Uint8Array)&&(s=new Uint32Array(s),t&GPUBufferUsage.INDEX))for(let e=0;e<s.length;e++)s[e]===65535&&(s[e]=4294967295)}n.array=s;let c;if((n.isStorageBufferAttribute||n.isStorageInstancedBufferAttribute)&&n.itemSize===3)c=4;else if(n.itemSize>1&&n.itemSize*s.BYTES_PER_ELEMENT%4!=0){let e=n.itemSize*s.BYTES_PER_ELEMENT;c=Math.floor((e+3)/4)*4/s.BYTES_PER_ELEMENT}if(c!==void 0){let e=n.itemSize,t=new s.constructor(n.count*c);for(let r=0;r<n.count;r++)t.set(s.subarray(r*e,r*e+e),r*c);(n.isStorageBufferAttribute||n.isStorageInstancedBufferAttribute)&&(n.itemSize=c,n.array=t),s=t,i._itemSize=e,i._paddedItemSize=c}let l=s.byteLength,u=l+(4-l%4)%4;mN.label=n.name,mN.size=u,mN.usage=t,mN.mappedAtCreation=!0,a=o.createBuffer(mN),mN.reset(),new s.constructor(a.getMappedRange()).set(s),a.unmap(),i.buffer=a}}updateAttribute(e){let t=this._getBufferAttribute(e),n=this.backend,r=n.device,i=n.get(t),a=n.get(t).buffer,o=t.array,s=i._itemSize,c=i._paddedItemSize;if(c!==void 0){o=new o.constructor(t.count*c);for(let e=0;e<t.count;e++)o.set(t.array.subarray(e*s,e*s+s),e*c);(t.isStorageBufferAttribute||t.isStorageInstancedBufferAttribute)&&(t.array=o)}let l=t.updateRanges;if(l.length===0)r.queue.writeBuffer(a,0,o,0);else{let e=_t(o),n=e?1:o.BYTES_PER_ELEMENT;for(let t=0,i=l.length;t<i;t++){let i=l[t],u,d;if(c!==void 0){let e=Math.floor(i.start/s),t=Math.ceil((i.start+i.count)/s)-e;u=e*c*n,d=t*c*n}else u=i.start*n,d=i.count*n;let f=u*(e?o.BYTES_PER_ELEMENT:1);r.queue.writeBuffer(a,f,o,u,d)}t.clearUpdateRanges()}}createShaderVertexBuffers(e){let t=e.getAttributes(),n=new Map;for(let e=0;e<t.length;e++){let r=t[e],i=r.array.BYTES_PER_ELEMENT,a=this._getBufferAttribute(r),o=n.get(a);if(o===void 0){let e,t;r.isInterleavedBufferAttribute===!0?(e=r.data.stride*i,t=r.data.isInstancedInterleavedBuffer?Xj.Instance:Xj.Vertex):(e=r.itemSize*i,t=r.isInstancedBufferAttribute?Xj.Instance:Xj.Vertex,r.itemSize>1&&e%4!=0&&(e=Math.floor((e+3)/4)*4)),o={arrayStride:e,attributes:[],stepMode:t},n.set(a,o)}let s=this._getVertexFormat(r),c=r.isInterleavedBufferAttribute===!0?r.offset*i:0;o.attributes.push({shaderLocation:e,offset:c,format:s})}return Array.from(n.values())}destroyAttribute(e){let t=this.backend;t.get(this._getBufferAttribute(e)).buffer.destroy(),t.delete(e)}async getArrayBufferAsync(e,t=null,n=0,r=-1){let i=this.backend,a=i.device,o=i.get(this._getBufferAttribute(e)).buffer,s=r===-1?o.size-n:r,c;if(t!==null&&t.isReadbackBuffer){let e=i.get(t);if(t._mapped===!0)throw Error(`THREE.WebGPUAttributeUtils: ReadbackBuffer must be released before being used again.`);if(t._mapped=!0,e.readBufferGPU===void 0){mN.label=`${t.name}_readback`,mN.size=t.maxByteLength,mN.usage=GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ,c=a.createBuffer(mN),mN.reset();let n=()=>{t.buffer=null,t._mapped=!1,c.unmap()},r=()=>{t.buffer=null,t._mapped=!1,c.destroy(),i.delete(t),t.removeEventListener(`release`,n),t.removeEventListener(`dispose`,r)};t.addEventListener(`release`,n),t.addEventListener(`dispose`,r),e.readBufferGPU=c}else c=e.readBufferGPU}else mN.label=`${e.name}_readback`,mN.size=s,mN.usage=GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ,c=a.createBuffer(mN),mN.reset();hN.label=`readback_encoder_${e.name}`;let l=a.createCommandEncoder(hN);if(hN.reset(),l.copyBufferToBuffer(o,n,c,0,s),aM(a,l.finish()),await c.mapAsync(GPUMapMode.READ,0,s),t===null){let e=c.getMappedRange(0,s).slice();return c.destroy(),e}if(t.isReadbackBuffer)return t.buffer=c.getMappedRange(0,s),t;{let e=c.getMappedRange(0,s);return new Uint8Array(t).set(new Uint8Array(e)),c.destroy(),t}}_getVertexFormat(e){let{itemSize:t,normalized:n}=e,r=e.array.constructor,i=e.constructor,a;if(t===1)a=vN.get(r);else{let e=(_N.get(i)||gN.get(r))[+!!n];if(e){let n=r.BYTES_PER_ELEMENT*t,i=Math.floor((n+3)/4)*4/r.BYTES_PER_ELEMENT;if(i%1)throw Error(`THREE.WebGPUAttributeUtils: Bad vertex format item size.`);a=`${e}x${i}`}}return a||E(`WebGPUAttributeUtils: Vertex format not supported yet.`),a}_getBufferAttribute(e){return e.isInterleavedBufferAttribute&&(e=e.data),e}},bN=new oM,xN=new sM,SN=new gM,CN=class{constructor(e){this.layoutGPU=e,this.usedTimes=0}},wN=class{constructor(e){this.backend=e,this._bindGroupLayoutCache=new Map}createBindingsLayout(e){let t=this.backend,n=t.device,r=t.get(e);if(r.layout)return r.layout.layoutGPU;let i=this._createLayoutEntries(e),a=ko(JSON.stringify(i)),o=this._bindGroupLayoutCache.get(a);return o===void 0&&(o=new CN(n.createBindGroupLayout({entries:i})),this._bindGroupLayoutCache.set(a,o)),o.usedTimes++,r.layout=o,r.layoutKey=a,o.layoutGPU}createBindings(e,t,n,r=0){let{backend:i}=this,a=i.get(e),o=this.createBindingsLayout(e),s;n!==``&&(a.groups===void 0&&(a.groups={},a.versions={}),a.versions[n]===r&&(s=a.groups[n])),s===void 0&&(s=this.createBindGroup(e,o),n!==``&&(a.groups[n]=s,a.versions[n]=r)),a.group=s}updateBinding(e){let t=this.backend,n=t.device,r=e.buffer,i=t.get(e).buffer,a=e.updateRanges;if(a.length===0)n.queue.writeBuffer(i,0,r,0);else{let e=_t(r),t=e?1:r.BYTES_PER_ELEMENT,o=a[0].start;for(let s=0,c=a.length;s<c;s++){let c=a[s],l=a[s+1],u=c.start+c.count;if(l!==void 0&&l.start===u)continue;let d=o*t,f=(u-o)*t,p=d*(e?r.BYTES_PER_ELEMENT:1);n.queue.writeBuffer(i,p,r,d,f),l!==void 0&&(o=l.start)}}}createBindGroupIndex(e,t){let n=this.backend.device,r=GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST,i=e[0];xN.label=`bindingCameraIndex_`+i,xN.size=16,xN.usage=r;let a=n.createBuffer(xN);xN.reset(),n.queue.writeBuffer(a,0,e,0),bN.label=`bindGroupCameraIndex_`+i,bN.layout=t,bN.entries.push({binding:0,resource:{buffer:a}});let o=n.createBindGroup(bN);return bN.reset(),o}createBindGroup(e,t){let n=this.backend,r=n.device,i=0;bN.label=`bindGroup_`+e.name,bN.layout=t;for(let t of e.bindings){if(t.isUniformBuffer){let e=n.get(t);bN.entries.push({binding:i,resource:{buffer:e.buffer}})}else if(t.isStorageBuffer){let e=n.get(t.attribute).buffer;bN.entries.push({binding:i,resource:{buffer:e}})}else if(t.isSampledTexture){let e=n.get(t.texture),a;if(e.externalTexture!==void 0)a=r.importExternalTexture({source:e.externalTexture});else{let n=t.store?1:e.texture.mipLevelCount,r=t.store?t.mipLevel:0,i=`view-${e.texture.width}-${e.texture.height}`;if(e.texture.depthOrArrayLayers>1&&(i+=`-${e.texture.depthOrArrayLayers}`),i+=`-${n}-${r}`,a=e[i],a===void 0){let o=Yj.All,s;s=t.isSampledCubeTexture?Jj.Cube:t.texture.isArrayTexture||t.texture.isDataArrayTexture||t.texture.isCompressedArrayTexture?Jj.TwoDArray:t.isSampledTexture3D?Jj.ThreeD:Jj.TwoD,SN.aspect=o,SN.dimension=s,SN.mipLevelCount=n,SN.baseMipLevel=r,a=e[i]=e.texture.createView(SN),SN.reset()}}bN.entries.push({binding:i,resource:a})}else if(t.isSampler){let e=n.get(t);bN.entries.push({binding:i,resource:e.sampler})}i++}let a=r.createBindGroup(bN);return bN.reset(),a}_createLayoutEntries(e){let t=[],n=0;for(let r of e.bindings){let e=this.backend,i={binding:n,visibility:r.visibility};if(r.isUniformBuffer||r.isStorageBuffer){let e={};r.isStorageBuffer&&(e.type=r.visibility&Aj.COMPUTE?r.access===Jo.READ_WRITE||r.access===Jo.WRITE_ONLY?Uj.Storage:Uj.ReadOnlyStorage:r.nodeUniform&&r.nodeUniform.isAtomic&&r.visibility&Aj.FRAGMENT?Uj.Storage:Uj.ReadOnlyStorage),i.buffer=e}else if(r.isSampledTexture&&r.store){let e={};e.format=this.backend.get(r.texture).texture.format;let t=r.access;e.access=t===Jo.READ_WRITE?Wj.ReadWrite:t===Jo.WRITE_ONLY?Wj.WriteOnly:Wj.ReadOnly,r.texture.isArrayTexture?e.viewDimension=Jj.TwoDArray:r.texture.is3DTexture&&(e.viewDimension=Jj.ThreeD),i.storageTexture=e}else if(r.isSampledTexture){let t={},{primarySamples:n}=e.utils.getTextureSampleData(r.texture);if(n>1&&(t.multisampled=!0,r.texture.isDepthTexture||(t.sampleType=Kj.UnfilterableFloat)),r.texture.isDepthTexture)t.sampleType=e.compatibilityMode&&r.texture.compareFunction===null?Kj.UnfilterableFloat:Kj.Depth;else{let e=r.texture.type;e===1013?t.sampleType=Kj.SInt:e===1014?t.sampleType=Kj.UInt:r.texture.normalized===!0&&(e===1011||e===1012)?t.sampleType=Kj.UnfilterableFloat:e===1015&&(t.sampleType=this.backend.hasFeature(`float32-filterable`)?Kj.Float:Kj.UnfilterableFloat)}r.isSampledCubeTexture?t.viewDimension=Jj.Cube:r.texture.isArrayTexture||r.texture.isDataArrayTexture||r.texture.isCompressedArrayTexture?t.viewDimension=Jj.TwoDArray:r.isSampledTexture3D&&(t.viewDimension=Jj.ThreeD),i.texture=t}else if(r.isSampler){let t={};r.texture.isDepthTexture&&(t.type=r.texture.compareFunction!==null&&r.textureNode.isSampleCompare()&&e.hasCompatibility(mt.TEXTURE_COMPARE)?Gj.Comparison:Gj.NonFiltering),i.sampler=t}else E(`WebGPUBindingUtils: Unsupported binding "${r}".`);t.push(i),n++}return t}deleteBindGroupData(e){let{backend:t}=this,n=t.get(e);n.layout&&(n.layout.usedTimes--,n.layout.usedTimes===0&&this._bindGroupLayoutCache.delete(n.layoutKey),n.layout=void 0,n.layoutKey=void 0)}dispose(){this._bindGroupLayoutCache.clear()}},TN=class{constructor(e){this.backend=e}getMaxAnisotropy(){return 16}getUniformBufferLimit(){return this.backend.device.limits.maxUniformBufferBindingSize}},EN=class{constructor(){this.label=``,this.layout=null,this.compute=null}reset(){this.label=``,this.layout=null,this.compute=null}},DN=class{constructor(){this.label=``,this.bindGroupLayouts=null}reset(){this.label=``,this.bindGroupLayouts=null}},ON=new EN,kN=new DN,AN=new lM,jN=new fM,MN=class{constructor(e){this.backend=e}_getSampleCount(e){return this.backend.utils.getSampleCountRenderContext(e)}createRenderPipeline(e,t){let{object:n,material:r,geometry:i,pipeline:a}=e,{vertexProgram:o,fragmentProgram:s}=a,c=this.backend,l=c.device,u=c.utils,d=c.get(a),f=[];for(let t of e.getBindings()){let{layoutGPU:e}=c.get(t).layout;f.push(e)}let p=c.attributeUtils.createShaderVertexBuffers(e),m;r.blending!==0&&(r.blending!==1||r.transparent!==!1)&&(m=this._getBlending(r));let h={};r.stencilWrite===!0&&(h={compare:this._getStencilCompare(r),failOp:this._getStencilOperation(r.stencilFail),depthFailOp:this._getStencilOperation(r.stencilZFail),passOp:this._getStencilOperation(r.stencilZPass)});let g=this._getColorWriteMask(r),_=[];if(e.context.textures!==null){let t=e.context.textures,n=e.context.mrt;for(let e=0;e<t.length;e++){let r=t[e],i=u.getTextureFormatGPU(r),a;if(n!==null){if(this.backend.compatibilityMode!==!0){let e=n.getBlendMode(r.name);e.blending===6?a=m:e.blending!==0&&(a=this._getBlending(e))}else Ct(`WebGPURenderer: Multiple Render Targets (MRT) blending configuration is not fully supported in compatibility mode. The material blending will be used for all render targets.`),a=m}else a=m;_.push({format:i,blend:a,writeMask:g})}}else{let t=u.getCurrentColorFormat(e.context);_.push({format:t,blend:m,writeMask:g})}let v=c.get(o).module,y=c.get(s).module,b=this._getPrimitiveState(n,i,r),x=this._getDepthCompare(r),S=u.getCurrentDepthStencilFormat(e.context),ee=this._getSampleCount(e.context);kN.bindGroupLayouts=f;let te=l.createPipelineLayout(kN);kN.reset(),jN.label=`renderPipeline_${r.name||r.type}_${r.id}`,jN.vertex=Object.assign({},v,{buffers:p}),jN.fragment=Object.assign({},y,{targets:_}),jN.primitive=b,jN.multisample.count=ee,jN.multisample.alphaToCoverageEnabled=r.alphaToCoverage&&ee>1,jN.layout=te;let C={},ne=e.context.depth,w=e.context.stencil;(ne===!0||w===!0)&&(ne===!0&&(C.format=S,C.depthWriteEnabled=r.depthWrite,C.depthCompare=x),w===!0&&(C.stencilFront=h,C.stencilBack=h,C.stencilReadMask=r.stencilFuncMask,C.stencilWriteMask=r.stencilWriteMask),r.polygonOffset===!0&&b.topology===kj.TriangleList&&(C.depthBias=r.polygonOffsetUnits,C.depthBiasSlopeScale=r.polygonOffsetFactor,C.depthBiasClamp=0),jN.depthStencil=C),l.pushErrorScope(`validation`);let re=[{program:o,module:v.module},{program:s,module:y.module}],ie=jN.label;if(t===null)d.pipeline=l.createRenderPipeline(jN),jN.reset(),l.popErrorScope().then(e=>{e!==null&&(d.error=!0,E(`WebGPURenderer: Render pipeline creation failed (${ie}): ${e.message}`),this._reportShaderDiagnostics(re,ie))});else{let e=new Promise(async e=>{try{let e=null,t=null;try{t=l.createRenderPipelineAsync(jN)}catch(t){e=t}if(jN.reset(),t!==null)try{d.pipeline=await t}catch(t){e=t}let n=await l.popErrorScope();if(n!==null||e!==null){d.error=!0;let t=n&&n.message||e&&e.message||`unknown`;E(`WebGPURenderer: Async render pipeline creation failed (${ie}): ${t}`),await this._reportShaderDiagnostics(re,ie)}}finally{e()}});t.push(e)}}createBundleEncoder(e,t=`renderBundleEncoder`){let{utils:n,device:r}=this.backend,i=n.getCurrentDepthStencilFormat(e),a=n.getCurrentColorFormats(e),o=this._getSampleCount(e);AN.label=t,AN.colorFormats=a,AN.depthStencilFormat=i,AN.sampleCount=o;let s=r.createRenderBundleEncoder(AN);return AN.reset(),s}createComputePipeline(e,t,n=null){let r=this.backend,i=r.device,a=r.get(e.computeProgram).module,o=r.get(e),s=[];for(let e of t){let{layoutGPU:t}=r.get(e).layout;s.push(t)}let c=e.computeProgram,l=`computePipeline_${c.stage}${c.name?`_${c.name}`:``}`;i.pushErrorScope(`validation`),kN.bindGroupLayouts=s;let u=i.createPipelineLayout(kN);if(kN.reset(),ON.label=l,ON.compute=a,ON.layout=u,n===null)o.pipeline=i.createComputePipeline(ON),ON.reset(),i.popErrorScope().then(e=>{e!==null&&(o.error=!0,E(`WebGPURenderer: Compute pipeline creation failed (${l}): ${e.message}`),this._reportShaderDiagnostics([{program:c,module:a.module}],l))});else{let e=new Promise(async e=>{try{let e=null,t=null;try{t=i.createComputePipelineAsync(ON)}catch(t){e=t}if(ON.reset(),t!==null)try{o.pipeline=await t}catch(t){e=t}let n=await i.popErrorScope();if(n!==null||e!==null){o.error=!0;let t=n&&n.message||e&&e.message||`unknown`;E(`WebGPURenderer: Async compute pipeline creation failed (${l}): ${t}`),await this._reportShaderDiagnostics([{program:c,module:a.module}],l)}}finally{e()}});n.push(e)}}async _reportShaderDiagnostics(e,t){for(let{program:n,module:r}of e){let e=await r.getCompilationInfo();if(e.messages.length===0)continue;let i=n.code.split(`
-`);for(let r of e.messages){let e=r.lineNum>0?` at line ${r.lineNum}${r.linePos>0?`:${r.linePos}`:``}`:``,a=`WebGPURenderer [${t} / ${n.stage} ${r.type}]${e}: ${r.message}`,o=``;r.lineNum>0&&r.lineNum<=i.length&&(o=`\n  ${i[r.lineNum-1]}`,r.linePos>0&&(o+=`\n  ${` `.repeat(r.linePos-1)}^`)),(r.type===`error`?E:T)(a+o)}}}_getBlending(e){let t,n,r=e.blending,i=e.blendSrc,a=e.blendDst,o=e.blendEquation;if(r===5){let r=e.blendSrcAlpha===null?i:e.blendSrcAlpha,s=e.blendDstAlpha===null?a:e.blendDstAlpha,c=e.blendEquationAlpha===null?o:e.blendEquationAlpha;t={srcFactor:this._getBlendFactor(i),dstFactor:this._getBlendFactor(a),operation:this._getBlendOperation(o)},n={srcFactor:this._getBlendFactor(r),dstFactor:this._getBlendFactor(s),operation:this._getBlendOperation(c)}}else{let i=e.premultipliedAlpha,a=(e,r,i,a)=>{t={srcFactor:e,dstFactor:r,operation:Bj.Add},n={srcFactor:i,dstFactor:a,operation:Bj.Add}};if(i)switch(r){case 1:a(zj.One,zj.OneMinusSrcAlpha,zj.One,zj.OneMinusSrcAlpha);break;case 2:a(zj.One,zj.One,zj.One,zj.One);break;case 3:a(zj.Zero,zj.OneMinusSrc,zj.Zero,zj.One);break;case 4:a(zj.Dst,zj.OneMinusSrcAlpha,zj.Zero,zj.One)}else switch(r){case 1:a(zj.SrcAlpha,zj.OneMinusSrcAlpha,zj.One,zj.OneMinusSrcAlpha);break;case 2:a(zj.SrcAlpha,zj.One,zj.One,zj.One);break;case 3:E(`WebGPURenderer: "SubtractiveBlending" requires "${e.isMaterial?`material`:`blendMode`}.premultipliedAlpha = true".`);break;case 4:E(`WebGPURenderer: "MultiplyBlending" requires "${e.isMaterial?`material`:`blendMode`}.premultipliedAlpha = true".`)}}if(t!==void 0&&n!==void 0)return{color:t,alpha:n};E(`WebGPURenderer: Invalid blending: `,r)}_getBlendFactor(e){let t;switch(e){case 200:t=zj.Zero;break;case 201:t=zj.One;break;case 202:t=zj.Src;break;case 203:t=zj.OneMinusSrc;break;case 204:t=zj.SrcAlpha;break;case 205:t=zj.OneMinusSrcAlpha;break;case 208:t=zj.Dst;break;case 209:t=zj.OneMinusDst;break;case 206:t=zj.DstAlpha;break;case 207:t=zj.OneMinusDstAlpha;break;case 210:t=zj.SrcAlphaSaturated;break;case 211:case 213:t=zj.Constant;break;case 212:case 214:t=zj.OneMinusConstant;break;default:E(`WebGPURenderer: Blend factor not supported.`,e)}return t}_getStencilCompare(e){let t,n=e.stencilFunc;switch(n){case 512:t=jj.Never;break;case 519:t=jj.Always;break;case 513:t=jj.Less;break;case 515:t=jj.LessEqual;break;case 514:t=jj.Equal;break;case 518:t=jj.GreaterEqual;break;case 516:t=jj.Greater;break;case 517:t=jj.NotEqual;break;default:E(`WebGPURenderer: Invalid stencil function.`,n)}return t}_getStencilOperation(e){let t;switch(e){case nt:t=Hj.Keep;break;case 0:t=Hj.Zero;break;case rt:t=Hj.Replace;break;case ct:t=Hj.Invert;break;case it:t=Hj.IncrementClamp;break;case at:t=Hj.DecrementClamp;break;case ot:t=Hj.IncrementWrap;break;case st:t=Hj.DecrementWrap;break;default:E(`WebGPURenderer: Invalid stencil operation.`,t)}return t}_getBlendOperation(e){let t;switch(e){case 100:t=Bj.Add;break;case 101:t=Bj.Subtract;break;case 102:t=Bj.ReverseSubtract;break;case 103:t=Bj.Min;break;case 104:t=Bj.Max;break;default:E(`WebGPUPipelineUtils: Blend equation not supported.`,e)}return t}_getPrimitiveState(e,t,n){let r={};r.topology=this.backend.utils.getPrimitiveTopology(e,n),t.index!==null&&e.isLine===!0&&e.isLineSegments!==!0&&(r.stripIndexFormat=t.index.array instanceof Uint16Array?Ij.Uint16:Ij.Uint32);let i=n.side===1;return e.isMesh&&e.matrixWorld.determinantAffine()<0&&(i=!i),r.frontFace=i===!0?Pj.CW:Pj.CCW,r.cullMode=n.side===2?Fj.None:Fj.Back,r}_getColorWriteMask(e){return e.colorWrite===!0?Vj.All:Vj.None}_getDepthCompare(e){let t;if(e.depthTest===!1)t=jj.Always;else{let n=this.backend.parameters.reversedDepthBuffer?Tt[e.depthFunc]:e.depthFunc;switch(n){case 0:t=jj.Never;break;case 1:t=jj.Always;break;case 2:t=jj.Less;break;case 3:t=jj.LessEqual;break;case 4:t=jj.Equal;break;case 5:t=jj.GreaterEqual;break;case 6:t=jj.Greater;break;case 7:t=jj.NotEqual;break;default:E(`WebGPUPipelineUtils: Invalid depth function.`,n)}}return t}},NN=class{constructor(){this.label=``,this.type=void 0,this.count=0}reset(){this.label=``,this.type=void 0,this.count=0}},PN=new sM,FN=new cM,IN=new NN,LN=class extends Tj{constructor(e,t,n=2048){super(n),this.device=e,this.type=t,IN.label=`queryset_global_timestamp_${t}`,IN.type=`timestamp`,IN.count=this.maxQueries,this.querySet=this.device.createQuerySet(IN),IN.reset();let r=this.maxQueries*8;PN.label=`buffer_timestamp_resolve_${t}`,PN.size=r,PN.usage=GPUBufferUsage.QUERY_RESOLVE|GPUBufferUsage.COPY_SRC,this.resolveBuffer=this.device.createBuffer(PN),PN.reset(),PN.label=`buffer_timestamp_result_${t}`,PN.size=r,PN.usage=GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ,this.resultBuffer=this.device.createBuffer(PN),PN.reset()}allocateQueriesForContext(e){if(!this.trackTimestamp||this.isDisposed)return null;this.currentQueryIndex+2>this.maxQueries&&(this.resolveQueriesAsync(),this.currentQueryIndex=0,this.queryOffsets.clear());let t=this.currentQueryIndex;return this.currentQueryIndex+=2,this.queryOffsets.set(e,t),t}async resolveQueriesAsync(){if(!this.trackTimestamp||this.currentQueryIndex===0||this.isDisposed)return this.lastValue;if(this.pendingResolve)return this.pendingResolve;this.pendingResolve=this._resolveQueries();try{return await this.pendingResolve}finally{this.pendingResolve=null}}async _resolveQueries(){if(this.isDisposed)return this.lastValue;try{if(this.resultBuffer.mapState!==`unmapped`)return this.lastValue;let e=new Map(this.queryOffsets),t=this.currentQueryIndex,n=t*8;this.currentQueryIndex=0,this.queryOffsets.clear();let r=this.device.createCommandEncoder(FN);r.resolveQuerySet(this.querySet,0,t,this.resolveBuffer,0),r.copyBufferToBuffer(this.resolveBuffer,0,this.resultBuffer,0,n);let i=r.finish();if(aM(this.device,i),this.resultBuffer.mapState!==`unmapped`)return this.lastValue;if(await this.resultBuffer.mapAsync(GPUMapMode.READ,0,n),this.isDisposed)return this.resultBuffer.mapState===`mapped`&&this.resultBuffer.unmap(),this.lastValue;let a=new BigUint64Array(this.resultBuffer.getMappedRange(0,n)),o={},s=[];this.timestamps.clear();for(let[t,n]of e){let e=t.match(/^(.*):f(\d+)$/),r=parseInt(e[2]);s.includes(r)===!1&&s.push(r),o[r]===void 0&&(o[r]=0);let i=a[n],c=a[n+1],l=Number(c-i)/1e6;this.timestamps.set(t,l),o[r]+=l}let c=o[s[s.length-1]];return this.resultBuffer.unmap(),this.lastValue=c,this.frames=s,c}catch(e){return E(`Error resolving queries:`,e),this.resultBuffer.mapState===`mapped`&&this.resultBuffer.unmap(),this.lastValue}}async dispose(){if(!this.isDisposed){if(this.isDisposed=!0,this.pendingResolve)try{await this.pendingResolve}catch(e){E(`Error waiting for pending resolve:`,e)}if(this.resultBuffer&&this.resultBuffer.mapState===`mapped`)try{this.resultBuffer.unmap()}catch(e){E(`Error unmapping buffer:`,e)}this.querySet&&=(this.querySet.destroy(),null),this.resolveBuffer&&=(this.resolveBuffer.destroy(),null),this.resultBuffer&&=(this.resultBuffer.destroy(),null),this.queryOffsets.clear(),this.timestamps.clear(),this.frames=[],this.pendingResolve=null}}},RN=class{constructor(){this.label=``,this.timestampWrites=void 0}reset(){this.label=``,this.timestampWrites=void 0}},zN=class{constructor(){this.view=null,this.depthLoadOp=void 0,this.depthStoreOp=void 0,this.depthClearValue=void 0,this.depthReadOnly=!1,this.stencilLoadOp=void 0,this.stencilStoreOp=void 0,this.stencilClearValue=0,this.stencilReadOnly=!1}reset(){this.view=null,this.depthLoadOp=void 0,this.depthStoreOp=void 0,this.depthClearValue=void 0,this.depthReadOnly=!1,this.stencilLoadOp=void 0,this.stencilStoreOp=void 0,this.stencilClearValue=0,this.stencilReadOnly=!1}},BN=class{constructor(){this.querySet=null,this.beginningOfPassWriteIndex=void 0,this.endOfPassWriteIndex=void 0}reset(){this.querySet=null,this.beginningOfPassWriteIndex=void 0,this.endOfPassWriteIndex=void 0}},VN={r:0,g:0,b:0,a:1},HN={r:0,g:0,b:0,a:0},UN=new sM,WN=new cM,GN=new RN,KN=new NN,qN=new mM,JN=new BN,YN=new kM,XN=new kM,ZN=new hM,QN=new gM,$N=new PM,eP=class extends sj{constructor(e={}){super(e),this.isWebGPUBackend=!0,this.parameters.alpha=e.alpha===void 0||e.alpha,this.parameters.requiredLimits=e.requiredLimits===void 0?{}:e.requiredLimits,this.compatibilityMode=null,this.device=null,this.defaultRenderPassdescriptor=null,this.utils=new iM(this),this.attributeUtils=new yN(this),this.bindingUtils=new wN(this),this.capabilities=new TN(this),this.pipelineUtils=new MN(this),this.textureUtils=new JM(this),this.occludedResolveCache=new Map;let t=typeof navigator>`u`||/Android/.test(navigator.userAgent)===!1;this._compatibility={[mt.TEXTURE_COMPARE]:t}}async init(e){await super.init(e);let t=this.parameters,n;if(t.device===void 0){let r={powerPreference:t.powerPreference,featureLevel:`compatibility`,xrCompatible:e.xr.enabled},i=typeof navigator<`u`?await navigator.gpu.requestAdapter(r):null;if(i===null)throw Error(`THREE.WebGPUBackend: Unable to create WebGPU adapter.`);let a=Object.values(Zj),o=[];for(let e of a)i.features.has(e)&&o.push(e);let s={requiredFeatures:o,requiredLimits:t.requiredLimits};n=await i.requestDevice(s)}else n=t.device;this.compatibilityMode=!n.features.has(`core-features-and-limits`),this.compatibilityMode&&(e._samples=0),n.lost.then(t=>{if(t.reason===`destroyed`)return;let n={api:`WebGPU`,message:t.message||`Unknown reason`,reason:t.reason||null,originalEvent:t};e.onDeviceLost(n)}),n.onuncapturederror=t=>{let n=t.error,r=n&&n.constructor?n.constructor.name:`GPUError`,i=n&&n.message||`Unknown uncaptured GPU error`;e.onError({api:`WebGPU`,type:r,message:i,originalEvent:t})},this.device=n,this.trackTimestamp=this.trackTimestamp&&this.hasFeature(Zj.TimestampQuery),this.updateSize()}setXRRenderTargetTextures(e,t,n=null){let r=this.get(e.texture);r.texture=t,r.format=t.format,r.externalTexture=!0,r.xrViewDescriptors=n,r.initialized=!0}get context(){let e=this.renderer.getCanvasTarget(),t=this.get(e),n=t.context;if(n===void 0){let r=this.parameters;n=e.isDefaultCanvasTarget===!0&&r.context!==void 0?r.context:e.domElement.getContext(`webgpu`),`setAttribute`in e.domElement&&e.domElement.setAttribute(`data-engine`,`three.js r186 webgpu`);let i=r.alpha?`premultiplied`:`opaque`,a=r.outputType===1016?`extended`:`standard`;n.configure({device:this.device,format:this.utils.getPreferredCanvasFormat(),usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.COPY_SRC,alphaMode:i,toneMapping:{mode:a}}),t.context=n}return n}get coordinateSystem(){return ft}get hasTimestamp(){return!0}async getArrayBufferAsync(e,t=null,n=0,r=-1){return await this.attributeUtils.getArrayBufferAsync(e,t,n,r)}getContext(){return this.context}_getDefaultRenderPassDescriptor(){let e=this.renderer,t=e.getCanvasTarget(),n=this.get(t),r=e.currentSamples,i=n.descriptor;if(i===void 0||n.samples!==r){if(i=new dM,i.colorAttachments.push(new uM),e.depth===!0||e.stencil===!0){let t=new zN;t.view=this.textureUtils.getDepthBuffer(e.depth,e.stencil).createView(),i.depthStencilAttachment=t}let t=i.colorAttachments[0];r>0?t.view=this.textureUtils.getColorBuffer().createView():t.resolveTarget=void 0,n.descriptor=i,n.samples=r}let a=i.colorAttachments[0];return r>0?a.resolveTarget=this.context.getCurrentTexture().createView():a.view=this.context.getCurrentTexture().createView(),i}_isRenderCameraDepthArray(e){let t=e.camera;return e.depthTexture&&e.depthTexture.isArrayTexture===!0&&t!==null&&t.isArrayCamera===!0}_hasExternalTexture(e){let t=e.textures;if(t===null)return!1;for(let e=0;e<t.length;e++)if(this.get(t[e]).externalTexture===!0)return!0;return!1}_getExternalMSAATextures(e,t,n){let r=this.utils.getSampleCount(e.sampleCount);if(r===1){if(t.msaaTextures!==void 0){for(let e of t.msaaTextures)e.destroy();t.msaaTextures=void 0}return null}let i=e.renderTarget,a=i.width,o=i.height,s=t.format;if(t.msaaTextures===void 0||t.msaaTextures.length!==n||t.msaaWidth!==a||t.msaaHeight!==o||t.msaaSamples!==r||t.msaaFormat!==s){if(t.msaaTextures!==void 0)for(let e of t.msaaTextures)e.destroy();ZN.size.width=a,ZN.size.height=o,ZN.sampleCount=r,ZN.format=s,ZN.usage=GPUTextureUsage.RENDER_ATTACHMENT,t.msaaTextures=[];for(let e=0;e<n;e++)ZN.label=i.texture.name+`-msaa-`+e,t.msaaTextures.push(this.device.createTexture(ZN));ZN.reset(),t.msaaWidth=a,t.msaaHeight=o,t.msaaSamples=r,t.msaaFormat=s}return t.msaaTextures}_createExternalTextureViews(e,t){let n=[],r=e.camera,i=t.xrViewDescriptors,a=Math.max(i?.length||0,e.activeCubeFace+1,1),o=this._getExternalMSAATextures(e,t,a);if(i&&r!==null&&r.isArrayCamera===!0)for(let r=0;r<i.length;r++){let a=t.texture.createView(i[r]);n.push({view:o===null?a:o[r].createView(),resolveTarget:o!==null&&e.renderTarget.resolveColorBuffer===!0?a:void 0,depthSlice:void 0})}else{let r=e.activeCubeFace,i=t.texture.createView({dimension:Jj.TwoD,baseArrayLayer:r,arrayLayerCount:1});n.push({view:o===null?i:o[r].createView(),resolveTarget:o!==null&&e.renderTarget.resolveColorBuffer===!0?i:void 0,depthSlice:void 0})}return n}_getRenderPassDescriptor(e,t={}){let n=e.renderTarget,r=this.get(n),i=this._hasExternalTexture(e),a=r.descriptors;(a===void 0||r.width!==n.width||r.height!==n.height||r.samples!==n.samples||i)&&(a={},r.descriptors=a);let o=e.getCacheKey(),s=a[o];if(s===void 0||i){let t=e.textures,i=[],c,l=this._isRenderCameraDepthArray(e);for(let r=0;r<t.length;r++){let a=this.get(t[r]);if(a.externalTexture===!0)i.push(...this._createExternalTextureViews(e,a));else{if(QN.label=`colorAttachment_${r}`,QN.baseMipLevel=e.activeMipmapLevel,QN.mipLevelCount=1,QN.baseArrayLayer=e.activeCubeFace,QN.arrayLayerCount=1,QN.dimension=Jj.TwoD,n.isRenderTarget3D)c=e.activeCubeFace,QN.baseArrayLayer=0,QN.dimension=Jj.ThreeD;else if(n.isRenderTarget&&t[r].image.depth>1){if(l===!0){let t=e.camera.cameras;for(let e=0;e<t.length;e++){QN.baseArrayLayer=e,QN.arrayLayerCount=1,QN.dimension=Jj.TwoD;let t=a.texture.createView(QN),r=a.msaaTextures?.[e];i.push({view:r===void 0?t:r.createView(),resolveTarget:r!==void 0&&n.resolveColorBuffer===!0?t:void 0,depthSlice:void 0})}}else QN.dimension=Jj.TwoDArray}if(l!==!0){let t=a.texture.createView(QN),r,o;a.msaaTexture===void 0?a.msaaTextures===void 0?(r=t,o=void 0):(r=a.msaaTextures[e.activeCubeFace].createView(),o=n.resolveColorBuffer===!0?t:void 0):(r=a.msaaTexture.createView(),o=n.resolveColorBuffer===!0?t:void 0),i.push({view:r,resolveTarget:o,depthSlice:c})}QN.reset()}}let u=[];for(let e=0;e<i.length;e++){let t=i[e],n=new uM;n.view=t.view,n.depthSlice=t.depthSlice,n.resolveTarget=t.resolveTarget,u.push(n)}if(s={textureViews:i,colorAttachments:u,descriptor:new dM},e.depth){let t=this.get(e.depthTexture);(e.depthTexture.isArrayTexture||e.depthTexture.isCubeTexture)&&(QN.dimension=Jj.TwoD,QN.arrayLayerCount=1,QN.baseArrayLayer=e.activeCubeFace);let n=new zN,r=t.msaaTextures?.[e.activeCubeFace];n.view=r===void 0?t.texture.createView(QN):r.createView(),s.depthStencilAttachment=n,QN.reset()}a[o]=s,r.width=n.width,r.height=n.height,r.samples=n.samples,r.activeMipmapLevel=e.activeMipmapLevel,r.activeCubeFace=e.activeCubeFace}let c=s.descriptor;c.reset();for(let e=0;e<s.colorAttachments.length;e++){let n=s.colorAttachments[e],r={r:0,g:0,b:0,a:1};e===0&&t.clearValue&&(r=t.clearValue),n.loadOp=t.loadOp||Nj.Load,n.storeOp=t.storeOp||Mj.Store,n.clearValue=r,c.colorAttachments.push(n)}return s.depthStencilAttachment&&(c.depthStencilAttachment=s.depthStencilAttachment),c}beginRender(e){let t=this.get(e),n=this.device,r=e.occlusionQueryCount,i;r>0?(t.currentOcclusionQuerySet&&t.currentOcclusionQuerySet.destroy(),t.currentOcclusionQueryBuffer&&t.currentOcclusionQueryBuffer.destroy(),t.currentOcclusionQuerySet=t.occlusionQuerySet,t.currentOcclusionQueryBuffer=t.occlusionQueryBuffer,t.currentOcclusionQueryObjects=t.occlusionQueryObjects,KN.label=`occlusionQuerySet_${e.id}`,KN.type=`occlusion`,KN.count=r,i=n.createQuerySet(KN),KN.reset(),t.occlusionQuerySet=i,t.occlusionQueryIndex=0,t.occlusionQueryObjects=Array(r),t.lastOcclusionObject=null):t.lastOcclusionObject!==void 0&&(t.lastOcclusionObject=void 0,t.occlusionQuerySet.destroy(),t.occlusionQuerySet=void 0);let a;a=e.textures===null?this._getDefaultRenderPassDescriptor():this._getRenderPassDescriptor(e,{loadOp:Nj.Load}),this.initTimestampQuery(pt.RENDER,this.getTimestampUID(e),a),a.occlusionQuerySet=i;let o=a.depthStencilAttachment,s=e.renderTarget,c=e.sampleCount>1&&s?.storeMultisampledColorBuffer===!1,l=e.sampleCount>1&&s?.storeMultisampledDepthBuffer===!1,u=e.sampleCount>1&&s?.storeMultisampledStencilBuffer===!1,d=e.fullscreenPass===!0&&this._hasExternalTexture(e);if(e.textures!==null){let t=a.colorAttachments;for(let n=0;n<t.length;n++){let r=t[n];if(e.clearColor||c||d){let t=e.mrt?e.mrt.getClearColor(e.textures[n].name):null;t===null?n===0?r.clearValue=e.clearColorValue:(VN.r=0,VN.g=0,VN.b=0,VN.a=1,r.clearValue=VN):r.clearValue=t,r.loadOp=Nj.Clear}else r.loadOp=Nj.Load;r.storeOp=c?Mj.Discard:Mj.Store}}else{let t=a.colorAttachments[0];e.clearColor?(t.clearValue=e.clearColorValue,t.loadOp=Nj.Clear):t.loadOp=Nj.Load,t.storeOp=Mj.Store}e.depth&&(e.clearDepth||l?(o.depthClearValue=e.clearDepthValue,o.depthLoadOp=Nj.Clear):o.depthLoadOp=Nj.Load,o.depthStoreOp=l?Mj.Discard:Mj.Store),e.stencil&&(e.clearStencil||u?(o.stencilClearValue=e.clearStencilValue,o.stencilLoadOp=Nj.Clear):o.stencilLoadOp=Nj.Load,o.stencilStoreOp=u?Mj.Discard:Mj.Store),WN.label=`renderContext_`+e.id;let f=n.createCommandEncoder(WN);if(WN.reset(),this._isRenderCameraDepthArray(e)===!0){let n=e.camera.cameras;!t.layerDescriptors||t.layerDescriptors.length!==n.length?this._createArrayCameraLayerDescriptors(e,t,a,n):this._updateArrayCameraLayerDescriptors(e,t,a,n),this._createArrayCameraBundleEncoders(e,t),t.arrayCameraRenderStages=[],t.currentPass=null}else t.bundleEncoders=void 0,t.bundleSets=void 0,t.arrayCameraRenderStages=void 0,t.currentPass=f.beginRenderPass(a),e.viewport&&this.updateViewport(e),e.scissor&&this.updateScissor(e);t.descriptor=a,t.encoder=f,t.renderBundles=[],this._resetRenderContextData(t)}_resetRenderContextData(e){e.currentSets={attributes:{},bindingGroups:[],pipeline:null,index:null},e.currentBlendColor===void 0&&(e.currentBlendColor=new rr),e.currentBlendColor.setRGB(0,0,0),e.currentBlendAlpha=0,e.currentStencilRef=0}_createArrayCameraBundleEncoders(e,t){let n=e.camera.cameras;t.bundleEncoders=[],t.bundleSets=[];for(let r=0;r<n.length;r++){let n=this.pipelineUtils.createBundleEncoder(e,`renderBundleArrayCamera_`+r);t.bundleEncoders.push(n),t.bundleSets.push({attributes:{},bindingGroups:[],pipeline:null,index:null})}}_finishArrayCameraBundleEncoders(e){let t=[];for(let n of e.bundleEncoders)t.push(n.finish());return t}_createArrayCameraLayerDescriptors(e,t,n,r){let i=n.depthStencilAttachment;t.layerDescriptors=[];let a=this.get(e.depthTexture);a.viewCache||=[];for(let o=0;o<r.length;o++){let r=n.colorAttachments[0],s=n.colorAttachments[o],c=new uM;c.view=s.view,c.depthSlice=s.depthSlice,c.resolveTarget=s.resolveTarget,c.loadOp=r.loadOp,c.storeOp=r.storeOp,c.clearValue=r.clearValue;let l=new dM;if(l.label=n.label,l.occlusionQuerySet=n.occlusionQuerySet,l.timestampWrites=n.timestampWrites,l.colorAttachments.push(c),n.depthStencilAttachment){let t=o;if(!a.viewCache[t]){let e=a.msaaTextures?.[t];e===void 0?(QN.dimension=Jj.TwoD,QN.baseArrayLayer=o,QN.arrayLayerCount=1,a.viewCache[t]=a.texture.createView(QN)):a.viewCache[t]=e.createView(),QN.reset()}let n=new zN;n.view=a.viewCache[t],n.depthLoadOp=i.depthLoadOp||Nj.Clear,n.depthStoreOp=i.depthStoreOp||Mj.Store,n.depthClearValue=i.depthClearValue||1,e.stencil&&(n.stencilLoadOp=i.stencilLoadOp,n.stencilStoreOp=i.stencilStoreOp,n.stencilClearValue=i.stencilClearValue),l.depthStencilAttachment=n}else{let e=new zN;e.view=i.view,e.depthLoadOp=i.depthLoadOp,e.depthStoreOp=i.depthStoreOp,e.depthClearValue=i.depthClearValue,e.depthReadOnly=i.depthReadOnly,e.stencilLoadOp=i.stencilLoadOp,e.stencilStoreOp=i.stencilStoreOp,e.stencilClearValue=i.stencilClearValue,e.stencilReadOnly=i.stencilReadOnly,l.depthStencilAttachment=e}t.layerDescriptors.push(l)}}_updateArrayCameraLayerDescriptors(e,t,n,r){let i=e.renderTarget,a=e.sampleCount>1&&i?.storeMultisampledDepthBuffer===!1,o=e.sampleCount>1&&i?.storeMultisampledStencilBuffer===!1;for(let i=0;i<r.length;i++){let r=t.layerDescriptors[i],s=n.colorAttachments[0],c=n.colorAttachments[i],l=r.colorAttachments[0];if(l.view=c.view,l.resolveTarget=c.resolveTarget,l.depthSlice=c.depthSlice,l.loadOp=s.loadOp,l.storeOp=s.storeOp,l.clearValue=s.clearValue,r.depthStencilAttachment){let t=r.depthStencilAttachment;e.depth&&(e.clearDepth||a?(t.depthClearValue=e.clearDepthValue,t.depthLoadOp=Nj.Clear):t.depthLoadOp=Nj.Load),e.stencil&&(e.clearStencil||o?(t.stencilClearValue=e.clearStencilValue,t.stencilLoadOp=Nj.Clear):t.stencilLoadOp=Nj.Load)}}}finishRender(e){let t=this.get(e),n=e.occlusionQueryCount;t.renderBundles.length>0&&t.currentPass.executeBundles(t.renderBundles);let r=t.lastOcclusionObject;r&&r.occlusionTest===!0&&t.currentPass.endOcclusionQuery();let i=t.encoder;if(this._isRenderCameraDepthArray(e)===!0){let n=this._finishArrayCameraBundleEncoders(t),r=t.arrayCameraRenderStages;r.push({bundles:n});for(let n=0;n<t.layerDescriptors.length;n++){let a=t.layerDescriptors[n],o=a.colorAttachments.map(e=>e.loadOp),s=a.colorAttachments.map(e=>e.storeOp),c=a.depthStencilAttachment?.depthLoadOp,l=a.depthStencilAttachment?.depthStoreOp,u=a.depthStencilAttachment?.stencilLoadOp,d=a.depthStencilAttachment?.stencilStoreOp;for(let t=0;t<r.length;t++){let f=r[t],p=f.bundles[n],m=t===r.length-1;for(let e=0;e<a.colorAttachments.length;e++){let n=a.colorAttachments[e];n.loadOp=t===0?o[e]:Nj.Load,n.storeOp=m?s[e]:Mj.Store}e.depth&&(a.depthStencilAttachment.depthLoadOp=t===0?c:Nj.Load,a.depthStencilAttachment.depthStoreOp=m?l:Mj.Store),e.stencil&&(a.depthStencilAttachment.stencilLoadOp=t===0?u:Nj.Load,a.depthStencilAttachment.stencilStoreOp=m?d:Mj.Store);let h=i.beginRenderPass(a);if(e.viewport){let{x:t,y:n,width:r,height:i,minDepth:a,maxDepth:o}=e.viewportValue;h.setViewport(t,n,r,i,a,o)}if(e.scissor){let{x:t,y:n,width:r,height:i}=e.scissorValue;h.setScissorRect(t,n,r,i)}if(h.executeBundles([p]),h.end(),f.framebufferCopy!==void 0){let{texture:e,sourceGPU:t,destinationGPU:r,rectangle:a,generateMipmaps:o}=f.framebufferCopy;this._copyFramebufferToTexture(i,e,t,r,a,n,o)}}for(let e=0;e<a.colorAttachments.length;e++)a.colorAttachments[e].loadOp=o[e],a.colorAttachments[e].storeOp=s[e];e.depth&&(a.depthStencilAttachment.depthLoadOp=c,a.depthStencilAttachment.depthStoreOp=l),e.stencil&&(a.depthStencilAttachment.stencilLoadOp=u,a.depthStencilAttachment.stencilStoreOp=d)}}else t.currentPass&&t.currentPass.end();if(n>0){let r=n*8,i=this.occludedResolveCache.get(r);i===void 0&&(UN.size=r,UN.usage=GPUBufferUsage.QUERY_RESOLVE|GPUBufferUsage.COPY_SRC,i=this.device.createBuffer(UN),UN.reset(),this.occludedResolveCache.set(r,i)),UN.size=r,UN.usage=GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ;let a=this.device.createBuffer(UN);UN.reset(),t.encoder.resolveQuerySet(t.occlusionQuerySet,0,n,i,0),t.encoder.copyBufferToBuffer(i,0,a,0,r),t.occlusionQueryBuffer=a,this.resolveOccludedAsync(e)}if(aM(this.device,t.encoder.finish()),e.textures!==null){let t=e.textures;for(let e=0;e<t.length;e++){let n=t[e];n.generateMipmaps===!0&&this.textureUtils.generateMipmaps(n)}}}isOccluded(e,t){let n=this.get(e);return n.occluded&&n.occluded.has(t)}async resolveOccludedAsync(e){let t=this.get(e),{currentOcclusionQueryBuffer:n,currentOcclusionQueryObjects:r}=t;if(n&&r){let e=new WeakSet;t.currentOcclusionQueryObjects=null,t.currentOcclusionQueryBuffer=null,await n.mapAsync(GPUMapMode.READ);let i=n.getMappedRange(),a=new BigUint64Array(i);for(let t=0;t<r.length;t++){let n=r[t];n!==void 0&&a[t]===BigInt(0)&&e.add(n)}n.destroy(),t.occluded=e}}updateViewport(e){let{currentPass:t}=this.get(e),{x:n,y:r,width:i,height:a,minDepth:o,maxDepth:s}=e.viewportValue;t.setViewport(n,r,i,a,o,s)}updateScissor(e){let{currentPass:t}=this.get(e),{x:n,y:r,width:i,height:a}=e.scissorValue;t.setScissorRect(n,r,i,a)}getClearColor(){let e=super.getClearColor();return this.renderer.alpha===!0&&(e.r*=e.a,e.g*=e.a,e.b*=e.a),e}clear(e,t,n,r=null){let i=this.device,a=this.renderer,o=[],s,c,l;if(e){let e=this.getClearColor();VN.r=e.r,VN.g=e.g,VN.b=e.b,VN.a=e.a}if(r===null){c=a.depth,l=a.stencil;let t=this._getDefaultRenderPassDescriptor();if(e){o=t.colorAttachments;let e=o[0];e.clearValue=VN,e.loadOp=Nj.Clear,e.storeOp=Mj.Store}(c||l)&&(s=t.depthStencilAttachment)}else{c=r.depth,l=r.stencil;let i={loadOp:e?Nj.Clear:Nj.Load,clearValue:e?VN:void 0};c&&(i.depthLoadOp=t?Nj.Clear:Nj.Load,i.depthClearValue=t?a.getClearDepth():void 0,i.depthStoreOp=Mj.Store),l&&(i.stencilLoadOp=n?Nj.Clear:Nj.Load,i.stencilClearValue=n?a.getClearStencil():void 0,i.stencilStoreOp=Mj.Store);let u=this._getRenderPassDescriptor(r,i);o=u.colorAttachments,s=u.depthStencilAttachment}c&&s&&(t?(s.depthLoadOp=Nj.Clear,s.depthClearValue=a.getClearDepth(),s.depthStoreOp=Mj.Store):(s.depthLoadOp=Nj.Load,s.depthStoreOp=Mj.Store)),l&&s&&(n?(s.stencilLoadOp=Nj.Clear,s.stencilClearValue=a.getClearStencil(),s.stencilStoreOp=Mj.Store):(s.stencilLoadOp=Nj.Load,s.stencilStoreOp=Mj.Store)),WN.label=`clear`;let u=i.createCommandEncoder(WN);WN.reset(),u.beginRenderPass({colorAttachments:o,depthStencilAttachment:s}).end(),aM(i,u.finish())}beginCompute(e){let t=this.get(e),n=`computeGroup_`+e.id;GN.label=n,WN.label=n,this.initTimestampQuery(pt.COMPUTE,this.getTimestampUID(e),GN),t.cmdEncoderGPU=this.device.createCommandEncoder(WN),t.passEncoderGPU=t.cmdEncoderGPU.beginComputePass(GN),t.currentPipeline=null,WN.reset(),GN.reset()}compute(e,t,n,r,i=null){let a=this.get(t),o=this.get(e),{passEncoderGPU:s}=o,c=this.get(r).pipeline;o.currentPipeline!==c&&(s.setPipeline(c),o.currentPipeline=c);for(let e=0,t=n.length;e<t;e++){let t=n[e],r=this.get(t);s.setBindGroup(e,r.group)}if(i===null&&(i=t.dispatchSize||t.count),i&&i.isIndirectStorageBufferAttribute){let e=this.get(i).buffer;s.dispatchWorkgroupsIndirect(e,0)}else{if(typeof i==`number`){let e=i;if(a.dispatchSize===void 0||a.count!==e){a.dispatchSize=[0,1,1],a.count=e;let n=t.workgroupSize,r=n[0];for(let e=1;e<n.length;e++)r*=n[e];let o=Math.ceil(e/r),s=this.device.limits.maxComputeWorkgroupsPerDimension;i=[o,1,1],o>s&&(i[0]=Math.min(o,s),i[1]=Math.ceil(o/s)),a.dispatchSize=i}i=a.dispatchSize}s.dispatchWorkgroups(i[0],i[1]||1,i[2]||1)}}finishCompute(e){let t=this.get(e);t.passEncoderGPU.end(),aM(this.device,t.cmdEncoderGPU.finish())}_draw(e,t,n,r,i,a,o,s,c,l=-1){let{object:u,material:d,context:f}=e,p=e.getIndex(),m=p!==null;c.pipeline!==r&&(s.setPipeline(r),c.pipeline=r);let h=c.bindingGroups;for(let e=0,t=i.length;e<t;e++){if(e===l)continue;let t=i[e],n=this.get(t).group;h[e]!==n&&(s.setBindGroup(e,n),h[e]=n)}if(m===!0&&c.index!==p){let e=this.get(p).buffer,t=p.array instanceof Uint16Array?Ij.Uint16:Ij.Uint32;s.setIndexBuffer(e,t),c.index=p}for(let e=0,t=a.length;e<t;e++){let t=a[e];if(c.attributes[e]!==t){let n=this.get(t).buffer;s.setVertexBuffer(e,n),c.attributes[e]=t}}if(f.stencil===!0&&d.stencilWrite===!0&&n.currentStencilRef!==d.stencilRef&&(s.setStencilReference(d.stencilRef),n.currentStencilRef=d.stencilRef),d.blending===5&&s.setBlendConstant!==void 0){let e=d.blendColor,t=d.blendAlpha;(e.equals(n.currentBlendColor)===!1||t!==n.currentBlendAlpha)&&(HN.r=e.r,HN.g=e.g,HN.b=e.b,HN.a=t,s.setBlendConstant(HN),n.currentBlendColor.copy(e),n.currentBlendAlpha=t)}if(u.isBatchedMesh===!0){let e=u._multiDrawStarts,n=u._multiDrawCounts,r=u._multiDrawCount,i=u._multiDrawBytesPerElement;for(let a=0;a<r;a++)m===!0?s.drawIndexed(n[a],1,e[a]/i,0,a):s.draw(n[a],1,e[a],a),t.update(u,n[a],1)}else if(m===!0){let{vertexCount:n,instanceCount:r,firstVertex:i}=o,a=e.getIndirect();if(a!==null){let t=this.get(a).buffer,n=e.getIndirectOffset(),r=Array.isArray(n)?n:[n];for(let e=0;e<r.length;e++)s.drawIndexedIndirect(t,r[e])}else s.drawIndexed(n,r,i,0,0);t.update(u,n,r)}else{let{vertexCount:n,instanceCount:r,firstVertex:i}=o,a=e.getIndirect();if(a!==null){let t=this.get(a).buffer,n=e.getIndirectOffset(),r=Array.isArray(n)?n:[n];for(let e=0;e<r.length;e++)s.drawIndirect(t,r[e])}else s.draw(n,r,i,0);t.update(u,n,r)}}draw(e,t){let{object:n,context:r,pipeline:i}=e,a=this.get(r),o=this.get(i),s=o.pipeline;if(o.error===!0)return;let c=e.getDrawParameters();if(c===null)return;let l=e.getBindings(),u=e.getVertexBuffers();if(e.camera.isArrayCamera&&e.camera.cameras.length>0){let i=this.get(e.camera),o=e.camera.cameras,d=e.getBindingGroup(`cameraIndex`);if(i.indexesGPU===void 0||i.indexesGPU.length!==o.length){let e=this.get(d),t=[],n=new Uint32Array([0,0,0,0]);for(let r=0,i=o.length;r<i;r++){n[0]=r;let{layoutGPU:i}=e.layout,a=this.bindingUtils.createBindGroupIndex(n,i);t.push(a)}i.indexesGPU=t}let f=r.renderTarget,p=f===null||f.isPostProcessingRenderTarget===!0?this.renderer.getPixelRatio():1,m=d?l.indexOf(d):-1;for(let d=0,f=o.length;d<f;d++){let f=o[d];if(n.layers.test(f.layers)){let n=f.viewport,o=a.currentPass,h=a.currentSets,g=a.bundleEncoders!==void 0;if(g){let e=a.bundleEncoders[d],t=a.bundleSets[d];o=e,h=t}if(n&&!g&&o.setViewport(Math.floor(n.x*p),Math.floor(n.y*p),Math.floor(n.width*p),Math.floor(n.height*p),r.viewportValue.minDepth,r.viewportValue.maxDepth),m!==-1&&i.indexesGPU){let e=i.indexesGPU[d];h.bindingGroups[m]!==e&&(o.setBindGroup(m,e),h.bindingGroups[m]=e)}this._draw(e,t,a,s,l,u,c,o,h,m)}}}else if(a.currentPass){if(a.currentPass instanceof GPURenderBundleEncoder)n.occlusionTest===!0&&Ct(`WebGPUBackend: Occlusion queries can not be recorded into render bundles.`);else if(a.occlusionQuerySet!==void 0){let e=a.lastOcclusionObject;e!==n&&(e!==null&&e.occlusionTest===!0&&(a.currentPass.endOcclusionQuery(),a.occlusionQueryIndex++),n.occlusionTest===!0&&(a.currentPass.beginOcclusionQuery(a.occlusionQueryIndex),a.occlusionQueryObjects[a.occlusionQueryIndex]=n),a.lastOcclusionObject=n)}this._draw(e,t,a,s,l,u,c,a.currentPass,a.currentSets)}}needsRenderUpdate(e){let t=this.get(e),{object:n,material:r}=e,i=this.utils,a=i.getSampleCountRenderContext(e.context),o=i.getCurrentColorSpace(e.context),s=i.getCurrentColorFormat(e.context),c=i.getCurrentDepthStencilFormat(e.context),l=i.getPrimitiveTopology(n,r),u=n.isMesh&&n.matrixWorld.determinantAffine()<0,d=!1;return(t.material!==r||t.materialVersion!==r.version||t.transparent!==r.transparent||t.blending!==r.blending||t.premultipliedAlpha!==r.premultipliedAlpha||t.blendSrc!==r.blendSrc||t.blendDst!==r.blendDst||t.blendEquation!==r.blendEquation||t.blendSrcAlpha!==r.blendSrcAlpha||t.blendDstAlpha!==r.blendDstAlpha||t.blendEquationAlpha!==r.blendEquationAlpha||t.colorWrite!==r.colorWrite||t.depthWrite!==r.depthWrite||t.depthTest!==r.depthTest||t.depthFunc!==r.depthFunc||t.stencilWrite!==r.stencilWrite||t.stencilFunc!==r.stencilFunc||t.stencilFail!==r.stencilFail||t.stencilZFail!==r.stencilZFail||t.stencilZPass!==r.stencilZPass||t.stencilFuncMask!==r.stencilFuncMask||t.stencilWriteMask!==r.stencilWriteMask||t.polygonOffset!==r.polygonOffset||t.polygonOffsetFactor!==r.polygonOffsetFactor||t.polygonOffsetUnits!==r.polygonOffsetUnits||t.side!==r.side||t.alphaToCoverage!==r.alphaToCoverage||t.sampleCount!==a||t.colorSpace!==o||t.colorFormat!==s||t.depthStencilFormat!==c||t.primitiveTopology!==l||t.frontFaceCW!==u||t.clippingContextCacheKey!==e.clippingContextCacheKey)&&(t.material=r,t.materialVersion=r.version,t.transparent=r.transparent,t.blending=r.blending,t.premultipliedAlpha=r.premultipliedAlpha,t.blendSrc=r.blendSrc,t.blendDst=r.blendDst,t.blendEquation=r.blendEquation,t.blendSrcAlpha=r.blendSrcAlpha,t.blendDstAlpha=r.blendDstAlpha,t.blendEquationAlpha=r.blendEquationAlpha,t.colorWrite=r.colorWrite,t.depthWrite=r.depthWrite,t.depthTest=r.depthTest,t.depthFunc=r.depthFunc,t.stencilWrite=r.stencilWrite,t.stencilFunc=r.stencilFunc,t.stencilFail=r.stencilFail,t.stencilZFail=r.stencilZFail,t.stencilZPass=r.stencilZPass,t.stencilFuncMask=r.stencilFuncMask,t.stencilWriteMask=r.stencilWriteMask,t.polygonOffset=r.polygonOffset,t.polygonOffsetFactor=r.polygonOffsetFactor,t.polygonOffsetUnits=r.polygonOffsetUnits,t.side=r.side,t.alphaToCoverage=r.alphaToCoverage,t.sampleCount=a,t.colorSpace=o,t.colorFormat=s,t.depthStencilFormat=c,t.primitiveTopology=l,t.frontFaceCW=u,t.clippingContextCacheKey=e.clippingContextCacheKey,d=!0),d}getRenderCacheKey(e){let{object:t,material:n}=e,r=this.utils,i=e.context,a=t.isMesh&&t.matrixWorld.determinantAffine()<0;return[n.transparent,n.blending,n.premultipliedAlpha,n.blendSrc,n.blendDst,n.blendEquation,n.blendSrcAlpha,n.blendDstAlpha,n.blendEquationAlpha,n.colorWrite,n.depthWrite,n.depthTest,n.depthFunc,n.stencilWrite,n.stencilFunc,n.stencilFail,n.stencilZFail,n.stencilZPass,n.stencilFuncMask,n.stencilWriteMask,n.polygonOffset,n.polygonOffsetFactor,n.polygonOffsetUnits,n.side,n.alphaToCoverage,a,r.getSampleCountRenderContext(i),r.getCurrentColorSpace(i),r.getCurrentColorFormat(i),r.getCurrentDepthStencilFormat(i),r.getPrimitiveTopology(t,n),e.getGeometryCacheKey(),e.clippingContextCacheKey].join()}updateSampler(e){return this.textureUtils.updateSampler(e)}destroySampler(e){this.textureUtils.destroySampler(e)}createDefaultTexture(e){return this.textureUtils.createDefaultTexture(e)}createTexture(e,t){this.textureUtils.createTexture(e,t)}updateTexture(e,t){this.textureUtils.updateTexture(e,t)}generateMipmaps(e){this.textureUtils.generateMipmaps(e)}destroyTexture(e,t=!1){this.textureUtils.destroyTexture(e,t)}async copyTextureToBuffer(e,t,n,r,i,a){return this.textureUtils.copyTextureToBuffer(e,t,n,r,i,a)}initTimestampQuery(e,t,n){if(!this.trackTimestamp)return;this.timestampQueryPool[e]||(this.timestampQueryPool[e]=new LN(this.device,e,2048));let r=this.timestampQueryPool[e],i=r.allocateQueriesForContext(t);JN.querySet=r.querySet,JN.beginningOfPassWriteIndex=i,JN.endOfPassWriteIndex=i+1,n.timestampWrites=JN}createNodeBuilder(e,t){return new pN(e,t)}createProgram(e){let t=this.get(e);qN.label=e.stage+(e.name===``?``:`_${e.name}`),qN.code=e.code,t.module={module:this.device.createShaderModule(qN),entryPoint:`main`},qN.reset()}destroyProgram(e){this.delete(e)}createRenderPipeline(e,t){this.pipelineUtils.createRenderPipeline(e,t)}createComputePipeline(e,t,n=null){this.pipelineUtils.createComputePipeline(e,t,n)}beginBundle(e){let t=this.get(e);t._currentPass=t.currentPass,t._currentSets=t.currentSets,t.currentSets={attributes:{},bindingGroups:[],pipeline:null,index:null},t.currentPass=this.pipelineUtils.createBundleEncoder(e)}finishBundle(e,t){let n=this.get(e),r=n.currentPass.finish();this.get(t).bundleGPU=r,n.currentSets=n._currentSets,n.currentPass=n._currentPass,n._currentPass=null,n._currentSets=null}addBundle(e,t){this.get(e).renderBundles.push(this.get(t).bundleGPU)}createUniformBuffer(e){let t=this.get(e);if(t.buffer===void 0){let n=e.byteLength,r=GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST,i=[];e.visibility&Aj.VERTEX&&i.push(`vertex`),e.visibility&Aj.FRAGMENT&&i.push(`fragment`),e.visibility&Aj.COMPUTE&&i.push(`compute`);let a=`(${i.join(`,`)})`;UN.label=`bindingBuffer${e.id}_${e.name}_${a}`,UN.size=n,UN.usage=r;let o=this.device.createBuffer(UN);UN.reset(),t.buffer=o}}destroyUniformBuffer(e){this.get(e).buffer.destroy(),this.delete(e)}createBindings(e,t,n,r){this.bindingUtils.createBindings(e,t,n,r)}updateBindings(e,t,n,r){this.bindingUtils.createBindings(e,t,n,r)}updateBinding(e){this.bindingUtils.updateBinding(e)}deleteBindGroupData(e){this.bindingUtils.deleteBindGroupData(e)}createIndexAttribute(e){let t=GPUBufferUsage.INDEX|GPUBufferUsage.COPY_SRC|GPUBufferUsage.COPY_DST;(e.isStorageBufferAttribute||e.isStorageInstancedBufferAttribute)&&(t|=GPUBufferUsage.STORAGE),this.attributeUtils.createAttribute(e,t)}createAttribute(e){this.attributeUtils.createAttribute(e,GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_SRC|GPUBufferUsage.COPY_DST)}createStorageAttribute(e){this.attributeUtils.createAttribute(e,GPUBufferUsage.STORAGE|GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_SRC|GPUBufferUsage.COPY_DST)}createIndirectStorageAttribute(e){this.attributeUtils.createAttribute(e,GPUBufferUsage.STORAGE|GPUBufferUsage.INDIRECT|GPUBufferUsage.COPY_SRC|GPUBufferUsage.COPY_DST)}updateAttribute(e){this.attributeUtils.updateAttribute(e)}destroyAttribute(e){this.attributeUtils.destroyAttribute(e)}updateSize(){this.delete(this.renderer.getCanvasTarget())}hasFeature(e){return Qj[e]!==void 0&&(e=Qj[e]),this.device.features.has(e)}copyTextureToTexture(e,t,n=null,r=null,i=0,a=0){let o=0,s=0,c=0,l=0,u=0,d=0,f=e.image.width,p=e.image.height,m=1;n!==null&&(n.isBox3===!0?(l=n.min.x,u=n.min.y,d=n.min.z,f=n.max.x-n.min.x,p=n.max.y-n.min.y,m=n.max.z-n.min.z):(l=n.min.x,u=n.min.y,f=n.max.x-n.min.x,p=n.max.y-n.min.y,m=1)),r!==null&&(o=r.x,s=r.y,c=r.z||0),WN.label=`copyTextureToTexture_`+e.id+`_`+t.id;let h=this.device.createCommandEncoder(WN);WN.reset();let g=this.get(e).texture,_=this.get(t).texture;YN.texture=g,YN.mipLevel=i,YN.origin.x=l,YN.origin.y=u,YN.origin.z=d,XN.texture=_,XN.mipLevel=a,XN.origin.x=o,XN.origin.y=s,XN.origin.z=c,$N.width=f,$N.height=p,$N.depthOrArrayLayers=m,h.copyTextureToTexture(YN,XN,$N),YN.reset(),XN.reset(),$N.reset(),aM(this.device,h.finish()),a===0&&t.generateMipmaps&&this.textureUtils.generateMipmaps(t)}copyFramebufferToTexture(e,t,n){let r=this.get(t),i=null;i=t.renderTarget?e.isDepthTexture?this.get(t.depthTexture).texture:this.get(t.textures[0]).texture:e.isDepthTexture?this.textureUtils.getDepthBuffer(t.depth,t.stencil):this.context.getCurrentTexture();let a=this.get(e).texture;if(i.format!==a.format){E(`WebGPUBackend: copyFramebufferToTexture: Source and destination formats do not match.`,i.format,a.format);return}if(this._isRenderCameraDepthArray(t)===!0){let o=this._finishArrayCameraBundleEncoders(r);r.arrayCameraRenderStages.push({bundles:o,framebufferCopy:{texture:e,sourceGPU:i,destinationGPU:a,rectangle:{x:n.x,y:n.y,z:n.z,w:n.w},generateMipmaps:e.generateMipmaps}}),this._createArrayCameraBundleEncoders(t,r);return}let o;if(r.currentPass?(r.currentPass.end(),o=r.encoder):(WN.label=`copyFramebufferToTexture_`+e.id,o=this.device.createCommandEncoder(WN),WN.reset()),this._copyFramebufferToTexture(o,e,i,a,n),r.currentPass){let{descriptor:e}=r;for(let t=0;t<e.colorAttachments.length;t++)e.colorAttachments[t].loadOp=Nj.Load;t.depth&&(e.depthStencilAttachment.depthLoadOp=Nj.Load),t.stencil&&(e.depthStencilAttachment.stencilLoadOp=Nj.Load),r.currentPass=o.beginRenderPass(e),this._resetRenderContextData(r),t.viewport&&this.updateViewport(t),t.scissor&&this.updateScissor(t)}else aM(this.device,o.finish())}_copyFramebufferToTexture(e,t,n,r,i,a=0,o=t.generateMipmaps){YN.texture=n,YN.origin.x=i.x,YN.origin.y=i.y,YN.origin.z=a,XN.texture=r,$N.width=i.z,$N.height=i.w,e.copyTextureToTexture(YN,XN,$N),YN.reset(),XN.reset(),$N.reset(),o&&this.textureUtils.generateMipmaps(t,e)}hasCompatibility(e){return this._compatibility[e]===void 0?super.hasCompatibility(e):this._compatibility[e]}async dispose(){if(await super.dispose(),this.bindingUtils.dispose(),this.textureUtils.dispose(),this.occludedResolveCache){for(let e of this.occludedResolveCache.values())e.destroy();this.occludedResolveCache.clear()}this.parameters.device===void 0&&this.device!==null&&this.device.destroy()}},tP=class extends Ha{constructor(e,t,n,r,i,a){super(e,t,n,r,i,a),this.iesMap=null}copy(e,t){return super.copy(e,t),this.iesMap=e.iesMap,this}},nP=class extends Ha{constructor(e,t,n,r,i,a){super(e,t,n,r,i,a),this.aspect=null}copy(e,t){return super.copy(e,t),this.aspect=e.aspect,this}},rP=class extends sA{constructor(){super(),this.addMaterial(gv,`MeshPhongMaterial`),this.addMaterial(vb,`MeshStandardMaterial`),this.addMaterial(bb,`MeshPhysicalMaterial`),this.addMaterial(wb,`MeshToonMaterial`),this.addMaterial(ov,`MeshBasicMaterial`),this.addMaterial(mv,`MeshLambertMaterial`),this.addMaterial(G_,`MeshNormalMaterial`),this.addMaterial(Db,`MeshMatcapMaterial`),this.addMaterial(F_,`LineBasicMaterial`),this.addMaterial(L_,`LineDashedMaterial`),this.addMaterial(Nb,`PointsMaterial`),this.addMaterial(Ab,`SpriteMaterial`),this.addMaterial(Lb,`ShadowMaterial`),this.addLight(tD,Wa),this.addLight(Mk,qa),this.addLight(Hk,Ya),this.addLight(Pk,Ha),this.addLight(jk,Ja),this.addLight(Nk,Oa),this.addLight(Ik,Za),this.addLight(Fk,tP),this.addLight(Rk,nP),this.addToneMapping(Pw,1),this.addToneMapping(Fw,2),this.addToneMapping(Iw,3),this.addToneMapping(Rw,4),this.addToneMapping(Hw,6),this.addToneMapping(Uw,7)}},iP=class extends MA{constructor(e={}){let t;e.forceWebGL?t=Oj:(t=eP,e.getFallback=()=>(T(`WebGPURenderer: WebGPU is not available, running under WebGL2 backend.`),new Oj(e)));let n=new t(e);super(n,e),this.library=new rP,this.isWebGPURenderer=!0,typeof __THREE_DEVTOOLS__<`u`&&__THREE_DEVTOOLS__.dispatchEvent(new CustomEvent(`observe`,{detail:this}))}},aP=class{constructor(e,t=W(0,0,1,1)){this.isRenderPipeline=!0,this.renderer=e,this.outputNode=t,this.outputColorTransform=!0,this.needsUpdate=!0;let n=new N_;n.name=`RenderPipeline`,this._quadMesh=new vC(n),this._quadMesh.name=`Render Pipeline`,this._contextData=null,this._toneMapping=e.toneMapping,this._outputColorSpace=e.outputColorSpace}render(){let e=this.renderer;this._update();for(let e of this._contextData.onBeforePipelineCallbacks)e();let t=e.toneMapping,n=e.outputColorSpace;e.toneMapping=0,e.outputColorSpace=cn.workingColorSpace;let r=e.xr.enabled;e.xr.enabled=!1,this._quadMesh.render(e),e.xr.enabled=r,e.toneMapping=t,e.outputColorSpace=n;for(let e of this._contextData.onAfterPipelineCallbacks)e()}dispose(){this._quadMesh.material.dispose()}_updateContext(){let e=this._toneMapping,t=this._outputColorSpace,n={renderPipeline:this,renderPipelineState:{viewOffsetOwner:null},onBeforePipelineCallbacks:[],onAfterPipelineCallbacks:[]},r=this.outputNode;this.outputColorTransform===!0?r=hf(r,e,t):(n.toneMapping=e,n.outputColorSpace=t),this._contextData=n,this._quadMesh.material.contextNode=ad(n),this._quadMesh.material.fragmentNode=r,this._quadMesh.material.needsUpdate=!0}_update(){this._toneMapping!==this.renderer.toneMapping&&(this._toneMapping=this.renderer.toneMapping,this.needsUpdate=!0),this._outputColorSpace!==this.renderer.outputColorSpace&&(this._outputColorSpace=this.renderer.outputColorSpace,this.needsUpdate=!0),this.needsUpdate===!0&&(this._updateContext(),this.needsUpdate=!1)}async renderAsync(){Ct(`RenderPipeline: "renderAsync()" has been deprecated. Use "render()" and "await renderer.init();" when creating the renderer.`),await this.renderer.init(),this.render()}};Q.BRDF_GGX,Q.BRDF_Lambert,Q.BRDF_Sheen,Q.BasicPointShadowFilter,Q.BasicShadowFilter,Q.Break,Q.Const,Q.Continue,Q.DFGLUT,Q.D_GGX,Q.D_GGX_Anisotropic;var oP=Q.Discard;Q.EPSILON,Q.EnvironmentBRDF,Q.F_Schlick;var sP=Q.Fn;Q.HALF_PI,Q.INFINITY,Q.If,Q.LTC_Evaluate,Q.LTC_Evaluate_Volume,Q.LTC_Uv,Q.Loop,Q.NodeAccess,Q.NodeShaderStage,Q.NodeType,Q.NodeUpdateType,Q.OnAfterObjectUpdate,Q.OnAfterRenderPipeline,Q.OnBeforeFrameUpdate,Q.OnBeforeMaterialUpdate,Q.OnBeforeObjectUpdate,Q.OnBeforeRenderPipeline,Q.OnFrameUpdate,Q.OnMaterialUpdate,Q.OnObjectUpdate,Q.PCFShadowFilter,Q.PI,Q.PI2,Q.PointShadowFilter,Q.Return,Q.Schlick_to_F0,Q.ShaderNode,Q.Stack,Q.Switch,Q.TBNViewMatrix,Q.TWO_PI,Q.VSMShadowFilter,Q.V_GGX_SmithCorrelated,Q.V_GGX_SmithCorrelated_Anisotropic,Q.Var,Q.VarIntent,Q.abs,Q.acesFilmicToneMapping,Q.acos,Q.acosh,Q.add,Q.addMethodChaining,Q.addNodeElement,Q.agxToneMapping,Q.all,Q.alphaT,Q.ambientOcclusion,Q.and,Q.anisotropy,Q.anisotropyB,Q.anisotropyT,Q.any,Q.array,Q.asin,Q.asinh,Q.assign,Q.atan,Q.atanh,Q.atomicAdd,Q.atomicAnd,Q.atomicFunc,Q.atomicLoad,Q.atomicMax,Q.atomicMin,Q.atomicOr,Q.atomicStore,Q.atomicSub,Q.atomicXor,Q.attenuationColor,Q.attenuationDistance,Q.attribute,Q.attributeArray,Q.backgroundBlurriness,Q.backgroundIntensity,Q.backgroundRotation,Q.batch,Q.batchColor,Q.batchIndirectIndex,Q.bentNormalView,Q.billboarding,Q.bitAnd,Q.bitNot,Q.bitOr,Q.bitXor,Q.bitangentGeometry,Q.bitangentLocal,Q.bitangentView,Q.bitangentViewFrame,Q.bitangentWorld,Q.bitcast,Q.blendBurn,Q.blendColor,Q.blendDodge,Q.blendOverlay,Q.blendScreen,Q.bool,Q.buffer,Q.bufferAttribute,Q.builtin,Q.builtinAOContext,Q.builtinGIContext,Q.builtinShadowContext,Q.bumpMap,Q.bvec2,Q.bvec3,Q.bvec4,Q.bypass,Q.cache,Q.call,Q.cameraFar,Q.cameraIndex,Q.cameraNear,Q.cameraNormalMatrix,Q.cameraPosition;var cP=Q.cameraProjectionMatrix;Q.cameraProjectionMatrixInverse;var lP=Q.cameraViewMatrix;Q.cameraViewport,Q.cameraWorldMatrix,Q.cbrt,Q.cdl,Q.ceil,Q.checker,Q.cineonToneMapping,Q.clamp,Q.clearcoat,Q.clearcoatNormalView,Q.clearcoatRoughness,Q.clipSpace,Q.clipping,Q.clippingAlpha,Q.code,Q.color,Q.colorSpaceToWorking,Q.colorToDirection,Q.compute,Q.computeKernel,Q.computeSkinning;var uP=Q.context;Q.convert,Q.convertColorSpace;var dP=Q.convertToTexture;Q.cos,Q.cosh,Q.countLeadingZeros,Q.countOneBits,Q.countTrailingZeros,Q.cross,Q.cubeTexture,Q.cubeTextureBase,Q.dFdx,Q.dFdy,Q.dashSize,Q.debug,Q.decrement,Q.decrementBefore,Q.defaultBuildStages,Q.defaultShaderStages,Q.defined,Q.degrees,Q.deltaTime,Q.densityFogFactor,Q.depth,Q.depthPass,Q.determinant,Q.difference,Q.diffuseColor,Q.diffuseContribution,Q.directPointLight,Q.directionToColor,Q.directionToFaceDirection,Q.dispersion,Q.distance,Q.div;var fP=Q.dot;Q.dot4I8Packed,Q.dot4U8Packed,Q.drawIndex,Q.dynamicBufferAttribute,Q.element,Q.emissive,Q.equal,Q.equirectDirection,Q.equirectUV,Q.exp,Q.exp2,Q.exponentialHeightFogFactor,Q.expression,Q.faceDirection,Q.faceForward,Q.faceforward;var pP=Q.float;Q.floatBitsToInt,Q.floatBitsToUint,Q.floor,Q.fog,Q.fract,Q.frameGroup,Q.frameId,Q.frontFacing,Q.fwidth,Q.gain,Q.gapSize,Q.getConstNodeType,Q.getCurrentStack,Q.getDistanceAttenuation,Q.getGeometryRoughness,Q.getNormalFromDepth,Q.getParallaxCorrectNormal,Q.getRoughness,Q.getScreenPosition,Q.getScreenPositionFromClip,Q.getShIrradianceAt,Q.getTextureIndex,Q.getViewPosition,Q.globalId,Q.glsl,Q.glslFn,Q.grayscale,Q.greaterThan,Q.greaterThanEqual,Q.hardwareClipping,Q.hash,Q.highpModelNormalViewMatrix,Q.highpModelViewMatrix,Q.hue,Q.increment,Q.incrementBefore,Q.inspect,Q.instance,Q.instanceColor;var mP=Q.instanceIndex;Q.instancedArray,Q.instancedBufferAttribute,Q.instancedDynamicBufferAttribute,Q.instancedMesh,Q.int,Q.intBitsToFloat,Q.interleavedGradientNoise,Q.inverse,Q.inverseSqrt,Q.inversesqrt,Q.invocationLocalIndex,Q.invocationSubgroupIndex,Q.ior,Q.iridescence,Q.iridescenceIOR,Q.iridescenceThickness,Q.isolate,Q.ivec2,Q.ivec3,Q.ivec4,Q.js,Q.label;var hP=Q.length;Q.lengthSq,Q.lessThan,Q.lessThanEqual,Q.lightPosition,Q.lightProjectionUV,Q.lightShadowMatrix,Q.lightTargetDirection,Q.lightTargetPosition,Q.lightViewPosition,Q.lightingContext,Q.lights,Q.linearDepth,Q.linearToneMapping,Q.localId,Q.log,Q.log2,Q.logarithmicDepthToViewZ,Q.luminance,Q.mat2,Q.mat3,Q.mat4,Q.matcapUV,Q.materialAO,Q.materialAlphaTest,Q.materialAnisotropy,Q.materialAnisotropyVector,Q.materialAttenuationColor,Q.materialAttenuationDistance,Q.materialClearcoat,Q.materialClearcoatNormal,Q.materialClearcoatRoughness,Q.materialColor,Q.materialDispersion,Q.materialEmissive,Q.materialEnvIntensity,Q.materialEnvRotation,Q.materialIOR,Q.materialIridescence,Q.materialIridescenceIOR,Q.materialIridescenceThickness,Q.materialLightMap,Q.materialLineDashOffset,Q.materialLineDashSize,Q.materialLineGapSize,Q.materialLineScale,Q.materialLineWidth,Q.materialMetalness,Q.materialNormal,Q.materialOpacity,Q.materialPointSize,Q.materialReference,Q.materialReflectivity,Q.materialRefractionRatio,Q.materialRetroreflectivity,Q.materialRotation,Q.materialRoughness,Q.materialSheen,Q.materialSheenRoughness,Q.materialShininess,Q.materialSpecular,Q.materialSpecularColor,Q.materialSpecularIntensity,Q.materialSpecularStrength,Q.materialThickness,Q.materialTransmission,Q.max,Q.maxMipLevel,Q.mediumpModelViewMatrix,Q.metalness,Q.min;var gP=Q.mix;Q.mixElement,Q.mod,Q.modelDirection,Q.modelNormalMatrix,Q.modelPosition,Q.modelRadius,Q.modelScale,Q.modelViewMatrix,Q.modelViewPosition,Q.modelViewProjection,Q.modelWorldMatrix,Q.modelWorldMatrixInverse,Q.morphReference,Q.mrt,Q.mul,Q.mx_aastep,Q.mx_add,Q.mx_atan2,Q.mx_cell_noise_float,Q.mx_cell_noise_vec3,Q.mx_contrast,Q.mx_divide,Q.mx_fractal_noise_float,Q.mx_fractal_noise_float_2d,Q.mx_fractal_noise_vec2,Q.mx_fractal_noise_vec3,Q.mx_fractal_noise_vec4,Q.mx_frame,Q.mx_heighttonormal,Q.mx_hsvtorgb,Q.mx_ifequal,Q.mx_ifgreater,Q.mx_ifgreatereq,Q.mx_invert,Q.mx_modulo,Q.mx_multiply,Q.mx_noise_float,Q.mx_noise_vec3,Q.mx_noise_vec4,Q.mx_place2d,Q.mx_power,Q.mx_ramp4,Q.mx_ramplr,Q.mx_ramptb,Q.mx_rgbtohsv,Q.mx_rotate2d,Q.mx_rotate3d,Q.mx_safepower,Q.mx_separate,Q.mx_smoothstep,Q.mx_splitlr,Q.mx_splittb,Q.mx_srgb_texture_to_lin_rec709,Q.mx_subtract,Q.mx_timer,Q.mx_transform_uv,Q.mx_unifiednoise2d,Q.mx_unifiednoise3d,Q.mx_worley_noise_float,Q.mx_worley_noise_float_2d,Q.mx_worley_noise_float_3d,Q.mx_worley_noise_vec2,Q.mx_worley_noise_vec3,Q.mx_worley_noise_vec3_style,Q.negate,Q.negateOnBackSide,Q.neutralToneMapping,Q.nodeArray,Q.nodeImmutable,Q.nodeObject,Q.nodeObjectIntent,Q.nodeObjects,Q.nodeProxy,Q.nodeProxyConstructor,Q.nodeProxyIntent,Q.normalFlat,Q.normalGeometry,Q.normalLocal,Q.normalMap,Q.normalView,Q.normalViewGeometry,Q.normalWorld,Q.normalWorldGeometry,Q.normalize,Q.not,Q.notEqual,Q.numWorkgroups,Q.objectDirection,Q.objectGroup,Q.objectPosition,Q.objectRadius,Q.objectScale,Q.objectViewPosition,Q.objectWorldMatrix,Q.oneMinus,Q.or,Q.orthographicDepthToViewZ,Q.oscSawtooth,Q.oscSine,Q.oscSquare,Q.oscTriangle,Q.output,Q.outputStruct,Q.overloadingFn,Q.overrideNode,Q.overrideNodes,Q.pack4xI8,Q.pack4xI8Clamp,Q.pack4xU8,Q.pack4xU8Clamp,Q.packHalf2x16,Q.packNormalToRGB,Q.packSnorm2x16,Q.packSnorm4x8,Q.packUnorm2x16,Q.packUnorm4x8,Q.parabola,Q.parallaxDirection,Q.parallaxUV,Q.parameter;var _P=Q.pass,vP=Q.passTexture;Q.pcurve,Q.perspectiveDepthToViewZ,Q.pmremTexture,Q.pointShadow,Q.pointUV,Q.pointWidth;var yP=Q.positionGeometry;Q.positionLocal,Q.positionPrevious,Q.positionView,Q.positionViewDirection,Q.positionWorld,Q.positionWorldDirection,Q.posterize;var bP=Q.pow;Q.pow2,Q.pow3,Q.pow4;var xP=Q.premultiplyAlpha;Q.property,Q.quadBroadcast,Q.quadSwapDiagonal,Q.quadSwapX,Q.quadSwapY,Q.radians,Q.rand,Q.range,Q.rangeFogFactor,Q.reciprocal,Q.reference,Q.referenceBuffer,Q.reflect,Q.reflectVector,Q.reflectView,Q.reflector,Q.refract,Q.refractVector,Q.refractView,Q.reinhardToneMapping,Q.remap,Q.remapClamp,Q.renderGroup,Q.renderOutput,Q.rendererReference,Q.replaceDefaultUV,Q.retroreflectivity,Q.rotate,Q.rotateUV,Q.roughness,Q.round,Q.rtt,Q.sRGBTransferEOTF,Q.sRGBTransferOETF,Q.sample,Q.sampler,Q.samplerComparison;var SP=Q.saturate;Q.saturation,Q.screenCoordinate,Q.screenDPR,Q.screenSize,Q.screenUV,Q.select,Q.setCurrentStack,Q.setName,Q.shaderStages,Q.shadow,Q.shadowPositionWorld,Q.shapeCircle,Q.sharedUniformGroup,Q.sheen,Q.sheenRoughness,Q.shiftLeft,Q.shiftRight,Q.shininess,Q.sign,Q.sin,Q.sinc,Q.sinh,Q.skinning,Q.smoothstep,Q.smoothstepElement,Q.specularColor,Q.specularColorBlended,Q.specularF90,Q.spherizeUV,Q.split,Q.spritesheetUV,Q.sqrt,Q.stack,Q.step,Q.stepElement;var CP=Q.storage;Q.storageBarrier,Q.storageElement,Q.storageTexture,Q.storageTexture3D,Q.struct,Q.sub,Q.subBuild,Q.subgroupAdd,Q.subgroupAll,Q.subgroupAnd,Q.subgroupAny,Q.subgroupBallot,Q.subgroupBroadcast,Q.subgroupBroadcastFirst,Q.subgroupElect,Q.subgroupExclusiveAdd,Q.subgroupExclusiveMul,Q.subgroupInclusiveAdd,Q.subgroupInclusiveMul,Q.subgroupIndex,Q.subgroupMax,Q.subgroupMin,Q.subgroupMul,Q.subgroupOr,Q.subgroupShuffle,Q.subgroupShuffleDown,Q.subgroupShuffleUp,Q.subgroupShuffleXor,Q.subgroupSize,Q.subgroupXor,Q.tan,Q.tangentGeometry,Q.tangentLocal,Q.tangentView,Q.tangentViewFrame,Q.tangentWorld,Q.tanh;var wP=Q.texture;Q.texture3D,Q.texture3DLevel,Q.texture3DLoad,Q.textureBarrier,Q.textureBicubic,Q.textureBicubicLevel,Q.textureLevel,Q.textureLoad,Q.textureSize,Q.textureStore,Q.thickness,Q.time,Q.toneMapping,Q.toneMappingExposure,Q.toonOutlinePass,Q.transformDirection,Q.transformNormal,Q.transformNormalByInverseViewMatrix,Q.transformNormalByViewMatrix,Q.transformNormalToView,Q.transformedClearcoatNormalView,Q.transformedNormalView,Q.transformedNormalWorld,Q.transmission,Q.transpose,Q.triNoise3D,Q.triplanarTexture,Q.triplanarTextures,Q.trunc,Q.uint,Q.uintBitsToFloat;var TP=Q.uniform;Q.uniformArray,Q.uniformCubeTexture,Q.uniformFlow,Q.uniformGroup,Q.uniformTexture,Q.unpack4xI8,Q.unpack4xU8,Q.unpackHalf2x16,Q.unpackNormal,Q.unpackRGBToNormal,Q.unpackSnorm2x16,Q.unpackSnorm4x8,Q.unpackUnorm2x16,Q.unpackUnorm4x8;var EP=Q.unpremultiplyAlpha;Q.userData;var DP=Q.uv;Q.uvec2,Q.uvec3,Q.uvec4;var OP=Q.varying;Q.varyingProperty;var kP=Q.vec2,AP=Q.vec3,jP=Q.vec4;Q.vectorComponents,Q.velocity,Q.vertexColor,Q.vertexIndex,Q.vertexStage,Q.vibrance,Q.viewZToLogarithmicDepth,Q.viewZToOrthographicDepth,Q.viewZToPerspectiveDepth,Q.viewZToReversedOrthographicDepth,Q.viewZToReversedPerspectiveDepth,Q.viewport,Q.viewportCoordinate,Q.viewportDepthTexture,Q.viewportLinearDepth,Q.viewportMipTexture,Q.viewportOpaqueMipTexture,Q.viewportSafeUV,Q.viewportSharedTexture,Q.viewportSize,Q.viewportTexture,Q.viewportUV,Q.vogelDiskSample,Q.wgsl,Q.wgslFn,Q.workgroupArray,Q.workgroupBarrier,Q.workgroupId,Q.workingToColorSpace,Q.xor;var MP=new vC,NP,PP=class extends rs{static get type(){return`GaussianBlurNode`}constructor(e,t=null,n=4,r={}){super(`vec4`),this.textureNode=e,this.directionNode=t,this.sigma=n,this._invSize=TP(new O),this._horizontalRT=new bn(1,1,{depthBuffer:!1}),this._horizontalRT.texture.name=`GaussianBlurNode.horizontal`,this._verticalRT=new bn(1,1,{depthBuffer:!1}),this._verticalRT.texture.name=`GaussianBlurNode.vertical`,this._textureNode=vP(this,this._verticalRT.texture),this._textureNode.uvNode=e.uvNode,this._hMaterial=null,this._vMaterial=null,this.updateBeforeType=A.FRAME,this.resolutionScale=r.resolutionScale||1,this.premultipliedAlpha=r.premultipliedAlpha||!1,this.isGaussianBlurNode=!0}setSize(e,t){e=Math.max(Math.round(e*this.resolutionScale),1),t=Math.max(Math.round(t*this.resolutionScale),1),this._invSize.value.set(1/e,1/t),this._horizontalRT.setSize(e,t),this._verticalRT.setSize(e,t)}updateBefore(e){let{renderer:t}=e;NP=OC.resetRendererState(t,NP);let n=this.textureNode.value;MP.material=this._hMaterial,this.setSize(n.image.width,n.image.height);let r=n.type;this._horizontalRT.texture.type=r,this._verticalRT.texture.type=r,t.setRenderTarget(this._horizontalRT),MP.name=`Gaussian Blur [ Horizontal Pass ]`,MP.render(t),MP.material=this._vMaterial,t.setRenderTarget(this._verticalRT),MP.name=`Gaussian Blur [ Vertical Pass ]`,MP.render(t),OC.restoreRendererState(t,NP)}getTextureNode(){return this._textureNode}setup(e){let t=DP(),n=kP(this.directionNode||1),r=sP(([e,r])=>{let i,a;this.premultipliedAlpha?(i=t=>xP(e.sample(t)),a=e=>EP(e)):(i=t=>e.sample(t),a=e=>e);let o=3+2*this.sigma,s=this._getCoefficients(o),c=this._invSize,l=n.mul(r),u=jP(i(t).mul(s[0])).toVar();for(let e=1;e<o;e++){let n=pP(e),r=pP(s[e]),a=kP(l.mul(c.mul(n))).toVar(),o=i(t.add(a)),d=i(t.sub(a));u.addAssign(o.add(d).mul(r))}return a(u)}),i=this.textureNode;this._hMaterial=this._hMaterial||new N_,this._hMaterial.contextNode=uP(e.getSharedContext()),this._hMaterial.fragmentNode=r(i,kP(1,0)),this._hMaterial.name=`Gaussian_blur_horizontal`,this._hMaterial.needsUpdate=!0;let a=wP(this._horizontalRT.texture,DP());this._vMaterial=this._vMaterial||new N_,this._vMaterial.fragmentNode=r(a,kP(0,1)),this._vMaterial.name=`Gaussian_blur_vertical`,this._vMaterial.needsUpdate=!0;let o=e.getNodeProperties(this);return o.hTextureNode=i,o.vTextureNode=a,this._textureNode}dispose(){this._horizontalRT.dispose(),this._verticalRT.dispose(),this._hMaterial!==null&&(this._hMaterial.dispose(),this._vMaterial.dispose(),this._hMaterial=null,this._vMaterial=null),super.dispose()}_getCoefficients(e){let t=[],n=e/3,r=1;t.push(1);for(let i=1;i<e;i++){let e=Math.exp(-.5*i*i/(n*n));t.push(e),r+=2*e}return t.map(e=>e/r)}get resolution(){return Ct('THREE.GaussianBlurNode: The "resolution" property has been renamed to "resolutionScale" and is now of type `number`.'),new O(this.resolutionScale,this.resolutionScale)}set resolution(e){Ct('THREE.GaussianBlurNode: The "resolution" property has been renamed to "resolutionScale" and is now of type `number`.'),this.resolutionScale=e.x}},FP=(e,t,n,r={})=>new PP(dP(e),t,n,r),IP=async()=>{let e=document.getElementById(`renderCanvas`),t=await navigator.gpu?.requestAdapter({powerPreference:`high-performance`});if(!t)throw Error(`WebGPU is not supported in this browser`);let n={};for(let e in t.limits)e!==`minSubgroupSize`&&e!==`maxSubgroupSize`&&(n[e]=t.limits[e]);let r=await t.requestDevice({requiredFeatures:[...t.features],requiredLimits:n}),i=new iP({canvas:e,device:r});await i.init();let a=new ar,o=new Ba(45,1,.1,1e4),s=HP(o,e),c=()=>{i.setSize(e.clientWidth,e.clientHeight,!1),o.aspect=e.clientWidth/e.clientHeight,o.updateProjectionMatrix()};return c(),window.addEventListener(`resize`,c),{device:r,renderer:i,scene:a,camera:o,controls:s}},LP=1/250,RP=300,zP=5,BP=Math.PI/2-.001,VP={KeyW:new k(0,0,-1),KeyS:new k(0,0,1),KeyA:new k(-1,0,0),KeyD:new k(1,0,0),KeyE:new k(0,1,0),KeyQ:new k(0,-1,0)},HP=(e,t)=>{e.rotation.order=`YXZ`;let n=new Set,r=new Map,i=0,a=()=>{let[e,t]=[...r.values()];return Math.hypot(e.x-t.x,e.y-t.y)};t.addEventListener(`pointerdown`,e=>{t.setPointerCapture(e.pointerId),r.set(e.pointerId,{x:e.clientX,y:e.clientY}),r.size===2&&(i=a()),e.pointerType===`mouse`&&t.requestPointerLock?.()?.catch(()=>{})}),t.addEventListener(`pointermove`,n=>{let o=r.get(n.pointerId);if(!o)return;let s=document.pointerLockElement===t,c=s?n.movementX:n.clientX-o.x,l=s?n.movementY:n.clientY-o.y;if(o.x=n.clientX,o.y=n.clientY,r.size===1)e.rotation.y-=c*LP,e.rotation.x=Qt.clamp(e.rotation.x-l*LP,-BP,BP);else if(r.size===2){let t=a();e.translateZ((i-t)*zP),i=t}});let o=e=>{r.delete(e.pointerId),r.size===2&&(i=a()),e.pointerType===`mouse`&&document.exitPointerLock?.()};t.addEventListener(`pointerup`,o),t.addEventListener(`pointercancel`,o),t.addEventListener(`contextmenu`,e=>e.preventDefault()),window.addEventListener(`keydown`,e=>{e.ctrlKey||e.metaKey||e.altKey||n.add(e.code)}),window.addEventListener(`keyup`,e=>n.delete(e.code)),window.addEventListener(`blur`,()=>n.clear());let s=new k;return{update:t=>{s.set(0,0,0);for(let e of n){let t=VP[e];t&&s.add(t)}s.lengthSq()!==0&&(s.multiplyScalar(RP*t).applyQuaternion(e.quaternion),e.position.add(s))}}},UP=({gravity:e,centralMass:t,diskMass:n,rMin:r,rMax:i,halfThickness:a,softening:o})=>{let s=o*o,c=(i-r)/192,l=Math.PI/256,u=a/4,d=n/(Math.PI*(i*i-r*r)*2*a),f=new Float64Array(256);for(let e=0;e<256;e++)f[e]=Math.cos((e+.5)*l);let p=new Float64Array(64);for(let n=0;n<64;n++){let a=r+n/63*(i-r),o=0;for(let e=0;e<192;e++){let t=r+(e+.5)*c,n=4*d*t*c*l*u;for(let e=0;e<4;e++){let r=(e+.5)*u,i=a*a+t*t+r*r+s;for(let e=0;e<256;e++){let r=f[e],s=i-2*a*t*r;o+=n*(a-t*r)/(s*Math.sqrt(s))}}}let m=t*a/(a*a+s)**1.5,h=e*(o+m);p[n]=Math.sqrt(Math.max(0,h*a))}return e=>{let t=(e-r)/(i-r)*63,n=Qt.clamp(Math.floor(t),0,62),a=Qt.clamp(t-n,0,1);return Qt.lerp(p[n],p[n+1],a)}},WP=(e,t,n)=>{if(e>t)throw Error(`min must be less than or equal to r`);let r=Math.sqrt(Math.random()*(t*t-e*e)+e*e),i=Math.random()*2*Math.PI,a=Qt.randFloat(-n,n);return new k(r*Math.cos(i),a,r*Math.sin(i))},GP=`// Declarations the compute kernels share. shaders/index.ts appends this file to each
+`);for(let r of e.messages){let e=r.lineNum>0?` at line ${r.lineNum}${r.linePos>0?`:${r.linePos}`:``}`:``,a=`WebGPURenderer [${t} / ${n.stage} ${r.type}]${e}: ${r.message}`,o=``;r.lineNum>0&&r.lineNum<=i.length&&(o=`\n  ${i[r.lineNum-1]}`,r.linePos>0&&(o+=`\n  ${` `.repeat(r.linePos-1)}^`)),(r.type===`error`?E:T)(a+o)}}}_getBlending(e){let t,n,r=e.blending,i=e.blendSrc,a=e.blendDst,o=e.blendEquation;if(r===5){let r=e.blendSrcAlpha===null?i:e.blendSrcAlpha,s=e.blendDstAlpha===null?a:e.blendDstAlpha,c=e.blendEquationAlpha===null?o:e.blendEquationAlpha;t={srcFactor:this._getBlendFactor(i),dstFactor:this._getBlendFactor(a),operation:this._getBlendOperation(o)},n={srcFactor:this._getBlendFactor(r),dstFactor:this._getBlendFactor(s),operation:this._getBlendOperation(c)}}else{let i=e.premultipliedAlpha,a=(e,r,i,a)=>{t={srcFactor:e,dstFactor:r,operation:Bj.Add},n={srcFactor:i,dstFactor:a,operation:Bj.Add}};if(i)switch(r){case 1:a(zj.One,zj.OneMinusSrcAlpha,zj.One,zj.OneMinusSrcAlpha);break;case 2:a(zj.One,zj.One,zj.One,zj.One);break;case 3:a(zj.Zero,zj.OneMinusSrc,zj.Zero,zj.One);break;case 4:a(zj.Dst,zj.OneMinusSrcAlpha,zj.Zero,zj.One)}else switch(r){case 1:a(zj.SrcAlpha,zj.OneMinusSrcAlpha,zj.One,zj.OneMinusSrcAlpha);break;case 2:a(zj.SrcAlpha,zj.One,zj.One,zj.One);break;case 3:E(`WebGPURenderer: "SubtractiveBlending" requires "${e.isMaterial?`material`:`blendMode`}.premultipliedAlpha = true".`);break;case 4:E(`WebGPURenderer: "MultiplyBlending" requires "${e.isMaterial?`material`:`blendMode`}.premultipliedAlpha = true".`)}}if(t!==void 0&&n!==void 0)return{color:t,alpha:n};E(`WebGPURenderer: Invalid blending: `,r)}_getBlendFactor(e){let t;switch(e){case 200:t=zj.Zero;break;case 201:t=zj.One;break;case 202:t=zj.Src;break;case 203:t=zj.OneMinusSrc;break;case 204:t=zj.SrcAlpha;break;case 205:t=zj.OneMinusSrcAlpha;break;case 208:t=zj.Dst;break;case 209:t=zj.OneMinusDst;break;case 206:t=zj.DstAlpha;break;case 207:t=zj.OneMinusDstAlpha;break;case 210:t=zj.SrcAlphaSaturated;break;case 211:case 213:t=zj.Constant;break;case 212:case 214:t=zj.OneMinusConstant;break;default:E(`WebGPURenderer: Blend factor not supported.`,e)}return t}_getStencilCompare(e){let t,n=e.stencilFunc;switch(n){case 512:t=jj.Never;break;case 519:t=jj.Always;break;case 513:t=jj.Less;break;case 515:t=jj.LessEqual;break;case 514:t=jj.Equal;break;case 518:t=jj.GreaterEqual;break;case 516:t=jj.Greater;break;case 517:t=jj.NotEqual;break;default:E(`WebGPURenderer: Invalid stencil function.`,n)}return t}_getStencilOperation(e){let t;switch(e){case nt:t=Hj.Keep;break;case 0:t=Hj.Zero;break;case rt:t=Hj.Replace;break;case ct:t=Hj.Invert;break;case it:t=Hj.IncrementClamp;break;case at:t=Hj.DecrementClamp;break;case ot:t=Hj.IncrementWrap;break;case st:t=Hj.DecrementWrap;break;default:E(`WebGPURenderer: Invalid stencil operation.`,t)}return t}_getBlendOperation(e){let t;switch(e){case 100:t=Bj.Add;break;case 101:t=Bj.Subtract;break;case 102:t=Bj.ReverseSubtract;break;case 103:t=Bj.Min;break;case 104:t=Bj.Max;break;default:E(`WebGPUPipelineUtils: Blend equation not supported.`,e)}return t}_getPrimitiveState(e,t,n){let r={};r.topology=this.backend.utils.getPrimitiveTopology(e,n),t.index!==null&&e.isLine===!0&&e.isLineSegments!==!0&&(r.stripIndexFormat=t.index.array instanceof Uint16Array?Ij.Uint16:Ij.Uint32);let i=n.side===1;return e.isMesh&&e.matrixWorld.determinantAffine()<0&&(i=!i),r.frontFace=i===!0?Pj.CW:Pj.CCW,r.cullMode=n.side===2?Fj.None:Fj.Back,r}_getColorWriteMask(e){return e.colorWrite===!0?Vj.All:Vj.None}_getDepthCompare(e){let t;if(e.depthTest===!1)t=jj.Always;else{let n=this.backend.parameters.reversedDepthBuffer?Tt[e.depthFunc]:e.depthFunc;switch(n){case 0:t=jj.Never;break;case 1:t=jj.Always;break;case 2:t=jj.Less;break;case 3:t=jj.LessEqual;break;case 4:t=jj.Equal;break;case 5:t=jj.GreaterEqual;break;case 6:t=jj.Greater;break;case 7:t=jj.NotEqual;break;default:E(`WebGPUPipelineUtils: Invalid depth function.`,n)}}return t}},NN=class{constructor(){this.label=``,this.type=void 0,this.count=0}reset(){this.label=``,this.type=void 0,this.count=0}},PN=new sM,FN=new cM,IN=new NN,LN=class extends Tj{constructor(e,t,n=2048){super(n),this.device=e,this.type=t,IN.label=`queryset_global_timestamp_${t}`,IN.type=`timestamp`,IN.count=this.maxQueries,this.querySet=this.device.createQuerySet(IN),IN.reset();let r=this.maxQueries*8;PN.label=`buffer_timestamp_resolve_${t}`,PN.size=r,PN.usage=GPUBufferUsage.QUERY_RESOLVE|GPUBufferUsage.COPY_SRC,this.resolveBuffer=this.device.createBuffer(PN),PN.reset(),PN.label=`buffer_timestamp_result_${t}`,PN.size=r,PN.usage=GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ,this.resultBuffer=this.device.createBuffer(PN),PN.reset()}allocateQueriesForContext(e){if(!this.trackTimestamp||this.isDisposed)return null;this.currentQueryIndex+2>this.maxQueries&&(this.resolveQueriesAsync(),this.currentQueryIndex=0,this.queryOffsets.clear());let t=this.currentQueryIndex;return this.currentQueryIndex+=2,this.queryOffsets.set(e,t),t}async resolveQueriesAsync(){if(!this.trackTimestamp||this.currentQueryIndex===0||this.isDisposed)return this.lastValue;if(this.pendingResolve)return this.pendingResolve;this.pendingResolve=this._resolveQueries();try{return await this.pendingResolve}finally{this.pendingResolve=null}}async _resolveQueries(){if(this.isDisposed)return this.lastValue;try{if(this.resultBuffer.mapState!==`unmapped`)return this.lastValue;let e=new Map(this.queryOffsets),t=this.currentQueryIndex,n=t*8;this.currentQueryIndex=0,this.queryOffsets.clear();let r=this.device.createCommandEncoder(FN);r.resolveQuerySet(this.querySet,0,t,this.resolveBuffer,0),r.copyBufferToBuffer(this.resolveBuffer,0,this.resultBuffer,0,n);let i=r.finish();if(aM(this.device,i),this.resultBuffer.mapState!==`unmapped`)return this.lastValue;if(await this.resultBuffer.mapAsync(GPUMapMode.READ,0,n),this.isDisposed)return this.resultBuffer.mapState===`mapped`&&this.resultBuffer.unmap(),this.lastValue;let a=new BigUint64Array(this.resultBuffer.getMappedRange(0,n)),o={},s=[];this.timestamps.clear();for(let[t,n]of e){let e=t.match(/^(.*):f(\d+)$/),r=parseInt(e[2]);s.includes(r)===!1&&s.push(r),o[r]===void 0&&(o[r]=0);let i=a[n],c=a[n+1],l=Number(c-i)/1e6;this.timestamps.set(t,l),o[r]+=l}let c=o[s[s.length-1]];return this.resultBuffer.unmap(),this.lastValue=c,this.frames=s,c}catch(e){return E(`Error resolving queries:`,e),this.resultBuffer.mapState===`mapped`&&this.resultBuffer.unmap(),this.lastValue}}async dispose(){if(!this.isDisposed){if(this.isDisposed=!0,this.pendingResolve)try{await this.pendingResolve}catch(e){E(`Error waiting for pending resolve:`,e)}if(this.resultBuffer&&this.resultBuffer.mapState===`mapped`)try{this.resultBuffer.unmap()}catch(e){E(`Error unmapping buffer:`,e)}this.querySet&&=(this.querySet.destroy(),null),this.resolveBuffer&&=(this.resolveBuffer.destroy(),null),this.resultBuffer&&=(this.resultBuffer.destroy(),null),this.queryOffsets.clear(),this.timestamps.clear(),this.frames=[],this.pendingResolve=null}}},RN=class{constructor(){this.label=``,this.timestampWrites=void 0}reset(){this.label=``,this.timestampWrites=void 0}},zN=class{constructor(){this.view=null,this.depthLoadOp=void 0,this.depthStoreOp=void 0,this.depthClearValue=void 0,this.depthReadOnly=!1,this.stencilLoadOp=void 0,this.stencilStoreOp=void 0,this.stencilClearValue=0,this.stencilReadOnly=!1}reset(){this.view=null,this.depthLoadOp=void 0,this.depthStoreOp=void 0,this.depthClearValue=void 0,this.depthReadOnly=!1,this.stencilLoadOp=void 0,this.stencilStoreOp=void 0,this.stencilClearValue=0,this.stencilReadOnly=!1}},BN=class{constructor(){this.querySet=null,this.beginningOfPassWriteIndex=void 0,this.endOfPassWriteIndex=void 0}reset(){this.querySet=null,this.beginningOfPassWriteIndex=void 0,this.endOfPassWriteIndex=void 0}},VN={r:0,g:0,b:0,a:1},HN={r:0,g:0,b:0,a:0},UN=new sM,WN=new cM,GN=new RN,KN=new NN,qN=new mM,JN=new BN,YN=new kM,XN=new kM,ZN=new hM,QN=new gM,$N=new PM,eP=class extends sj{constructor(e={}){super(e),this.isWebGPUBackend=!0,this.parameters.alpha=e.alpha===void 0||e.alpha,this.parameters.requiredLimits=e.requiredLimits===void 0?{}:e.requiredLimits,this.compatibilityMode=null,this.device=null,this.defaultRenderPassdescriptor=null,this.utils=new iM(this),this.attributeUtils=new yN(this),this.bindingUtils=new wN(this),this.capabilities=new TN(this),this.pipelineUtils=new MN(this),this.textureUtils=new JM(this),this.occludedResolveCache=new Map;let t=typeof navigator>`u`||/Android/.test(navigator.userAgent)===!1;this._compatibility={[mt.TEXTURE_COMPARE]:t}}async init(e){await super.init(e);let t=this.parameters,n;if(t.device===void 0){let r={powerPreference:t.powerPreference,featureLevel:`compatibility`,xrCompatible:e.xr.enabled},i=typeof navigator<`u`?await navigator.gpu.requestAdapter(r):null;if(i===null)throw Error(`THREE.WebGPUBackend: Unable to create WebGPU adapter.`);let a=Object.values(Zj),o=[];for(let e of a)i.features.has(e)&&o.push(e);let s={requiredFeatures:o,requiredLimits:t.requiredLimits};n=await i.requestDevice(s)}else n=t.device;this.compatibilityMode=!n.features.has(`core-features-and-limits`),this.compatibilityMode&&(e._samples=0),n.lost.then(t=>{if(t.reason===`destroyed`)return;let n={api:`WebGPU`,message:t.message||`Unknown reason`,reason:t.reason||null,originalEvent:t};e.onDeviceLost(n)}),n.onuncapturederror=t=>{let n=t.error,r=n&&n.constructor?n.constructor.name:`GPUError`,i=n&&n.message||`Unknown uncaptured GPU error`;e.onError({api:`WebGPU`,type:r,message:i,originalEvent:t})},this.device=n,this.trackTimestamp=this.trackTimestamp&&this.hasFeature(Zj.TimestampQuery),this.updateSize()}setXRRenderTargetTextures(e,t,n=null){let r=this.get(e.texture);r.texture=t,r.format=t.format,r.externalTexture=!0,r.xrViewDescriptors=n,r.initialized=!0}get context(){let e=this.renderer.getCanvasTarget(),t=this.get(e),n=t.context;if(n===void 0){let r=this.parameters;n=e.isDefaultCanvasTarget===!0&&r.context!==void 0?r.context:e.domElement.getContext(`webgpu`),`setAttribute`in e.domElement&&e.domElement.setAttribute(`data-engine`,`three.js r186 webgpu`);let i=r.alpha?`premultiplied`:`opaque`,a=r.outputType===1016?`extended`:`standard`;n.configure({device:this.device,format:this.utils.getPreferredCanvasFormat(),usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.COPY_SRC,alphaMode:i,toneMapping:{mode:a}}),t.context=n}return n}get coordinateSystem(){return ft}get hasTimestamp(){return!0}async getArrayBufferAsync(e,t=null,n=0,r=-1){return await this.attributeUtils.getArrayBufferAsync(e,t,n,r)}getContext(){return this.context}_getDefaultRenderPassDescriptor(){let e=this.renderer,t=e.getCanvasTarget(),n=this.get(t),r=e.currentSamples,i=n.descriptor;if(i===void 0||n.samples!==r){if(i=new dM,i.colorAttachments.push(new uM),e.depth===!0||e.stencil===!0){let t=new zN;t.view=this.textureUtils.getDepthBuffer(e.depth,e.stencil).createView(),i.depthStencilAttachment=t}let t=i.colorAttachments[0];r>0?t.view=this.textureUtils.getColorBuffer().createView():t.resolveTarget=void 0,n.descriptor=i,n.samples=r}let a=i.colorAttachments[0];return r>0?a.resolveTarget=this.context.getCurrentTexture().createView():a.view=this.context.getCurrentTexture().createView(),i}_isRenderCameraDepthArray(e){let t=e.camera;return e.depthTexture&&e.depthTexture.isArrayTexture===!0&&t!==null&&t.isArrayCamera===!0}_hasExternalTexture(e){let t=e.textures;if(t===null)return!1;for(let e=0;e<t.length;e++)if(this.get(t[e]).externalTexture===!0)return!0;return!1}_getExternalMSAATextures(e,t,n){let r=this.utils.getSampleCount(e.sampleCount);if(r===1){if(t.msaaTextures!==void 0){for(let e of t.msaaTextures)e.destroy();t.msaaTextures=void 0}return null}let i=e.renderTarget,a=i.width,o=i.height,s=t.format;if(t.msaaTextures===void 0||t.msaaTextures.length!==n||t.msaaWidth!==a||t.msaaHeight!==o||t.msaaSamples!==r||t.msaaFormat!==s){if(t.msaaTextures!==void 0)for(let e of t.msaaTextures)e.destroy();ZN.size.width=a,ZN.size.height=o,ZN.sampleCount=r,ZN.format=s,ZN.usage=GPUTextureUsage.RENDER_ATTACHMENT,t.msaaTextures=[];for(let e=0;e<n;e++)ZN.label=i.texture.name+`-msaa-`+e,t.msaaTextures.push(this.device.createTexture(ZN));ZN.reset(),t.msaaWidth=a,t.msaaHeight=o,t.msaaSamples=r,t.msaaFormat=s}return t.msaaTextures}_createExternalTextureViews(e,t){let n=[],r=e.camera,i=t.xrViewDescriptors,a=Math.max(i?.length||0,e.activeCubeFace+1,1),o=this._getExternalMSAATextures(e,t,a);if(i&&r!==null&&r.isArrayCamera===!0)for(let r=0;r<i.length;r++){let a=t.texture.createView(i[r]);n.push({view:o===null?a:o[r].createView(),resolveTarget:o!==null&&e.renderTarget.resolveColorBuffer===!0?a:void 0,depthSlice:void 0})}else{let r=e.activeCubeFace,i=t.texture.createView({dimension:Jj.TwoD,baseArrayLayer:r,arrayLayerCount:1});n.push({view:o===null?i:o[r].createView(),resolveTarget:o!==null&&e.renderTarget.resolveColorBuffer===!0?i:void 0,depthSlice:void 0})}return n}_getRenderPassDescriptor(e,t={}){let n=e.renderTarget,r=this.get(n),i=this._hasExternalTexture(e),a=r.descriptors;(a===void 0||r.width!==n.width||r.height!==n.height||r.samples!==n.samples||i)&&(a={},r.descriptors=a);let o=e.getCacheKey(),s=a[o];if(s===void 0||i){let t=e.textures,i=[],c,l=this._isRenderCameraDepthArray(e);for(let r=0;r<t.length;r++){let a=this.get(t[r]);if(a.externalTexture===!0)i.push(...this._createExternalTextureViews(e,a));else{if(QN.label=`colorAttachment_${r}`,QN.baseMipLevel=e.activeMipmapLevel,QN.mipLevelCount=1,QN.baseArrayLayer=e.activeCubeFace,QN.arrayLayerCount=1,QN.dimension=Jj.TwoD,n.isRenderTarget3D)c=e.activeCubeFace,QN.baseArrayLayer=0,QN.dimension=Jj.ThreeD;else if(n.isRenderTarget&&t[r].image.depth>1){if(l===!0){let t=e.camera.cameras;for(let e=0;e<t.length;e++){QN.baseArrayLayer=e,QN.arrayLayerCount=1,QN.dimension=Jj.TwoD;let t=a.texture.createView(QN),r=a.msaaTextures?.[e];i.push({view:r===void 0?t:r.createView(),resolveTarget:r!==void 0&&n.resolveColorBuffer===!0?t:void 0,depthSlice:void 0})}}else QN.dimension=Jj.TwoDArray}if(l!==!0){let t=a.texture.createView(QN),r,o;a.msaaTexture===void 0?a.msaaTextures===void 0?(r=t,o=void 0):(r=a.msaaTextures[e.activeCubeFace].createView(),o=n.resolveColorBuffer===!0?t:void 0):(r=a.msaaTexture.createView(),o=n.resolveColorBuffer===!0?t:void 0),i.push({view:r,resolveTarget:o,depthSlice:c})}QN.reset()}}let u=[];for(let e=0;e<i.length;e++){let t=i[e],n=new uM;n.view=t.view,n.depthSlice=t.depthSlice,n.resolveTarget=t.resolveTarget,u.push(n)}if(s={textureViews:i,colorAttachments:u,descriptor:new dM},e.depth){let t=this.get(e.depthTexture);(e.depthTexture.isArrayTexture||e.depthTexture.isCubeTexture)&&(QN.dimension=Jj.TwoD,QN.arrayLayerCount=1,QN.baseArrayLayer=e.activeCubeFace);let n=new zN,r=t.msaaTextures?.[e.activeCubeFace];n.view=r===void 0?t.texture.createView(QN):r.createView(),s.depthStencilAttachment=n,QN.reset()}a[o]=s,r.width=n.width,r.height=n.height,r.samples=n.samples,r.activeMipmapLevel=e.activeMipmapLevel,r.activeCubeFace=e.activeCubeFace}let c=s.descriptor;c.reset();for(let e=0;e<s.colorAttachments.length;e++){let n=s.colorAttachments[e],r={r:0,g:0,b:0,a:1};e===0&&t.clearValue&&(r=t.clearValue),n.loadOp=t.loadOp||Nj.Load,n.storeOp=t.storeOp||Mj.Store,n.clearValue=r,c.colorAttachments.push(n)}return s.depthStencilAttachment&&(c.depthStencilAttachment=s.depthStencilAttachment),c}beginRender(e){let t=this.get(e),n=this.device,r=e.occlusionQueryCount,i;r>0?(t.currentOcclusionQuerySet&&t.currentOcclusionQuerySet.destroy(),t.currentOcclusionQueryBuffer&&t.currentOcclusionQueryBuffer.destroy(),t.currentOcclusionQuerySet=t.occlusionQuerySet,t.currentOcclusionQueryBuffer=t.occlusionQueryBuffer,t.currentOcclusionQueryObjects=t.occlusionQueryObjects,KN.label=`occlusionQuerySet_${e.id}`,KN.type=`occlusion`,KN.count=r,i=n.createQuerySet(KN),KN.reset(),t.occlusionQuerySet=i,t.occlusionQueryIndex=0,t.occlusionQueryObjects=Array(r),t.lastOcclusionObject=null):t.lastOcclusionObject!==void 0&&(t.lastOcclusionObject=void 0,t.occlusionQuerySet.destroy(),t.occlusionQuerySet=void 0);let a;a=e.textures===null?this._getDefaultRenderPassDescriptor():this._getRenderPassDescriptor(e,{loadOp:Nj.Load}),this.initTimestampQuery(pt.RENDER,this.getTimestampUID(e),a),a.occlusionQuerySet=i;let o=a.depthStencilAttachment,s=e.renderTarget,c=e.sampleCount>1&&s?.storeMultisampledColorBuffer===!1,l=e.sampleCount>1&&s?.storeMultisampledDepthBuffer===!1,u=e.sampleCount>1&&s?.storeMultisampledStencilBuffer===!1,d=e.fullscreenPass===!0&&this._hasExternalTexture(e);if(e.textures!==null){let t=a.colorAttachments;for(let n=0;n<t.length;n++){let r=t[n];if(e.clearColor||c||d){let t=e.mrt?e.mrt.getClearColor(e.textures[n].name):null;t===null?n===0?r.clearValue=e.clearColorValue:(VN.r=0,VN.g=0,VN.b=0,VN.a=1,r.clearValue=VN):r.clearValue=t,r.loadOp=Nj.Clear}else r.loadOp=Nj.Load;r.storeOp=c?Mj.Discard:Mj.Store}}else{let t=a.colorAttachments[0];e.clearColor?(t.clearValue=e.clearColorValue,t.loadOp=Nj.Clear):t.loadOp=Nj.Load,t.storeOp=Mj.Store}e.depth&&(e.clearDepth||l?(o.depthClearValue=e.clearDepthValue,o.depthLoadOp=Nj.Clear):o.depthLoadOp=Nj.Load,o.depthStoreOp=l?Mj.Discard:Mj.Store),e.stencil&&(e.clearStencil||u?(o.stencilClearValue=e.clearStencilValue,o.stencilLoadOp=Nj.Clear):o.stencilLoadOp=Nj.Load,o.stencilStoreOp=u?Mj.Discard:Mj.Store),WN.label=`renderContext_`+e.id;let f=n.createCommandEncoder(WN);if(WN.reset(),this._isRenderCameraDepthArray(e)===!0){let n=e.camera.cameras;!t.layerDescriptors||t.layerDescriptors.length!==n.length?this._createArrayCameraLayerDescriptors(e,t,a,n):this._updateArrayCameraLayerDescriptors(e,t,a,n),this._createArrayCameraBundleEncoders(e,t),t.arrayCameraRenderStages=[],t.currentPass=null}else t.bundleEncoders=void 0,t.bundleSets=void 0,t.arrayCameraRenderStages=void 0,t.currentPass=f.beginRenderPass(a),e.viewport&&this.updateViewport(e),e.scissor&&this.updateScissor(e);t.descriptor=a,t.encoder=f,t.renderBundles=[],this._resetRenderContextData(t)}_resetRenderContextData(e){e.currentSets={attributes:{},bindingGroups:[],pipeline:null,index:null},e.currentBlendColor===void 0&&(e.currentBlendColor=new rr),e.currentBlendColor.setRGB(0,0,0),e.currentBlendAlpha=0,e.currentStencilRef=0}_createArrayCameraBundleEncoders(e,t){let n=e.camera.cameras;t.bundleEncoders=[],t.bundleSets=[];for(let r=0;r<n.length;r++){let n=this.pipelineUtils.createBundleEncoder(e,`renderBundleArrayCamera_`+r);t.bundleEncoders.push(n),t.bundleSets.push({attributes:{},bindingGroups:[],pipeline:null,index:null})}}_finishArrayCameraBundleEncoders(e){let t=[];for(let n of e.bundleEncoders)t.push(n.finish());return t}_createArrayCameraLayerDescriptors(e,t,n,r){let i=n.depthStencilAttachment;t.layerDescriptors=[];let a=this.get(e.depthTexture);a.viewCache||=[];for(let o=0;o<r.length;o++){let r=n.colorAttachments[0],s=n.colorAttachments[o],c=new uM;c.view=s.view,c.depthSlice=s.depthSlice,c.resolveTarget=s.resolveTarget,c.loadOp=r.loadOp,c.storeOp=r.storeOp,c.clearValue=r.clearValue;let l=new dM;if(l.label=n.label,l.occlusionQuerySet=n.occlusionQuerySet,l.timestampWrites=n.timestampWrites,l.colorAttachments.push(c),n.depthStencilAttachment){let t=o;if(!a.viewCache[t]){let e=a.msaaTextures?.[t];e===void 0?(QN.dimension=Jj.TwoD,QN.baseArrayLayer=o,QN.arrayLayerCount=1,a.viewCache[t]=a.texture.createView(QN)):a.viewCache[t]=e.createView(),QN.reset()}let n=new zN;n.view=a.viewCache[t],n.depthLoadOp=i.depthLoadOp||Nj.Clear,n.depthStoreOp=i.depthStoreOp||Mj.Store,n.depthClearValue=i.depthClearValue||1,e.stencil&&(n.stencilLoadOp=i.stencilLoadOp,n.stencilStoreOp=i.stencilStoreOp,n.stencilClearValue=i.stencilClearValue),l.depthStencilAttachment=n}else{let e=new zN;e.view=i.view,e.depthLoadOp=i.depthLoadOp,e.depthStoreOp=i.depthStoreOp,e.depthClearValue=i.depthClearValue,e.depthReadOnly=i.depthReadOnly,e.stencilLoadOp=i.stencilLoadOp,e.stencilStoreOp=i.stencilStoreOp,e.stencilClearValue=i.stencilClearValue,e.stencilReadOnly=i.stencilReadOnly,l.depthStencilAttachment=e}t.layerDescriptors.push(l)}}_updateArrayCameraLayerDescriptors(e,t,n,r){let i=e.renderTarget,a=e.sampleCount>1&&i?.storeMultisampledDepthBuffer===!1,o=e.sampleCount>1&&i?.storeMultisampledStencilBuffer===!1;for(let i=0;i<r.length;i++){let r=t.layerDescriptors[i],s=n.colorAttachments[0],c=n.colorAttachments[i],l=r.colorAttachments[0];if(l.view=c.view,l.resolveTarget=c.resolveTarget,l.depthSlice=c.depthSlice,l.loadOp=s.loadOp,l.storeOp=s.storeOp,l.clearValue=s.clearValue,r.depthStencilAttachment){let t=r.depthStencilAttachment;e.depth&&(e.clearDepth||a?(t.depthClearValue=e.clearDepthValue,t.depthLoadOp=Nj.Clear):t.depthLoadOp=Nj.Load),e.stencil&&(e.clearStencil||o?(t.stencilClearValue=e.clearStencilValue,t.stencilLoadOp=Nj.Clear):t.stencilLoadOp=Nj.Load)}}}finishRender(e){let t=this.get(e),n=e.occlusionQueryCount;t.renderBundles.length>0&&t.currentPass.executeBundles(t.renderBundles);let r=t.lastOcclusionObject;r&&r.occlusionTest===!0&&t.currentPass.endOcclusionQuery();let i=t.encoder;if(this._isRenderCameraDepthArray(e)===!0){let n=this._finishArrayCameraBundleEncoders(t),r=t.arrayCameraRenderStages;r.push({bundles:n});for(let n=0;n<t.layerDescriptors.length;n++){let a=t.layerDescriptors[n],o=a.colorAttachments.map(e=>e.loadOp),s=a.colorAttachments.map(e=>e.storeOp),c=a.depthStencilAttachment?.depthLoadOp,l=a.depthStencilAttachment?.depthStoreOp,u=a.depthStencilAttachment?.stencilLoadOp,d=a.depthStencilAttachment?.stencilStoreOp;for(let t=0;t<r.length;t++){let f=r[t],p=f.bundles[n],m=t===r.length-1;for(let e=0;e<a.colorAttachments.length;e++){let n=a.colorAttachments[e];n.loadOp=t===0?o[e]:Nj.Load,n.storeOp=m?s[e]:Mj.Store}e.depth&&(a.depthStencilAttachment.depthLoadOp=t===0?c:Nj.Load,a.depthStencilAttachment.depthStoreOp=m?l:Mj.Store),e.stencil&&(a.depthStencilAttachment.stencilLoadOp=t===0?u:Nj.Load,a.depthStencilAttachment.stencilStoreOp=m?d:Mj.Store);let h=i.beginRenderPass(a);if(e.viewport){let{x:t,y:n,width:r,height:i,minDepth:a,maxDepth:o}=e.viewportValue;h.setViewport(t,n,r,i,a,o)}if(e.scissor){let{x:t,y:n,width:r,height:i}=e.scissorValue;h.setScissorRect(t,n,r,i)}if(h.executeBundles([p]),h.end(),f.framebufferCopy!==void 0){let{texture:e,sourceGPU:t,destinationGPU:r,rectangle:a,generateMipmaps:o}=f.framebufferCopy;this._copyFramebufferToTexture(i,e,t,r,a,n,o)}}for(let e=0;e<a.colorAttachments.length;e++)a.colorAttachments[e].loadOp=o[e],a.colorAttachments[e].storeOp=s[e];e.depth&&(a.depthStencilAttachment.depthLoadOp=c,a.depthStencilAttachment.depthStoreOp=l),e.stencil&&(a.depthStencilAttachment.stencilLoadOp=u,a.depthStencilAttachment.stencilStoreOp=d)}}else t.currentPass&&t.currentPass.end();if(n>0){let r=n*8,i=this.occludedResolveCache.get(r);i===void 0&&(UN.size=r,UN.usage=GPUBufferUsage.QUERY_RESOLVE|GPUBufferUsage.COPY_SRC,i=this.device.createBuffer(UN),UN.reset(),this.occludedResolveCache.set(r,i)),UN.size=r,UN.usage=GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ;let a=this.device.createBuffer(UN);UN.reset(),t.encoder.resolveQuerySet(t.occlusionQuerySet,0,n,i,0),t.encoder.copyBufferToBuffer(i,0,a,0,r),t.occlusionQueryBuffer=a,this.resolveOccludedAsync(e)}if(aM(this.device,t.encoder.finish()),e.textures!==null){let t=e.textures;for(let e=0;e<t.length;e++){let n=t[e];n.generateMipmaps===!0&&this.textureUtils.generateMipmaps(n)}}}isOccluded(e,t){let n=this.get(e);return n.occluded&&n.occluded.has(t)}async resolveOccludedAsync(e){let t=this.get(e),{currentOcclusionQueryBuffer:n,currentOcclusionQueryObjects:r}=t;if(n&&r){let e=new WeakSet;t.currentOcclusionQueryObjects=null,t.currentOcclusionQueryBuffer=null,await n.mapAsync(GPUMapMode.READ);let i=n.getMappedRange(),a=new BigUint64Array(i);for(let t=0;t<r.length;t++){let n=r[t];n!==void 0&&a[t]===BigInt(0)&&e.add(n)}n.destroy(),t.occluded=e}}updateViewport(e){let{currentPass:t}=this.get(e),{x:n,y:r,width:i,height:a,minDepth:o,maxDepth:s}=e.viewportValue;t.setViewport(n,r,i,a,o,s)}updateScissor(e){let{currentPass:t}=this.get(e),{x:n,y:r,width:i,height:a}=e.scissorValue;t.setScissorRect(n,r,i,a)}getClearColor(){let e=super.getClearColor();return this.renderer.alpha===!0&&(e.r*=e.a,e.g*=e.a,e.b*=e.a),e}clear(e,t,n,r=null){let i=this.device,a=this.renderer,o=[],s,c,l;if(e){let e=this.getClearColor();VN.r=e.r,VN.g=e.g,VN.b=e.b,VN.a=e.a}if(r===null){c=a.depth,l=a.stencil;let t=this._getDefaultRenderPassDescriptor();if(e){o=t.colorAttachments;let e=o[0];e.clearValue=VN,e.loadOp=Nj.Clear,e.storeOp=Mj.Store}(c||l)&&(s=t.depthStencilAttachment)}else{c=r.depth,l=r.stencil;let i={loadOp:e?Nj.Clear:Nj.Load,clearValue:e?VN:void 0};c&&(i.depthLoadOp=t?Nj.Clear:Nj.Load,i.depthClearValue=t?a.getClearDepth():void 0,i.depthStoreOp=Mj.Store),l&&(i.stencilLoadOp=n?Nj.Clear:Nj.Load,i.stencilClearValue=n?a.getClearStencil():void 0,i.stencilStoreOp=Mj.Store);let u=this._getRenderPassDescriptor(r,i);o=u.colorAttachments,s=u.depthStencilAttachment}c&&s&&(t?(s.depthLoadOp=Nj.Clear,s.depthClearValue=a.getClearDepth(),s.depthStoreOp=Mj.Store):(s.depthLoadOp=Nj.Load,s.depthStoreOp=Mj.Store)),l&&s&&(n?(s.stencilLoadOp=Nj.Clear,s.stencilClearValue=a.getClearStencil(),s.stencilStoreOp=Mj.Store):(s.stencilLoadOp=Nj.Load,s.stencilStoreOp=Mj.Store)),WN.label=`clear`;let u=i.createCommandEncoder(WN);WN.reset(),u.beginRenderPass({colorAttachments:o,depthStencilAttachment:s}).end(),aM(i,u.finish())}beginCompute(e){let t=this.get(e),n=`computeGroup_`+e.id;GN.label=n,WN.label=n,this.initTimestampQuery(pt.COMPUTE,this.getTimestampUID(e),GN),t.cmdEncoderGPU=this.device.createCommandEncoder(WN),t.passEncoderGPU=t.cmdEncoderGPU.beginComputePass(GN),t.currentPipeline=null,WN.reset(),GN.reset()}compute(e,t,n,r,i=null){let a=this.get(t),o=this.get(e),{passEncoderGPU:s}=o,c=this.get(r).pipeline;o.currentPipeline!==c&&(s.setPipeline(c),o.currentPipeline=c);for(let e=0,t=n.length;e<t;e++){let t=n[e],r=this.get(t);s.setBindGroup(e,r.group)}if(i===null&&(i=t.dispatchSize||t.count),i&&i.isIndirectStorageBufferAttribute){let e=this.get(i).buffer;s.dispatchWorkgroupsIndirect(e,0)}else{if(typeof i==`number`){let e=i;if(a.dispatchSize===void 0||a.count!==e){a.dispatchSize=[0,1,1],a.count=e;let n=t.workgroupSize,r=n[0];for(let e=1;e<n.length;e++)r*=n[e];let o=Math.ceil(e/r),s=this.device.limits.maxComputeWorkgroupsPerDimension;i=[o,1,1],o>s&&(i[0]=Math.min(o,s),i[1]=Math.ceil(o/s)),a.dispatchSize=i}i=a.dispatchSize}s.dispatchWorkgroups(i[0],i[1]||1,i[2]||1)}}finishCompute(e){let t=this.get(e);t.passEncoderGPU.end(),aM(this.device,t.cmdEncoderGPU.finish())}_draw(e,t,n,r,i,a,o,s,c,l=-1){let{object:u,material:d,context:f}=e,p=e.getIndex(),m=p!==null;c.pipeline!==r&&(s.setPipeline(r),c.pipeline=r);let h=c.bindingGroups;for(let e=0,t=i.length;e<t;e++){if(e===l)continue;let t=i[e],n=this.get(t).group;h[e]!==n&&(s.setBindGroup(e,n),h[e]=n)}if(m===!0&&c.index!==p){let e=this.get(p).buffer,t=p.array instanceof Uint16Array?Ij.Uint16:Ij.Uint32;s.setIndexBuffer(e,t),c.index=p}for(let e=0,t=a.length;e<t;e++){let t=a[e];if(c.attributes[e]!==t){let n=this.get(t).buffer;s.setVertexBuffer(e,n),c.attributes[e]=t}}if(f.stencil===!0&&d.stencilWrite===!0&&n.currentStencilRef!==d.stencilRef&&(s.setStencilReference(d.stencilRef),n.currentStencilRef=d.stencilRef),d.blending===5&&s.setBlendConstant!==void 0){let e=d.blendColor,t=d.blendAlpha;(e.equals(n.currentBlendColor)===!1||t!==n.currentBlendAlpha)&&(HN.r=e.r,HN.g=e.g,HN.b=e.b,HN.a=t,s.setBlendConstant(HN),n.currentBlendColor.copy(e),n.currentBlendAlpha=t)}if(u.isBatchedMesh===!0){let e=u._multiDrawStarts,n=u._multiDrawCounts,r=u._multiDrawCount,i=u._multiDrawBytesPerElement;for(let a=0;a<r;a++)m===!0?s.drawIndexed(n[a],1,e[a]/i,0,a):s.draw(n[a],1,e[a],a),t.update(u,n[a],1)}else if(m===!0){let{vertexCount:n,instanceCount:r,firstVertex:i}=o,a=e.getIndirect();if(a!==null){let t=this.get(a).buffer,n=e.getIndirectOffset(),r=Array.isArray(n)?n:[n];for(let e=0;e<r.length;e++)s.drawIndexedIndirect(t,r[e])}else s.drawIndexed(n,r,i,0,0);t.update(u,n,r)}else{let{vertexCount:n,instanceCount:r,firstVertex:i}=o,a=e.getIndirect();if(a!==null){let t=this.get(a).buffer,n=e.getIndirectOffset(),r=Array.isArray(n)?n:[n];for(let e=0;e<r.length;e++)s.drawIndirect(t,r[e])}else s.draw(n,r,i,0);t.update(u,n,r)}}draw(e,t){let{object:n,context:r,pipeline:i}=e,a=this.get(r),o=this.get(i),s=o.pipeline;if(o.error===!0)return;let c=e.getDrawParameters();if(c===null)return;let l=e.getBindings(),u=e.getVertexBuffers();if(e.camera.isArrayCamera&&e.camera.cameras.length>0){let i=this.get(e.camera),o=e.camera.cameras,d=e.getBindingGroup(`cameraIndex`);if(i.indexesGPU===void 0||i.indexesGPU.length!==o.length){let e=this.get(d),t=[],n=new Uint32Array([0,0,0,0]);for(let r=0,i=o.length;r<i;r++){n[0]=r;let{layoutGPU:i}=e.layout,a=this.bindingUtils.createBindGroupIndex(n,i);t.push(a)}i.indexesGPU=t}let f=r.renderTarget,p=f===null||f.isPostProcessingRenderTarget===!0?this.renderer.getPixelRatio():1,m=d?l.indexOf(d):-1;for(let d=0,f=o.length;d<f;d++){let f=o[d];if(n.layers.test(f.layers)){let n=f.viewport,o=a.currentPass,h=a.currentSets,g=a.bundleEncoders!==void 0;if(g){let e=a.bundleEncoders[d],t=a.bundleSets[d];o=e,h=t}if(n&&!g&&o.setViewport(Math.floor(n.x*p),Math.floor(n.y*p),Math.floor(n.width*p),Math.floor(n.height*p),r.viewportValue.minDepth,r.viewportValue.maxDepth),m!==-1&&i.indexesGPU){let e=i.indexesGPU[d];h.bindingGroups[m]!==e&&(o.setBindGroup(m,e),h.bindingGroups[m]=e)}this._draw(e,t,a,s,l,u,c,o,h,m)}}}else if(a.currentPass){if(a.currentPass instanceof GPURenderBundleEncoder)n.occlusionTest===!0&&Ct(`WebGPUBackend: Occlusion queries can not be recorded into render bundles.`);else if(a.occlusionQuerySet!==void 0){let e=a.lastOcclusionObject;e!==n&&(e!==null&&e.occlusionTest===!0&&(a.currentPass.endOcclusionQuery(),a.occlusionQueryIndex++),n.occlusionTest===!0&&(a.currentPass.beginOcclusionQuery(a.occlusionQueryIndex),a.occlusionQueryObjects[a.occlusionQueryIndex]=n),a.lastOcclusionObject=n)}this._draw(e,t,a,s,l,u,c,a.currentPass,a.currentSets)}}needsRenderUpdate(e){let t=this.get(e),{object:n,material:r}=e,i=this.utils,a=i.getSampleCountRenderContext(e.context),o=i.getCurrentColorSpace(e.context),s=i.getCurrentColorFormat(e.context),c=i.getCurrentDepthStencilFormat(e.context),l=i.getPrimitiveTopology(n,r),u=n.isMesh&&n.matrixWorld.determinantAffine()<0,d=!1;return(t.material!==r||t.materialVersion!==r.version||t.transparent!==r.transparent||t.blending!==r.blending||t.premultipliedAlpha!==r.premultipliedAlpha||t.blendSrc!==r.blendSrc||t.blendDst!==r.blendDst||t.blendEquation!==r.blendEquation||t.blendSrcAlpha!==r.blendSrcAlpha||t.blendDstAlpha!==r.blendDstAlpha||t.blendEquationAlpha!==r.blendEquationAlpha||t.colorWrite!==r.colorWrite||t.depthWrite!==r.depthWrite||t.depthTest!==r.depthTest||t.depthFunc!==r.depthFunc||t.stencilWrite!==r.stencilWrite||t.stencilFunc!==r.stencilFunc||t.stencilFail!==r.stencilFail||t.stencilZFail!==r.stencilZFail||t.stencilZPass!==r.stencilZPass||t.stencilFuncMask!==r.stencilFuncMask||t.stencilWriteMask!==r.stencilWriteMask||t.polygonOffset!==r.polygonOffset||t.polygonOffsetFactor!==r.polygonOffsetFactor||t.polygonOffsetUnits!==r.polygonOffsetUnits||t.side!==r.side||t.alphaToCoverage!==r.alphaToCoverage||t.sampleCount!==a||t.colorSpace!==o||t.colorFormat!==s||t.depthStencilFormat!==c||t.primitiveTopology!==l||t.frontFaceCW!==u||t.clippingContextCacheKey!==e.clippingContextCacheKey)&&(t.material=r,t.materialVersion=r.version,t.transparent=r.transparent,t.blending=r.blending,t.premultipliedAlpha=r.premultipliedAlpha,t.blendSrc=r.blendSrc,t.blendDst=r.blendDst,t.blendEquation=r.blendEquation,t.blendSrcAlpha=r.blendSrcAlpha,t.blendDstAlpha=r.blendDstAlpha,t.blendEquationAlpha=r.blendEquationAlpha,t.colorWrite=r.colorWrite,t.depthWrite=r.depthWrite,t.depthTest=r.depthTest,t.depthFunc=r.depthFunc,t.stencilWrite=r.stencilWrite,t.stencilFunc=r.stencilFunc,t.stencilFail=r.stencilFail,t.stencilZFail=r.stencilZFail,t.stencilZPass=r.stencilZPass,t.stencilFuncMask=r.stencilFuncMask,t.stencilWriteMask=r.stencilWriteMask,t.polygonOffset=r.polygonOffset,t.polygonOffsetFactor=r.polygonOffsetFactor,t.polygonOffsetUnits=r.polygonOffsetUnits,t.side=r.side,t.alphaToCoverage=r.alphaToCoverage,t.sampleCount=a,t.colorSpace=o,t.colorFormat=s,t.depthStencilFormat=c,t.primitiveTopology=l,t.frontFaceCW=u,t.clippingContextCacheKey=e.clippingContextCacheKey,d=!0),d}getRenderCacheKey(e){let{object:t,material:n}=e,r=this.utils,i=e.context,a=t.isMesh&&t.matrixWorld.determinantAffine()<0;return[n.transparent,n.blending,n.premultipliedAlpha,n.blendSrc,n.blendDst,n.blendEquation,n.blendSrcAlpha,n.blendDstAlpha,n.blendEquationAlpha,n.colorWrite,n.depthWrite,n.depthTest,n.depthFunc,n.stencilWrite,n.stencilFunc,n.stencilFail,n.stencilZFail,n.stencilZPass,n.stencilFuncMask,n.stencilWriteMask,n.polygonOffset,n.polygonOffsetFactor,n.polygonOffsetUnits,n.side,n.alphaToCoverage,a,r.getSampleCountRenderContext(i),r.getCurrentColorSpace(i),r.getCurrentColorFormat(i),r.getCurrentDepthStencilFormat(i),r.getPrimitiveTopology(t,n),e.getGeometryCacheKey(),e.clippingContextCacheKey].join()}updateSampler(e){return this.textureUtils.updateSampler(e)}destroySampler(e){this.textureUtils.destroySampler(e)}createDefaultTexture(e){return this.textureUtils.createDefaultTexture(e)}createTexture(e,t){this.textureUtils.createTexture(e,t)}updateTexture(e,t){this.textureUtils.updateTexture(e,t)}generateMipmaps(e){this.textureUtils.generateMipmaps(e)}destroyTexture(e,t=!1){this.textureUtils.destroyTexture(e,t)}async copyTextureToBuffer(e,t,n,r,i,a){return this.textureUtils.copyTextureToBuffer(e,t,n,r,i,a)}initTimestampQuery(e,t,n){if(!this.trackTimestamp)return;this.timestampQueryPool[e]||(this.timestampQueryPool[e]=new LN(this.device,e,2048));let r=this.timestampQueryPool[e],i=r.allocateQueriesForContext(t);JN.querySet=r.querySet,JN.beginningOfPassWriteIndex=i,JN.endOfPassWriteIndex=i+1,n.timestampWrites=JN}createNodeBuilder(e,t){return new pN(e,t)}createProgram(e){let t=this.get(e);qN.label=e.stage+(e.name===``?``:`_${e.name}`),qN.code=e.code,t.module={module:this.device.createShaderModule(qN),entryPoint:`main`},qN.reset()}destroyProgram(e){this.delete(e)}createRenderPipeline(e,t){this.pipelineUtils.createRenderPipeline(e,t)}createComputePipeline(e,t,n=null){this.pipelineUtils.createComputePipeline(e,t,n)}beginBundle(e){let t=this.get(e);t._currentPass=t.currentPass,t._currentSets=t.currentSets,t.currentSets={attributes:{},bindingGroups:[],pipeline:null,index:null},t.currentPass=this.pipelineUtils.createBundleEncoder(e)}finishBundle(e,t){let n=this.get(e),r=n.currentPass.finish();this.get(t).bundleGPU=r,n.currentSets=n._currentSets,n.currentPass=n._currentPass,n._currentPass=null,n._currentSets=null}addBundle(e,t){this.get(e).renderBundles.push(this.get(t).bundleGPU)}createUniformBuffer(e){let t=this.get(e);if(t.buffer===void 0){let n=e.byteLength,r=GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST,i=[];e.visibility&Aj.VERTEX&&i.push(`vertex`),e.visibility&Aj.FRAGMENT&&i.push(`fragment`),e.visibility&Aj.COMPUTE&&i.push(`compute`);let a=`(${i.join(`,`)})`;UN.label=`bindingBuffer${e.id}_${e.name}_${a}`,UN.size=n,UN.usage=r;let o=this.device.createBuffer(UN);UN.reset(),t.buffer=o}}destroyUniformBuffer(e){this.get(e).buffer.destroy(),this.delete(e)}createBindings(e,t,n,r){this.bindingUtils.createBindings(e,t,n,r)}updateBindings(e,t,n,r){this.bindingUtils.createBindings(e,t,n,r)}updateBinding(e){this.bindingUtils.updateBinding(e)}deleteBindGroupData(e){this.bindingUtils.deleteBindGroupData(e)}createIndexAttribute(e){let t=GPUBufferUsage.INDEX|GPUBufferUsage.COPY_SRC|GPUBufferUsage.COPY_DST;(e.isStorageBufferAttribute||e.isStorageInstancedBufferAttribute)&&(t|=GPUBufferUsage.STORAGE),this.attributeUtils.createAttribute(e,t)}createAttribute(e){this.attributeUtils.createAttribute(e,GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_SRC|GPUBufferUsage.COPY_DST)}createStorageAttribute(e){this.attributeUtils.createAttribute(e,GPUBufferUsage.STORAGE|GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_SRC|GPUBufferUsage.COPY_DST)}createIndirectStorageAttribute(e){this.attributeUtils.createAttribute(e,GPUBufferUsage.STORAGE|GPUBufferUsage.INDIRECT|GPUBufferUsage.COPY_SRC|GPUBufferUsage.COPY_DST)}updateAttribute(e){this.attributeUtils.updateAttribute(e)}destroyAttribute(e){this.attributeUtils.destroyAttribute(e)}updateSize(){this.delete(this.renderer.getCanvasTarget())}hasFeature(e){return Qj[e]!==void 0&&(e=Qj[e]),this.device.features.has(e)}copyTextureToTexture(e,t,n=null,r=null,i=0,a=0){let o=0,s=0,c=0,l=0,u=0,d=0,f=e.image.width,p=e.image.height,m=1;n!==null&&(n.isBox3===!0?(l=n.min.x,u=n.min.y,d=n.min.z,f=n.max.x-n.min.x,p=n.max.y-n.min.y,m=n.max.z-n.min.z):(l=n.min.x,u=n.min.y,f=n.max.x-n.min.x,p=n.max.y-n.min.y,m=1)),r!==null&&(o=r.x,s=r.y,c=r.z||0),WN.label=`copyTextureToTexture_`+e.id+`_`+t.id;let h=this.device.createCommandEncoder(WN);WN.reset();let g=this.get(e).texture,_=this.get(t).texture;YN.texture=g,YN.mipLevel=i,YN.origin.x=l,YN.origin.y=u,YN.origin.z=d,XN.texture=_,XN.mipLevel=a,XN.origin.x=o,XN.origin.y=s,XN.origin.z=c,$N.width=f,$N.height=p,$N.depthOrArrayLayers=m,h.copyTextureToTexture(YN,XN,$N),YN.reset(),XN.reset(),$N.reset(),aM(this.device,h.finish()),a===0&&t.generateMipmaps&&this.textureUtils.generateMipmaps(t)}copyFramebufferToTexture(e,t,n){let r=this.get(t),i=null;i=t.renderTarget?e.isDepthTexture?this.get(t.depthTexture).texture:this.get(t.textures[0]).texture:e.isDepthTexture?this.textureUtils.getDepthBuffer(t.depth,t.stencil):this.context.getCurrentTexture();let a=this.get(e).texture;if(i.format!==a.format){E(`WebGPUBackend: copyFramebufferToTexture: Source and destination formats do not match.`,i.format,a.format);return}if(this._isRenderCameraDepthArray(t)===!0){let o=this._finishArrayCameraBundleEncoders(r);r.arrayCameraRenderStages.push({bundles:o,framebufferCopy:{texture:e,sourceGPU:i,destinationGPU:a,rectangle:{x:n.x,y:n.y,z:n.z,w:n.w},generateMipmaps:e.generateMipmaps}}),this._createArrayCameraBundleEncoders(t,r);return}let o;if(r.currentPass?(r.currentPass.end(),o=r.encoder):(WN.label=`copyFramebufferToTexture_`+e.id,o=this.device.createCommandEncoder(WN),WN.reset()),this._copyFramebufferToTexture(o,e,i,a,n),r.currentPass){let{descriptor:e}=r;for(let t=0;t<e.colorAttachments.length;t++)e.colorAttachments[t].loadOp=Nj.Load;t.depth&&(e.depthStencilAttachment.depthLoadOp=Nj.Load),t.stencil&&(e.depthStencilAttachment.stencilLoadOp=Nj.Load),r.currentPass=o.beginRenderPass(e),this._resetRenderContextData(r),t.viewport&&this.updateViewport(t),t.scissor&&this.updateScissor(t)}else aM(this.device,o.finish())}_copyFramebufferToTexture(e,t,n,r,i,a=0,o=t.generateMipmaps){YN.texture=n,YN.origin.x=i.x,YN.origin.y=i.y,YN.origin.z=a,XN.texture=r,$N.width=i.z,$N.height=i.w,e.copyTextureToTexture(YN,XN,$N),YN.reset(),XN.reset(),$N.reset(),o&&this.textureUtils.generateMipmaps(t,e)}hasCompatibility(e){return this._compatibility[e]===void 0?super.hasCompatibility(e):this._compatibility[e]}async dispose(){if(await super.dispose(),this.bindingUtils.dispose(),this.textureUtils.dispose(),this.occludedResolveCache){for(let e of this.occludedResolveCache.values())e.destroy();this.occludedResolveCache.clear()}this.parameters.device===void 0&&this.device!==null&&this.device.destroy()}},tP=class extends Ha{constructor(e,t,n,r,i,a){super(e,t,n,r,i,a),this.iesMap=null}copy(e,t){return super.copy(e,t),this.iesMap=e.iesMap,this}},nP=class extends Ha{constructor(e,t,n,r,i,a){super(e,t,n,r,i,a),this.aspect=null}copy(e,t){return super.copy(e,t),this.aspect=e.aspect,this}},rP=class extends sA{constructor(){super(),this.addMaterial(gv,`MeshPhongMaterial`),this.addMaterial(vb,`MeshStandardMaterial`),this.addMaterial(bb,`MeshPhysicalMaterial`),this.addMaterial(wb,`MeshToonMaterial`),this.addMaterial(ov,`MeshBasicMaterial`),this.addMaterial(mv,`MeshLambertMaterial`),this.addMaterial(G_,`MeshNormalMaterial`),this.addMaterial(Db,`MeshMatcapMaterial`),this.addMaterial(F_,`LineBasicMaterial`),this.addMaterial(L_,`LineDashedMaterial`),this.addMaterial(Nb,`PointsMaterial`),this.addMaterial(Ab,`SpriteMaterial`),this.addMaterial(Lb,`ShadowMaterial`),this.addLight(tD,Wa),this.addLight(Mk,qa),this.addLight(Hk,Ya),this.addLight(Pk,Ha),this.addLight(jk,Ja),this.addLight(Nk,Oa),this.addLight(Ik,Za),this.addLight(Fk,tP),this.addLight(Rk,nP),this.addToneMapping(Pw,1),this.addToneMapping(Fw,2),this.addToneMapping(Iw,3),this.addToneMapping(Rw,4),this.addToneMapping(Hw,6),this.addToneMapping(Uw,7)}},iP=class extends MA{constructor(e={}){let t;e.forceWebGL?t=Oj:(t=eP,e.getFallback=()=>(T(`WebGPURenderer: WebGPU is not available, running under WebGL2 backend.`),new Oj(e)));let n=new t(e);super(n,e),this.library=new rP,this.isWebGPURenderer=!0,typeof __THREE_DEVTOOLS__<`u`&&__THREE_DEVTOOLS__.dispatchEvent(new CustomEvent(`observe`,{detail:this}))}},aP=class{constructor(e,t=W(0,0,1,1)){this.isRenderPipeline=!0,this.renderer=e,this.outputNode=t,this.outputColorTransform=!0,this.needsUpdate=!0;let n=new N_;n.name=`RenderPipeline`,this._quadMesh=new vC(n),this._quadMesh.name=`Render Pipeline`,this._contextData=null,this._toneMapping=e.toneMapping,this._outputColorSpace=e.outputColorSpace}render(){let e=this.renderer;this._update();for(let e of this._contextData.onBeforePipelineCallbacks)e();let t=e.toneMapping,n=e.outputColorSpace;e.toneMapping=0,e.outputColorSpace=cn.workingColorSpace;let r=e.xr.enabled;e.xr.enabled=!1,this._quadMesh.render(e),e.xr.enabled=r,e.toneMapping=t,e.outputColorSpace=n;for(let e of this._contextData.onAfterPipelineCallbacks)e()}dispose(){this._quadMesh.material.dispose()}_updateContext(){let e=this._toneMapping,t=this._outputColorSpace,n={renderPipeline:this,renderPipelineState:{viewOffsetOwner:null},onBeforePipelineCallbacks:[],onAfterPipelineCallbacks:[]},r=this.outputNode;this.outputColorTransform===!0?r=hf(r,e,t):(n.toneMapping=e,n.outputColorSpace=t),this._contextData=n,this._quadMesh.material.contextNode=ad(n),this._quadMesh.material.fragmentNode=r,this._quadMesh.material.needsUpdate=!0}_update(){this._toneMapping!==this.renderer.toneMapping&&(this._toneMapping=this.renderer.toneMapping,this.needsUpdate=!0),this._outputColorSpace!==this.renderer.outputColorSpace&&(this._outputColorSpace=this.renderer.outputColorSpace,this.needsUpdate=!0),this.needsUpdate===!0&&(this._updateContext(),this.needsUpdate=!1)}async renderAsync(){Ct(`RenderPipeline: "renderAsync()" has been deprecated. Use "render()" and "await renderer.init();" when creating the renderer.`),await this.renderer.init(),this.render()}};Q.BRDF_GGX,Q.BRDF_Lambert,Q.BRDF_Sheen,Q.BasicPointShadowFilter,Q.BasicShadowFilter,Q.Break,Q.Const,Q.Continue,Q.DFGLUT,Q.D_GGX,Q.D_GGX_Anisotropic;var oP=Q.Discard;Q.EPSILON,Q.EnvironmentBRDF,Q.F_Schlick;var sP=Q.Fn;Q.HALF_PI,Q.INFINITY,Q.If,Q.LTC_Evaluate,Q.LTC_Evaluate_Volume,Q.LTC_Uv,Q.Loop,Q.NodeAccess,Q.NodeShaderStage,Q.NodeType,Q.NodeUpdateType,Q.OnAfterObjectUpdate,Q.OnAfterRenderPipeline,Q.OnBeforeFrameUpdate,Q.OnBeforeMaterialUpdate,Q.OnBeforeObjectUpdate,Q.OnBeforeRenderPipeline,Q.OnFrameUpdate,Q.OnMaterialUpdate,Q.OnObjectUpdate,Q.PCFShadowFilter,Q.PI,Q.PI2,Q.PointShadowFilter,Q.Return,Q.Schlick_to_F0,Q.ShaderNode,Q.Stack,Q.Switch,Q.TBNViewMatrix,Q.TWO_PI,Q.VSMShadowFilter,Q.V_GGX_SmithCorrelated,Q.V_GGX_SmithCorrelated_Anisotropic,Q.Var,Q.VarIntent,Q.abs,Q.acesFilmicToneMapping,Q.acos,Q.acosh,Q.add,Q.addMethodChaining,Q.addNodeElement,Q.agxToneMapping,Q.all,Q.alphaT,Q.ambientOcclusion,Q.and,Q.anisotropy,Q.anisotropyB,Q.anisotropyT,Q.any,Q.array,Q.asin,Q.asinh,Q.assign,Q.atan,Q.atanh,Q.atomicAdd,Q.atomicAnd,Q.atomicFunc,Q.atomicLoad,Q.atomicMax,Q.atomicMin,Q.atomicOr,Q.atomicStore,Q.atomicSub,Q.atomicXor,Q.attenuationColor,Q.attenuationDistance,Q.attribute,Q.attributeArray,Q.backgroundBlurriness,Q.backgroundIntensity,Q.backgroundRotation,Q.batch,Q.batchColor,Q.batchIndirectIndex,Q.bentNormalView,Q.billboarding,Q.bitAnd,Q.bitNot,Q.bitOr,Q.bitXor,Q.bitangentGeometry,Q.bitangentLocal,Q.bitangentView,Q.bitangentViewFrame,Q.bitangentWorld,Q.bitcast,Q.blendBurn,Q.blendColor,Q.blendDodge,Q.blendOverlay,Q.blendScreen,Q.bool,Q.buffer,Q.bufferAttribute,Q.builtin,Q.builtinAOContext,Q.builtinGIContext,Q.builtinShadowContext,Q.bumpMap,Q.bvec2,Q.bvec3,Q.bvec4,Q.bypass,Q.cache,Q.call,Q.cameraFar,Q.cameraIndex,Q.cameraNear,Q.cameraNormalMatrix,Q.cameraPosition;var cP=Q.cameraProjectionMatrix;Q.cameraProjectionMatrixInverse;var lP=Q.cameraViewMatrix;Q.cameraViewport,Q.cameraWorldMatrix,Q.cbrt,Q.cdl,Q.ceil,Q.checker,Q.cineonToneMapping,Q.clamp,Q.clearcoat,Q.clearcoatNormalView,Q.clearcoatRoughness,Q.clipSpace,Q.clipping,Q.clippingAlpha,Q.code,Q.color,Q.colorSpaceToWorking,Q.colorToDirection,Q.compute,Q.computeKernel,Q.computeSkinning;var uP=Q.context;Q.convert,Q.convertColorSpace;var dP=Q.convertToTexture;Q.cos,Q.cosh,Q.countLeadingZeros,Q.countOneBits,Q.countTrailingZeros,Q.cross,Q.cubeTexture,Q.cubeTextureBase,Q.dFdx,Q.dFdy,Q.dashSize,Q.debug,Q.decrement,Q.decrementBefore,Q.defaultBuildStages,Q.defaultShaderStages,Q.defined,Q.degrees,Q.deltaTime,Q.densityFogFactor,Q.depth,Q.depthPass,Q.determinant,Q.difference,Q.diffuseColor,Q.diffuseContribution,Q.directPointLight,Q.directionToColor,Q.directionToFaceDirection,Q.dispersion,Q.distance,Q.div;var fP=Q.dot;Q.dot4I8Packed,Q.dot4U8Packed,Q.drawIndex,Q.dynamicBufferAttribute,Q.element,Q.emissive,Q.equal,Q.equirectDirection,Q.equirectUV,Q.exp,Q.exp2,Q.exponentialHeightFogFactor,Q.expression,Q.faceDirection,Q.faceForward,Q.faceforward;var pP=Q.float;Q.floatBitsToInt,Q.floatBitsToUint,Q.floor,Q.fog,Q.fract,Q.frameGroup,Q.frameId,Q.frontFacing,Q.fwidth,Q.gain,Q.gapSize,Q.getConstNodeType,Q.getCurrentStack,Q.getDistanceAttenuation,Q.getGeometryRoughness,Q.getNormalFromDepth,Q.getParallaxCorrectNormal,Q.getRoughness,Q.getScreenPosition,Q.getScreenPositionFromClip,Q.getShIrradianceAt,Q.getTextureIndex,Q.getViewPosition,Q.globalId,Q.glsl,Q.glslFn,Q.grayscale,Q.greaterThan,Q.greaterThanEqual,Q.hardwareClipping,Q.hash,Q.highpModelNormalViewMatrix,Q.highpModelViewMatrix,Q.hue,Q.increment,Q.incrementBefore,Q.inspect,Q.instance,Q.instanceColor;var mP=Q.instanceIndex;Q.instancedArray,Q.instancedBufferAttribute,Q.instancedDynamicBufferAttribute,Q.instancedMesh,Q.int,Q.intBitsToFloat,Q.interleavedGradientNoise,Q.inverse,Q.inverseSqrt,Q.inversesqrt,Q.invocationLocalIndex,Q.invocationSubgroupIndex,Q.ior,Q.iridescence,Q.iridescenceIOR,Q.iridescenceThickness,Q.isolate,Q.ivec2,Q.ivec3,Q.ivec4,Q.js,Q.label;var hP=Q.length;Q.lengthSq,Q.lessThan,Q.lessThanEqual,Q.lightPosition,Q.lightProjectionUV,Q.lightShadowMatrix,Q.lightTargetDirection,Q.lightTargetPosition,Q.lightViewPosition,Q.lightingContext,Q.lights,Q.linearDepth,Q.linearToneMapping,Q.localId,Q.log,Q.log2,Q.logarithmicDepthToViewZ,Q.luminance,Q.mat2,Q.mat3,Q.mat4,Q.matcapUV,Q.materialAO,Q.materialAlphaTest,Q.materialAnisotropy,Q.materialAnisotropyVector,Q.materialAttenuationColor,Q.materialAttenuationDistance,Q.materialClearcoat,Q.materialClearcoatNormal,Q.materialClearcoatRoughness,Q.materialColor,Q.materialDispersion,Q.materialEmissive,Q.materialEnvIntensity,Q.materialEnvRotation,Q.materialIOR,Q.materialIridescence,Q.materialIridescenceIOR,Q.materialIridescenceThickness,Q.materialLightMap,Q.materialLineDashOffset,Q.materialLineDashSize,Q.materialLineGapSize,Q.materialLineScale,Q.materialLineWidth,Q.materialMetalness,Q.materialNormal,Q.materialOpacity,Q.materialPointSize,Q.materialReference,Q.materialReflectivity,Q.materialRefractionRatio,Q.materialRetroreflectivity,Q.materialRotation,Q.materialRoughness,Q.materialSheen,Q.materialSheenRoughness,Q.materialShininess,Q.materialSpecular,Q.materialSpecularColor,Q.materialSpecularIntensity,Q.materialSpecularStrength,Q.materialThickness,Q.materialTransmission,Q.max,Q.maxMipLevel,Q.mediumpModelViewMatrix,Q.metalness,Q.min;var gP=Q.mix;Q.mixElement,Q.mod,Q.modelDirection,Q.modelNormalMatrix,Q.modelPosition,Q.modelRadius,Q.modelScale,Q.modelViewMatrix,Q.modelViewPosition,Q.modelViewProjection,Q.modelWorldMatrix,Q.modelWorldMatrixInverse,Q.morphReference,Q.mrt,Q.mul,Q.mx_aastep,Q.mx_add,Q.mx_atan2,Q.mx_cell_noise_float,Q.mx_cell_noise_vec3,Q.mx_contrast,Q.mx_divide,Q.mx_fractal_noise_float,Q.mx_fractal_noise_float_2d,Q.mx_fractal_noise_vec2,Q.mx_fractal_noise_vec3,Q.mx_fractal_noise_vec4,Q.mx_frame,Q.mx_heighttonormal,Q.mx_hsvtorgb,Q.mx_ifequal,Q.mx_ifgreater,Q.mx_ifgreatereq,Q.mx_invert,Q.mx_modulo,Q.mx_multiply,Q.mx_noise_float,Q.mx_noise_vec3,Q.mx_noise_vec4,Q.mx_place2d,Q.mx_power,Q.mx_ramp4,Q.mx_ramplr,Q.mx_ramptb,Q.mx_rgbtohsv,Q.mx_rotate2d,Q.mx_rotate3d,Q.mx_safepower,Q.mx_separate,Q.mx_smoothstep,Q.mx_splitlr,Q.mx_splittb,Q.mx_srgb_texture_to_lin_rec709,Q.mx_subtract,Q.mx_timer,Q.mx_transform_uv,Q.mx_unifiednoise2d,Q.mx_unifiednoise3d,Q.mx_worley_noise_float,Q.mx_worley_noise_float_2d,Q.mx_worley_noise_float_3d,Q.mx_worley_noise_vec2,Q.mx_worley_noise_vec3,Q.mx_worley_noise_vec3_style,Q.negate,Q.negateOnBackSide,Q.neutralToneMapping,Q.nodeArray,Q.nodeImmutable,Q.nodeObject,Q.nodeObjectIntent,Q.nodeObjects,Q.nodeProxy,Q.nodeProxyConstructor,Q.nodeProxyIntent,Q.normalFlat,Q.normalGeometry,Q.normalLocal,Q.normalMap,Q.normalView,Q.normalViewGeometry,Q.normalWorld,Q.normalWorldGeometry,Q.normalize,Q.not,Q.notEqual,Q.numWorkgroups,Q.objectDirection,Q.objectGroup,Q.objectPosition,Q.objectRadius,Q.objectScale,Q.objectViewPosition,Q.objectWorldMatrix,Q.oneMinus,Q.or,Q.orthographicDepthToViewZ,Q.oscSawtooth,Q.oscSine,Q.oscSquare,Q.oscTriangle,Q.output,Q.outputStruct,Q.overloadingFn,Q.overrideNode,Q.overrideNodes,Q.pack4xI8,Q.pack4xI8Clamp,Q.pack4xU8,Q.pack4xU8Clamp,Q.packHalf2x16,Q.packNormalToRGB,Q.packSnorm2x16,Q.packSnorm4x8,Q.packUnorm2x16,Q.packUnorm4x8,Q.parabola,Q.parallaxDirection,Q.parallaxUV,Q.parameter;var _P=Q.pass,vP=Q.passTexture;Q.pcurve,Q.perspectiveDepthToViewZ,Q.pmremTexture,Q.pointShadow,Q.pointUV,Q.pointWidth;var yP=Q.positionGeometry;Q.positionLocal,Q.positionPrevious,Q.positionView,Q.positionViewDirection,Q.positionWorld,Q.positionWorldDirection,Q.posterize;var bP=Q.pow;Q.pow2,Q.pow3,Q.pow4;var xP=Q.premultiplyAlpha;Q.property,Q.quadBroadcast,Q.quadSwapDiagonal,Q.quadSwapX,Q.quadSwapY,Q.radians,Q.rand,Q.range,Q.rangeFogFactor,Q.reciprocal,Q.reference,Q.referenceBuffer,Q.reflect,Q.reflectVector,Q.reflectView,Q.reflector,Q.refract,Q.refractVector,Q.refractView,Q.reinhardToneMapping,Q.remap,Q.remapClamp,Q.renderGroup,Q.renderOutput,Q.rendererReference,Q.replaceDefaultUV,Q.retroreflectivity,Q.rotate,Q.rotateUV,Q.roughness,Q.round,Q.rtt,Q.sRGBTransferEOTF,Q.sRGBTransferOETF,Q.sample,Q.sampler,Q.samplerComparison;var SP=Q.saturate;Q.saturation,Q.screenCoordinate,Q.screenDPR,Q.screenSize,Q.screenUV,Q.select,Q.setCurrentStack,Q.setName,Q.shaderStages,Q.shadow,Q.shadowPositionWorld,Q.shapeCircle,Q.sharedUniformGroup,Q.sheen,Q.sheenRoughness,Q.shiftLeft,Q.shiftRight,Q.shininess,Q.sign,Q.sin,Q.sinc,Q.sinh,Q.skinning,Q.smoothstep,Q.smoothstepElement,Q.specularColor,Q.specularColorBlended,Q.specularF90,Q.spherizeUV,Q.split,Q.spritesheetUV,Q.sqrt,Q.stack,Q.step,Q.stepElement;var CP=Q.storage;Q.storageBarrier,Q.storageElement,Q.storageTexture,Q.storageTexture3D,Q.struct,Q.sub,Q.subBuild,Q.subgroupAdd,Q.subgroupAll,Q.subgroupAnd,Q.subgroupAny,Q.subgroupBallot,Q.subgroupBroadcast,Q.subgroupBroadcastFirst,Q.subgroupElect,Q.subgroupExclusiveAdd,Q.subgroupExclusiveMul,Q.subgroupInclusiveAdd,Q.subgroupInclusiveMul,Q.subgroupIndex,Q.subgroupMax,Q.subgroupMin,Q.subgroupMul,Q.subgroupOr,Q.subgroupShuffle,Q.subgroupShuffleDown,Q.subgroupShuffleUp,Q.subgroupShuffleXor,Q.subgroupSize,Q.subgroupXor,Q.tan,Q.tangentGeometry,Q.tangentLocal,Q.tangentView,Q.tangentViewFrame,Q.tangentWorld,Q.tanh;var wP=Q.texture;Q.texture3D,Q.texture3DLevel,Q.texture3DLoad,Q.textureBarrier,Q.textureBicubic,Q.textureBicubicLevel,Q.textureLevel,Q.textureLoad,Q.textureSize,Q.textureStore,Q.thickness,Q.time,Q.toneMapping,Q.toneMappingExposure,Q.toonOutlinePass,Q.transformDirection,Q.transformNormal,Q.transformNormalByInverseViewMatrix,Q.transformNormalByViewMatrix,Q.transformNormalToView,Q.transformedClearcoatNormalView,Q.transformedNormalView,Q.transformedNormalWorld,Q.transmission,Q.transpose,Q.triNoise3D,Q.triplanarTexture,Q.triplanarTextures,Q.trunc,Q.uint,Q.uintBitsToFloat;var TP=Q.uniform;Q.uniformArray,Q.uniformCubeTexture,Q.uniformFlow,Q.uniformGroup,Q.uniformTexture,Q.unpack4xI8,Q.unpack4xU8,Q.unpackHalf2x16,Q.unpackNormal,Q.unpackRGBToNormal,Q.unpackSnorm2x16,Q.unpackSnorm4x8,Q.unpackUnorm2x16,Q.unpackUnorm4x8;var EP=Q.unpremultiplyAlpha;Q.userData;var DP=Q.uv;Q.uvec2,Q.uvec3,Q.uvec4;var OP=Q.varying;Q.varyingProperty;var kP=Q.vec2,AP=Q.vec3,jP=Q.vec4;Q.vectorComponents,Q.velocity,Q.vertexColor,Q.vertexIndex,Q.vertexStage,Q.vibrance,Q.viewZToLogarithmicDepth,Q.viewZToOrthographicDepth,Q.viewZToPerspectiveDepth,Q.viewZToReversedOrthographicDepth,Q.viewZToReversedPerspectiveDepth,Q.viewport,Q.viewportCoordinate,Q.viewportDepthTexture,Q.viewportLinearDepth,Q.viewportMipTexture,Q.viewportOpaqueMipTexture,Q.viewportSafeUV,Q.viewportSharedTexture,Q.viewportSize,Q.viewportTexture,Q.viewportUV,Q.vogelDiskSample,Q.wgsl,Q.wgslFn,Q.workgroupArray,Q.workgroupBarrier,Q.workgroupId,Q.workingToColorSpace,Q.xor;var MP=new vC,NP,PP=class extends rs{static get type(){return`GaussianBlurNode`}constructor(e,t=null,n=4,r={}){super(`vec4`),this.textureNode=e,this.directionNode=t,this.sigma=n,this._invSize=TP(new O),this._horizontalRT=new bn(1,1,{depthBuffer:!1}),this._horizontalRT.texture.name=`GaussianBlurNode.horizontal`,this._verticalRT=new bn(1,1,{depthBuffer:!1}),this._verticalRT.texture.name=`GaussianBlurNode.vertical`,this._textureNode=vP(this,this._verticalRT.texture),this._textureNode.uvNode=e.uvNode,this._hMaterial=null,this._vMaterial=null,this.updateBeforeType=A.FRAME,this.resolutionScale=r.resolutionScale||1,this.premultipliedAlpha=r.premultipliedAlpha||!1,this.isGaussianBlurNode=!0}setSize(e,t){e=Math.max(Math.round(e*this.resolutionScale),1),t=Math.max(Math.round(t*this.resolutionScale),1),this._invSize.value.set(1/e,1/t),this._horizontalRT.setSize(e,t),this._verticalRT.setSize(e,t)}updateBefore(e){let{renderer:t}=e;NP=OC.resetRendererState(t,NP);let n=this.textureNode.value;MP.material=this._hMaterial,this.setSize(n.image.width,n.image.height);let r=n.type;this._horizontalRT.texture.type=r,this._verticalRT.texture.type=r,t.setRenderTarget(this._horizontalRT),MP.name=`Gaussian Blur [ Horizontal Pass ]`,MP.render(t),MP.material=this._vMaterial,t.setRenderTarget(this._verticalRT),MP.name=`Gaussian Blur [ Vertical Pass ]`,MP.render(t),OC.restoreRendererState(t,NP)}getTextureNode(){return this._textureNode}setup(e){let t=DP(),n=kP(this.directionNode||1),r=sP(([e,r])=>{let i,a;this.premultipliedAlpha?(i=t=>xP(e.sample(t)),a=e=>EP(e)):(i=t=>e.sample(t),a=e=>e);let o=3+2*this.sigma,s=this._getCoefficients(o),c=this._invSize,l=n.mul(r),u=jP(i(t).mul(s[0])).toVar();for(let e=1;e<o;e++){let n=pP(e),r=pP(s[e]),a=kP(l.mul(c.mul(n))).toVar(),o=i(t.add(a)),d=i(t.sub(a));u.addAssign(o.add(d).mul(r))}return a(u)}),i=this.textureNode;this._hMaterial=this._hMaterial||new N_,this._hMaterial.contextNode=uP(e.getSharedContext()),this._hMaterial.fragmentNode=r(i,kP(1,0)),this._hMaterial.name=`Gaussian_blur_horizontal`,this._hMaterial.needsUpdate=!0;let a=wP(this._horizontalRT.texture,DP());this._vMaterial=this._vMaterial||new N_,this._vMaterial.fragmentNode=r(a,kP(0,1)),this._vMaterial.name=`Gaussian_blur_vertical`,this._vMaterial.needsUpdate=!0;let o=e.getNodeProperties(this);return o.hTextureNode=i,o.vTextureNode=a,this._textureNode}dispose(){this._horizontalRT.dispose(),this._verticalRT.dispose(),this._hMaterial!==null&&(this._hMaterial.dispose(),this._vMaterial.dispose(),this._hMaterial=null,this._vMaterial=null),super.dispose()}_getCoefficients(e){let t=[],n=e/3,r=1;t.push(1);for(let i=1;i<e;i++){let e=Math.exp(-.5*i*i/(n*n));t.push(e),r+=2*e}return t.map(e=>e/r)}get resolution(){return Ct('THREE.GaussianBlurNode: The "resolution" property has been renamed to "resolutionScale" and is now of type `number`.'),new O(this.resolutionScale,this.resolutionScale)}set resolution(e){Ct('THREE.GaussianBlurNode: The "resolution" property has been renamed to "resolutionScale" and is now of type `number`.'),this.resolutionScale=e.x}},FP=(e,t,n,r={})=>new PP(dP(e),t,n,r),IP=async()=>{let e=document.getElementById(`renderCanvas`),t=await navigator.gpu?.requestAdapter({powerPreference:`high-performance`});if(!t)throw Error(`WebGPU is not supported in this browser`);let n={};for(let e in t.limits)e!==`minSubgroupSize`&&e!==`maxSubgroupSize`&&(n[e]=t.limits[e]);let r=await t.requestDevice({requiredFeatures:[...t.features],requiredLimits:n}),i=new iP({canvas:e,device:r});await i.init();let a=new ar,o=new Ba(45,1,.1,1e4),s=HP(o,e),c=()=>{i.setSize(e.clientWidth,e.clientHeight,!1),o.aspect=e.clientWidth/e.clientHeight,o.updateProjectionMatrix()};return c(),window.addEventListener(`resize`,c),{device:r,renderer:i,scene:a,camera:o,controls:s}},LP=1/250,RP=300,zP=5,BP=Math.PI/2-.001,VP={KeyW:new k(0,0,-1),KeyS:new k(0,0,1),KeyA:new k(-1,0,0),KeyD:new k(1,0,0),KeyE:new k(0,1,0),KeyQ:new k(0,-1,0)},HP=(e,t)=>{e.rotation.order=`YXZ`;let n=new Set,r=new Map,i=0,a=()=>{let[e,t]=[...r.values()];return Math.hypot(e.x-t.x,e.y-t.y)};t.addEventListener(`pointerdown`,e=>{t.setPointerCapture(e.pointerId),r.set(e.pointerId,{x:e.clientX,y:e.clientY}),r.size===2&&(i=a()),e.pointerType===`mouse`&&t.requestPointerLock?.()?.catch(()=>{})}),t.addEventListener(`pointermove`,n=>{let o=r.get(n.pointerId);if(!o)return;let s=document.pointerLockElement===t,c=s?n.movementX:n.clientX-o.x,l=s?n.movementY:n.clientY-o.y;if(o.x=n.clientX,o.y=n.clientY,r.size===1)e.rotation.y-=c*LP,e.rotation.x=Qt.clamp(e.rotation.x-l*LP,-BP,BP);else if(r.size===2){let t=a();e.translateZ((i-t)*zP),i=t}});let o=e=>{r.delete(e.pointerId),r.size===2&&(i=a()),e.pointerType===`mouse`&&document.exitPointerLock?.()};t.addEventListener(`pointerup`,o),t.addEventListener(`pointercancel`,o),t.addEventListener(`contextmenu`,e=>e.preventDefault()),window.addEventListener(`keydown`,e=>{e.ctrlKey||e.metaKey||e.altKey||n.add(e.code)}),window.addEventListener(`keyup`,e=>n.delete(e.code)),window.addEventListener(`blur`,()=>n.clear());let s=new k;return{update:t=>{s.set(0,0,0);for(let e of n){let t=VP[e];t&&s.add(t)}s.lengthSq()!==0&&(s.multiplyScalar(RP*t).applyQuaternion(e.quaternion),e.position.add(s))}}},UP=({gravity:e,centralMass:t,diskMass:n,rMin:r,rMax:i,halfThickness:a,softening:o})=>{let s=o*o,c=(i-r)/192,l=Math.PI/256,u=a/4,d=n/(Math.PI*(i*i-r*r)*2*a),f=new Float64Array(256);for(let e=0;e<256;e++)f[e]=Math.cos((e+.5)*l);let p=new Float64Array(64);for(let n=0;n<64;n++){let a=r+n/63*(i-r),o=0;for(let e=0;e<192;e++){let t=r+(e+.5)*c,n=4*d*t*c*l*u;for(let e=0;e<4;e++){let r=(e+.5)*u,i=a*a+t*t+r*r+s;for(let e=0;e<256;e++){let r=f[e],s=i-2*a*t*r;o+=n*(a-t*r)/(s*Math.sqrt(s))}}}let m=t*a/(a*a+s)**1.5,h=e*(o+m);p[n]=Math.sqrt(Math.max(0,h*a))}return e=>{let t=(e-r)/(i-r)*63,n=Qt.clamp(Math.floor(t),0,62),a=Qt.clamp(t-n,0,1);return Qt.lerp(p[n],p[n+1],a)}},WP=(e,t,n)=>{let r=Math.sqrt(Qt.randFloat(e*e,t*t)),i=Math.random()*2*Math.PI,a=Qt.randFloat(-n,n);return new k(r*Math.cos(i),a,r*Math.sin(i))},GP=`// Declarations the compute kernels share. shaders/index.ts appends this file to each
 // kernel, which binds params itself; anything a kernel doesn't use is ignored.
+
+// bhTree's and bhSummarize's workgroup size, which their strides and first-workgroup
+// tests are written in terms of
+const WORKGROUP_SIZE = 256u;
 
 // The uniform block every kernel reads. Its layout must match updateParams in main.ts.
 struct Params {
   numBodies: u32,
   gravity: f32,
   deltaTime: f32,
-  blackHoleMass: f32,
   softening: f32,
   theta: f32,
   maxNodes: u32,
@@ -558,23 +561,109 @@ struct Motion {
 // An octree node, 64 bytes. bhTree builds it through an atomic view of the same layout.
 // A zeroed node is an empty node, which is what bhClear resets nodes to.
 struct Node {
-  sums: vec4<i32>, // integer mass, then moment relative to the centre in half sizes
+  sums: vec4<i32>, // integer mass, then moment relative to the centre (see momentExponent)
   geom: vec4<f32>, // center xyz, half size
   // 0 = empty, > 0 = node index (the root is never a child), < 0 = body (-1 - bodyIdx)
   children: array<i32, 8>,
 };
 
+// A node's integer second moment about its centre (mass * offset * offset), in units of
+// 2^(2 * momentExponent), 32 bytes. bhTree builds it through an atomic view of the same
+// layout. Kept apart from Node so the force pass's node reads stay small.
+struct SecondMoment {
+  diag: vec3<i32>, // xx, yy, zz
+  cross: vec3<i32>, // xy, xz, yz
+};
+
+// A node's moment is in units of 2^momentExponent(halfSize), the power of two just above
+// its half size. It comes straight from the half size's bits, and scaling by it is exact,
+// so every place bhTree works out a body's moment for a node gets the same integers (a
+// division could round differently in each, which makes the tree depend on timing).
+fn momentExponent(halfSize: f32) -> i32 {
+  return i32((bitcast<u32>(halfSize) >> 23u) & 0xFFu) - 126;
+}
+
+// MAX_DEPTH=30 permits internal children through depth 31. A depth-first walk
+// needs at most 1 + 7*31 pending nodes, so 256 entries cover every valid tree.
+const STACK_SIZE = 256;
+
+// Softened acceleration towards a point mass at offset r
+fn attraction(r: vec3<f32>, mass: f32) -> vec3<f32> {
+  let invDist = inverseSqrt(dot(r, r) + params.softening * params.softening);
+  return r * (params.gravity * mass * invDist * invDist * invDist);
+}
+
+// Softened acceleration towards a node's mass and quadrupole, at offset r from its centre
+// of mass. This is the softened point mass's potential expanded to second order about the
+// centre of mass (the first-order term is zero there), so it is exact for a single body.
+// gm is gravity * mass; quad holds gravity * the traceless quadrupole (3 * second moment
+// - trace), and softTrace is gravity * softening^2 * trace (see bhSummarize).
+fn quadrupoleAttraction(r: vec3<f32>, gm: f32, quad: mat3x3<f32>, softTrace: f32) -> vec3<f32> {
+  let invDist = inverseSqrt(dot(r, r) + params.softening * params.softening);
+  let invDistSq = invDist * invDist;
+  let qr = quad * r;
+  let radial = gm + 2.5 * invDistSq * invDistSq * (dot(r, qr) - softTrace);
+  return (radial * r - invDistSq * qr) * (invDistSq * invDist);
+}
+
+// Unpacks a child's quadrupole record (see bhSummarize) for quadrupoleAttraction. The
+// record is normalized by the child's mass * size^2; scale is gravity times that.
+struct Quadrupole {
+  quad: mat3x3<f32>,
+  softTrace: f32,
+};
+fn unpackQuadrupole(packed: vec4<u32>, scale: f32) -> Quadrupole {
+  let diag = unpack2x16float(packed.x) * scale; // xx, yy
+  let cross = unpack2x16float(packed.y) * scale; // xy, xz
+  let rest = unpack2x16float(packed.z) * scale; // yz, trace
+  let quad = mat3x3<f32>(
+    vec3(diag.x, cross.x, cross.y),
+    vec3(cross.x, diag.y, rest.x),
+    vec3(cross.y, rest.x, -diag.x - diag.y));
+  return Quadrupole(quad, params.softening * params.softening * rest.y);
+}
+
 // bhTree drops bodies that would need nodes deeper than this
 const MAX_DEPTH = 30u;
 
-// bhTree's complete three-level prefix: 1 + 8 + 64 + 512 nodes. bhBounds reserves it
-// before bhTree allocates the rest.
+// The child octant of a node centred at center that pos falls in
+fn octantOf(pos: vec3<f32>, center: vec3<f32>) -> u32 {
+  var octant = 0u;
+  if (pos.x > center.x) { octant |= 1u; }
+  if (pos.y > center.y) { octant |= 2u; }
+  if (pos.z > center.z) { octant |= 4u; }
+  return octant;
+}
+
+// Bounds are reduced as uints with atomicMin/Max. Positive floats get the sign bit set and
+// negative floats have all bits flipped, so comparing the uints orders them like the floats.
+fn floatToOrdered(f: f32) -> u32 {
+  let bits = bitcast<u32>(f);
+  return select(bits | 0x80000000u, ~bits, (bits & 0x80000000u) != 0u);
+}
+
+fn orderedToFloat(bits: u32) -> f32 {
+  return bitcast<f32>(select(~bits, bits & 0x7FFFFFFFu, (bits & 0x80000000u) != 0u));
+}
+
+// bhTree seeds a complete prefix, the root and the TOP_LEVELS levels below it: 1 + 8 + 64
+// + 512 nodes, in breadth-first order, so it can sum them per workgroup instead of
+// contending on global atomics near the root. bhBounds reserves it before bhTree
+// allocates the rest.
+const TOP_LEVELS = 3u;
 const TOP_NODES = 585u;
+// The prefix nodes above its last level: 1 + 8 + 64
+const TOP_INTERNAL = 73u;
 
 // Small trees seed only the root, so the prefix doesn't consume most of their
 // allocation budget
 fn seedsTopPrefix() -> bool {
   return params.numBodies >= 1024u && params.maxNodes >= TOP_NODES;
+}
+
+// The nodes bhBounds reserves and bhTree seeds: the prefix, or just the root
+fn seededNodes() -> u32 {
+  return select(1u, TOP_NODES, seedsTopPrefix());
 }
 `,KP=`// Params and Motion are shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
@@ -599,13 +688,28 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 }
 `,qP=`// Node (see common.wgsl), with atomics so invocations can build the tree concurrently
 struct BuildNode {
-  massInt: atomic<i32>,
-  comXInt: atomic<i32>,
-  comYInt: atomic<i32>,
-  comZInt: atomic<i32>,
+  sums: array<atomic<i32>, 4>,
   center: vec3<f32>,
   halfSize: f32,
   children: array<atomic<i32>, 8>,
+};
+
+// SecondMoment (see common.wgsl), with atomics
+struct BuildSecondMoment {
+  diag: array<atomic<i32>, 3>,
+  @align(16) cross: array<atomic<i32>, 3>,
+};
+
+// A body's integer sums for one node (see contribution)
+struct Sums {
+  first: vec4<i32>, // mass, then moment xyz
+  diag: vec3<i32>, // second moment xx, yy, zz
+  cross: vec3<i32>, // second moment xy, xz, yz
+};
+
+struct Box {
+  min: vec3<f32>,
+  max: vec3<f32>,
 };
 
 // Params is shared by every kernel, see common.wgsl
@@ -614,75 +718,140 @@ struct BuildNode {
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read_write> nodes : array<BuildNode>;
 @group(0) @binding(3) var<storage, read_write> allocator : atomic<u32>;
-// Min xyz then max xyz of all body positions, as order-preserving uints (see bhBounds)
+// Min xyz then max xyz of all body positions, as ordered uints (see floatToOrdered)
 @group(0) @binding(4) var<storage, read> bounds : array<u32, 6>;
 // Number of bodies under each node, for putting bodies in tree order (see bhOrder)
 @group(0) @binding(5) var<storage, read_write> counts : array<atomic<u32>>;
+// Built for every node below the prefix; bhSummarize works out the prefix's own
+@group(0) @binding(6) var<storage, read_write> secondMoments : array<BuildSecondMoment>;
 
-// Seed a complete three-level prefix of TOP_NODES (see common.wgsl), in breadth-first
-// order. Workgroup aggregation removes most global atomic contention near the root.
-const TOP_LEVELS = 3u;
-const TOP_INTERNAL = 73u;
-struct TopSum {
-  mass: atomic<i32>,
-  x: atomic<i32>,
-  y: atomic<i32>,
-  z: atomic<i32>,
-  count: atomic<u32>,
-}
-// Together these use 15,776 bytes, within WebGPU's 16 KiB baseline limit.
-var<workgroup> rootSums: array<vec4<i32>, 256>;
-var<workgroup> topSums: array<TopSum, TOP_NODES - 1u>;
+// Workgroup sums are kept as five words: mass, moment xyz, then the number of bodies.
+// scratch first holds them for each prefix node below the root. Then it caches the sums
+// insertion adds to the CACHED_LEVELS levels below the prefix, where clustered bodies
+// still share nodes: CACHE_SIZE node indices, then CACHE_WORDS sums per entry (the five,
+// then the second moment). Integer sums don't depend on the order they're added in, so
+// the tree comes out the same.
+const SCRATCH_WORDS = (TOP_NODES - 1u) * 5u;
+const CACHE_WORDS = 11u;
+const CACHE_SIZE = SCRATCH_WORDS / (CACHE_WORDS + 1u);
+const CACHED_LEVELS = 4u;
+const EMPTY_SLOT = -1;
+var<workgroup> rootSums: array<vec4<i32>, WORKGROUP_SIZE>;
+var<workgroup> scratch: array<atomic<i32>, SCRATCH_WORDS>;
+// Within WebGPU's 16 KiB baseline limit (15,776 bytes)
+const_assert (WORKGROUP_SIZE * 4u + SCRATCH_WORDS) * 4u <= 16384u;
 
-fn orderedToFloat(bits: u32) -> f32 {
-  return bitcast<f32>(select(~bits, bits & 0x7FFFFFFFu, (bits & 0x80000000u) != 0u));
-}
-
-fn getOctant(pos: vec3<f32>, min: vec3<f32>, max: vec3<f32>) -> u32 {
-  let center = (min + max) * 0.5;
-  var octant = 0u;
-  if (pos.x > center.x) { octant |= 1u; }
-  if (pos.y > center.y) { octant |= 2u; }
-  if (pos.z > center.z) { octant |= 4u; }
-  return octant;
+fn getOctant(pos: vec3<f32>, box: Box) -> u32 {
+  return octantOf(pos, (box.min + box.max) * 0.5);
 }
 
-// Add a body's mass and moment to a node using integer atomics.
-// The moment is stored relative to the node's centre in units of its half size, so each
-// body contributes at most +-mass * massScale per axis (sums can't overflow) and the
-// precision is the same at every depth. bhSummarize decodes it back to a centre of mass.
-fn accumulate(nodeIdx: i32, body: vec4<f32>, nodeMin: vec3<f32>, nodeMax: vec3<f32>) {
+fn octantBox(box: Box, octant: u32) -> Box {
+  let upper = vec3<bool>((octant & 1u) != 0u, (octant & 2u) != 0u, (octant & 4u) != 0u);
+  let center = (box.min + box.max) * 0.5;
+  return Box(select(box.min, center, upper), select(center, box.max, upper));
+}
+
+// A body's integer mass, moment and second moment for a node.
+// Moments are stored relative to the node's centre in units of the power of two just
+// above its half size (see common.wgsl), so each body contributes less than
+// +-mass * massScale to each component (sums can't overflow) and the precision is about
+// the same at every depth. bhSummarize decodes them back to a centre of mass and quadrupole.
+fn contribution(body: vec4<f32>, nodeMin: vec3<f32>, nodeMax: vec3<f32>) -> Sums {
   let center = (nodeMin + nodeMax) * 0.5;
   let halfSize = (nodeMax.x - nodeMin.x) * 0.5;
   let weight = body.w * params.massScale;
-  let moment = (body.xyz - center) / halfSize * weight;
-  atomicAdd(&nodes[nodeIdx].massInt, i32(round(weight)));
-  atomicAdd(&nodes[nodeIdx].comXInt, i32(round(moment.x)));
-  atomicAdd(&nodes[nodeIdx].comYInt, i32(round(moment.y)));
-  atomicAdd(&nodes[nodeIdx].comZInt, i32(round(moment.z)));
-  atomicAdd(&counts[nodeIdx], 1u);
+  // Inside (-1, 1). Each product below rounds once, the same way wherever it's computed.
+  let offset = ldexp(body.xyz - center, vec3(-momentExponent(halfSize)));
+  let moment = offset * weight;
+  return Sums(vec4<i32>(i32(round(weight)), vec3<i32>(round(moment))),
+    vec3<i32>(round(moment * offset)), vec3<i32>(round(moment.xxy * offset.yzz)));
 }
 
-@compute @workgroup_size(256)
+// Adds mass and moment sums covering count bodies to a node using integer atomics
+fn addFirstToNode(nodeIdx: i32, first: vec4<i32>, count: u32) {
+  atomicAdd(&nodes[nodeIdx].sums[0], first.x);
+  atomicAdd(&nodes[nodeIdx].sums[1], first.y);
+  atomicAdd(&nodes[nodeIdx].sums[2], first.z);
+  atomicAdd(&nodes[nodeIdx].sums[3], first.w);
+  atomicAdd(&counts[nodeIdx], count);
+}
+
+fn addSecondToNode(nodeIdx: i32, diag: vec3<i32>, cross: vec3<i32>) {
+  atomicAdd(&secondMoments[nodeIdx].diag[0], diag.x);
+  atomicAdd(&secondMoments[nodeIdx].diag[1], diag.y);
+  atomicAdd(&secondMoments[nodeIdx].diag[2], diag.z);
+  atomicAdd(&secondMoments[nodeIdx].cross[0], cross.x);
+  atomicAdd(&secondMoments[nodeIdx].cross[1], cross.y);
+  atomicAdd(&secondMoments[nodeIdx].cross[2], cross.z);
+}
+
+// Adds one body's sums to a node
+fn addToNode(nodeIdx: i32, sums: Sums) {
+  addFirstToNode(nodeIdx, sums.first, 1u);
+  addSecondToNode(nodeIdx, sums.diag, sums.cross);
+}
+
+// Adds one body's mass and moment to the five scratch words at base
+fn addToScratch(base: u32, first: vec4<i32>) {
+  atomicAdd(&scratch[base], first.x);
+  atomicAdd(&scratch[base + 1u], first.y);
+  atomicAdd(&scratch[base + 2u], first.z);
+  atomicAdd(&scratch[base + 3u], first.w);
+  atomicAdd(&scratch[base + 4u], 1);
+}
+
+// Adds the five scratch words at base to a node, if any bodies were added to them
+fn flushScratch(base: u32, nodeIdx: i32) {
+  let count = atomicLoad(&scratch[base + 4u]);
+  if (count > 0) {
+    let first = vec4(atomicLoad(&scratch[base]), atomicLoad(&scratch[base + 1u]),
+      atomicLoad(&scratch[base + 2u]), atomicLoad(&scratch[base + 3u]));
+    addFirstToNode(nodeIdx, first, u32(count));
+  }
+}
+
+// Adds a body's sums to the node's cache entry, claiming a free one if it has none.
+// Returns false if the few slots it may use belong to other nodes.
+fn addToCache(nodeIdx: i32, sums: Sums) -> bool {
+  var slot = ((u32(nodeIdx) * 2654435761u) >> 16u) % CACHE_SIZE;
+  for (var probe = 0u; probe < 4u; probe++) {
+    // A spurious failure just moves on, so a node can end up with two entries
+    let claim = atomicCompareExchangeWeak(&scratch[slot], EMPTY_SLOT, nodeIdx);
+    if (claim.exchanged || claim.old_value == nodeIdx) {
+      let base = CACHE_SIZE + slot * CACHE_WORDS;
+      addToScratch(base, sums.first);
+      atomicAdd(&scratch[base + 5u], sums.diag.x);
+      atomicAdd(&scratch[base + 6u], sums.diag.y);
+      atomicAdd(&scratch[base + 7u], sums.diag.z);
+      atomicAdd(&scratch[base + 8u], sums.cross.x);
+      atomicAdd(&scratch[base + 9u], sums.cross.y);
+      atomicAdd(&scratch[base + 10u], sums.cross.z);
+      return true;
+    }
+    slot = (slot + 1u) % CACHE_SIZE;
+  }
+  return false;
+}
+
+@compute @workgroup_size(WORKGROUP_SIZE)
 fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation_id) lid: vec3<u32>) {
   // Root is a cube around all bodies, padded so none sit exactly on its boundary
   let lo = vec3(orderedToFloat(bounds[0]), orderedToFloat(bounds[1]), orderedToFloat(bounds[2]));
   let hi = vec3(orderedToFloat(bounds[3]), orderedToFloat(bounds[4]), orderedToFloat(bounds[5]));
   let extent = hi - lo;
   let rootHalfSize = max(max(extent.x, extent.y), extent.z) * 0.51 + 1.0;
-  let rootMin = (lo + hi) * 0.5 - vec3(rootHalfSize);
-  let rootMax = (lo + hi) * 0.5 + vec3(rootHalfSize);
+  let root = Box((lo + hi) * 0.5 - vec3(rootHalfSize), (lo + hi) * 0.5 + vec3(rootHalfSize));
 
   let seedPrefix = seedsTopPrefix();
   let topLevels = select(0u, TOP_LEVELS, seedPrefix);
-  let topNodes = select(1u, TOP_NODES, seedPrefix);
+  let topNodes = seededNodes();
 
   // Only the first workgroup initializes the prefix. Its strided loop covers all
   // 585 nodes even when fewer than 585 body invocations are dispatched.
   // Insertion starts BELOW its internal links and computes geometry locally, so
   // no insertion reads these writes; the next dispatch observes the finished tree.
-  if (id.x < 256u) {
-    for (var index = lid.x; index < topNodes; index += 256u) {
+  if (id.x < WORKGROUP_SIZE) {
+    for (var index = lid.x; index < topNodes; index += WORKGROUP_SIZE) {
       var path: array<u32, TOP_LEVELS>;
       var n = index;
       var depth = 0u;
@@ -691,101 +860,89 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
         n = (n - 1u) / 8u;
         depth++;
       }
-      var lo = rootMin;
-      var hi = rootMax;
+      var box = root;
       while (depth > 0u) {
         depth--;
-        let octant = path[depth];
-        let upper = vec3<bool>((octant & 1u) != 0u, (octant & 2u) != 0u, (octant & 4u) != 0u);
-        let center = (lo + hi) * 0.5;
-        lo = select(lo, center, upper);
-        hi = select(center, hi, upper);
+        box = octantBox(box, path[depth]);
       }
-      nodes[index].center = (lo + hi) * 0.5;
-      nodes[index].halfSize = (hi.x - lo.x) * 0.5;
-      if (topLevels > 0u && index < TOP_INTERNAL) {
+      nodes[index].center = (box.min + box.max) * 0.5;
+      nodes[index].halfSize = (box.max.x - box.min.x) * 0.5;
+      if (seedPrefix && index < TOP_INTERNAL) {
         for (var octant = 0u; octant < 8u; octant++) {
           atomicStore(&nodes[index].children[octant], i32(index * 8u + 1u + octant));
         }
       }
     }
   }
-  for (var n = lid.x; n < topNodes - 1u; n += 256u) {
-    atomicStore(&topSums[n].mass, 0);
-    atomicStore(&topSums[n].x, 0);
-    atomicStore(&topSums[n].y, 0);
-    atomicStore(&topSums[n].z, 0);
-    atomicStore(&topSums[n].count, 0u);
+  for (var word = lid.x; word < SCRATCH_WORDS; word += WORKGROUP_SIZE) {
+    atomicStore(&scratch[word], 0);
   }
   workgroupBarrier();
 
   var startNode = 0u;
-  var startMin = rootMin;
-  var startMax = rootMax;
+  var start = root;
   if (id.x < params.numBodies) {
     let body = posMass[id.x];
-    let weight = body.w * params.massScale;
     for (var depth = 0u; depth < topLevels; depth++) {
-      let octant = getOctant(body.xyz, startMin, startMax);
-      let upper = vec3<bool>((octant & 1u) != 0u, (octant & 2u) != 0u, (octant & 4u) != 0u);
-      let center = (startMin + startMax) * 0.5;
-      startMin = select(startMin, center, upper);
-      startMax = select(center, startMax, upper);
+      let octant = getOctant(body.xyz, start);
+      start = octantBox(start, octant);
       startNode = startNode * 8u + 1u + octant;
-      let moment = (body.xyz - (startMin + startMax) * 0.5) / ((startMax.x - startMin.x) * 0.5) * weight;
-      let n = startNode - 1u;
-      // Round each body's contribution before reduction, just as accumulate does.
-      atomicAdd(&topSums[n].mass, i32(round(weight)));
-      atomicAdd(&topSums[n].x, i32(round(moment.x)));
-      atomicAdd(&topSums[n].y, i32(round(moment.y)));
-      atomicAdd(&topSums[n].z, i32(round(moment.z)));
-      atomicAdd(&topSums[n].count, 1u);
+      // Round each body's contribution before reduction, just as insertion does.
+      addToScratch((startNode - 1u) * 5u, contribution(body, start.min, start.max).first);
     }
   }
   workgroupBarrier();
-  for (var n = lid.x; n < topNodes - 1u; n += 256u) {
-    let count = atomicLoad(&topSums[n].count);
-    if (count > 0u) {
-      atomicAdd(&nodes[n + 1u].massInt, atomicLoad(&topSums[n].mass));
-      atomicAdd(&nodes[n + 1u].comXInt, atomicLoad(&topSums[n].x));
-      atomicAdd(&nodes[n + 1u].comYInt, atomicLoad(&topSums[n].y));
-      atomicAdd(&nodes[n + 1u].comZInt, atomicLoad(&topSums[n].z));
-      atomicAdd(&counts[n + 1u], count);
-    }
+  for (var n = lid.x; n < topNodes - 1u; n += WORKGROUP_SIZE) {
+    flushScratch(n * 5u, i32(n + 1u));
   }
 
-  var contribution = vec4<i32>(0);
+  var rootSum = vec4<i32>(0);
   if (id.x < params.numBodies) {
-    let body = posMass[id.x];
-    let weight = body.w * params.massScale;
-    let moment = (body.xyz - (rootMin + rootMax) * 0.5) / ((rootMax.x - rootMin.x) * 0.5) * weight;
-    contribution = vec4<i32>(i32(round(weight)), vec3<i32>(round(moment)));
+    rootSum = contribution(posMass[id.x], root.min, root.max).first;
   }
-  rootSums[lid.x] = contribution;
+  rootSums[lid.x] = rootSum;
   workgroupBarrier();
-  for (var stride = 128u; stride > 0u; stride >>= 1u) {
+  for (var stride = WORKGROUP_SIZE / 2u; stride > 0u; stride >>= 1u) {
     if (lid.x < stride) { rootSums[lid.x] += rootSums[lid.x + stride]; }
     workgroupBarrier();
   }
   if (lid.x == 0u) {
-    atomicAdd(&nodes[0].massInt, rootSums[0].x);
-    atomicAdd(&nodes[0].comXInt, rootSums[0].y);
-    atomicAdd(&nodes[0].comYInt, rootSums[0].z);
-    atomicAdd(&nodes[0].comZInt, rootSums[0].w);
-    atomicAdd(&counts[0], min(256u, params.numBodies - id.x));
-  }
-  if (id.x >= params.numBodies) {
-    return;
+    addFirstToNode(0, rootSums[0], min(WORKGROUP_SIZE, params.numBodies - id.x));
   }
 
-  let bodyIdx = i32(id.x);
+  // Every invocation has finished with the prefix sums (the barriers above), so scratch
+  // becomes the cache for insertion
+  for (var word = lid.x; word < SCRATCH_WORDS; word += WORKGROUP_SIZE) {
+    atomicStore(&scratch[word], select(0, EMPTY_SLOT, word < CACHE_SIZE));
+  }
+  workgroupBarrier();
+
+  if (id.x < params.numBodies) {
+    insertBody(i32(id.x), startNode, start, topLevels);
+  }
+
+  // Once the whole workgroup has inserted its bodies, add the cached sums to the tree.
+  // Nothing reads node sums until the next dispatch.
+  workgroupBarrier();
+  for (var slot = lid.x; slot < CACHE_SIZE; slot += WORKGROUP_SIZE) {
+    let nodeIdx = atomicLoad(&scratch[slot]);
+    if (nodeIdx != EMPTY_SLOT) {
+      let base = CACHE_SIZE + slot * CACHE_WORDS;
+      flushScratch(base, nodeIdx);
+      addSecondToNode(nodeIdx,
+        vec3(atomicLoad(&scratch[base + 5u]), atomicLoad(&scratch[base + 6u]), atomicLoad(&scratch[base + 7u])),
+        vec3(atomicLoad(&scratch[base + 8u]), atomicLoad(&scratch[base + 9u]), atomicLoad(&scratch[base + 10u])));
+    }
+  }
+}
+
+// Inserts a body below the prefix node it starts in. The prefix already contains this
+// body's contributions; build only below it.
+fn insertBody(bodyIdx: i32, startNode: u32, start: Box, topLevels: u32) {
   let body = posMass[bodyIdx];
-
-  // The prefix already contains this body's contributions; build only below it.
   var nodeIdx = i32(startNode);
   var depth = topLevels;
-  var min = startMin;
-  var max = startMax;
+  var box = start;
 
   // A node this thread allocated but lost the race to link in, kept for its next split.
   // Without reuse, every thread that loses a race leaks a node, which adds up to several
@@ -793,86 +950,66 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   var spareNode = -1i;
 
   loop {
-    // Update Mass/COM for current node (using atomics)
-    if (depth > topLevels) { accumulate(nodeIdx, body, min, max); }
+    // Nodes on this path are already linked into the tree, so their sums can wait in the
+    // workgroup's cache
+    if (depth > topLevels) {
+      let sums = contribution(body, box.min, box.max);
+      if (depth > topLevels + CACHED_LEVELS || !addToCache(nodeIdx, sums)) {
+        addToNode(nodeIdx, sums);
+      }
+    }
 
-    let octant = getOctant(body.xyz, min, max);
+    let octant = getOctant(body.xyz, box);
     let childPtr = &nodes[nodeIdx].children[octant];
+    let childBox = octantBox(box, octant);
 
-    // Bounds of the child octant
-    let center = (min + max) * 0.5;
-    var childMin = min;
-    var childMax = max;
-    if ((octant & 1u) != 0u) { childMin.x = center.x; } else { childMax.x = center.x; }
-    if ((octant & 2u) != 0u) { childMin.y = center.y; } else { childMax.y = center.y; }
-    if ((octant & 4u) != 0u) { childMin.z = center.z; } else { childMax.z = center.z; }
-
-    // CAS loop to insert or descend.
+    // Insert the body or descend, retrying whenever a CAS fails.
     // This is lock-free on purpose: WebGPU doesn't guarantee threads waiting on a lock let
     // the thread holding it run, so a spin lock here can hang the GPU.
-    var done = false;
-    var childNode = 0i;
     loop {
       let oldVal = atomicLoad(childPtr);
 
       if (oldVal == 0) {
-        // Case 1: Empty. Insert Body (encoded as -1 - bodyIdx)
-        done = atomicCompareExchangeWeak(childPtr, 0, -1 - bodyIdx).exchanged;
+        // Empty: insert the body
+        if (atomicCompareExchangeWeak(childPtr, 0, -1 - bodyIdx).exchanged) { return; }
       } else if (oldVal > 0) {
-        // Case 2: It's a Node. Descend into it
-        childNode = oldVal;
+        // A node: descend into it
+        nodeIdx = oldVal;
+        break;
       } else {
-        // Case 3: It's another Body. We need to split.
+        // Another body: split
         var newNodeIdx = spareNode;
         if (newNodeIdx < 0) {
           newNodeIdx = i32(atomicAdd(&allocator, 1u));
         }
-
         if (u32(newNodeIdx) >= params.maxNodes) {
           // Out of nodes: drop this body
-          done = true;
-        } else {
-          // Write new node geometry (the rest of the node is zero: from bhClear, or from
-          // the undo below if this is a reused spare)
-          nodes[newNodeIdx].center = (childMin + childMax) * 0.5;
-          nodes[newNodeIdx].halfSize = (childMax.x - childMin.x) * 0.5;
-
-          // Put the other body into the new node
-          let otherBodyIdx = -oldVal - 1;
-          let otherBody = posMass[otherBodyIdx];
-          accumulate(newNodeIdx, otherBody, childMin, childMax);
-          let otherOctant = getOctant(otherBody.xyz, childMin, childMax);
-          let otherChildPtr = &nodes[newNodeIdx].children[otherOctant];
-          atomicStore(otherChildPtr, -1 - otherBodyIdx);
-
-          // Try to swap [Old Body] -> [New Node] in Parent
-          if (atomicCompareExchangeWeak(childPtr, oldVal, newNodeIdx).exchanged) {
-            spareNode = -1;
-            childNode = newNodeIdx;
-          } else {
-            // Someone else changed the slot first. Nobody else can see the new node yet,
-            // so undo it and keep it for this thread's next split
-            atomicStore(&nodes[newNodeIdx].massInt, 0);
-            atomicStore(&nodes[newNodeIdx].comXInt, 0);
-            atomicStore(&nodes[newNodeIdx].comYInt, 0);
-            atomicStore(&nodes[newNodeIdx].comZInt, 0);
-            atomicStore(&counts[newNodeIdx], 0u);
-            atomicStore(otherChildPtr, 0);
-            spareNode = newNodeIdx;
-          }
+          return;
         }
-      }
-      // Otherwise a CAS failed: retry
 
-      if (done || childNode > 0) { break; }
+        // The rest of the new node is zero, from bhClear (a spare is unlinked again below)
+        nodes[newNodeIdx].center = (childBox.min + childBox.max) * 0.5;
+        nodes[newNodeIdx].halfSize = (childBox.max.x - childBox.min.x) * 0.5;
+
+        // Move the other body into the new node, and the new node into its slot
+        let otherBody = posMass[-oldVal - 1];
+        let otherChildPtr = &nodes[newNodeIdx].children[getOctant(otherBody.xyz, childBox)];
+        atomicStore(otherChildPtr, oldVal);
+        if (atomicCompareExchangeWeak(childPtr, oldVal, newNodeIdx).exchanged) {
+          addToNode(newNodeIdx, contribution(otherBody, childBox.min, childBox.max));
+          spareNode = -1;
+          nodeIdx = newNodeIdx;
+          break;
+        }
+        // Someone else changed the slot first. Nobody else can see the new node yet,
+        // so keep it for this thread's next split
+        atomicStore(otherChildPtr, 0);
+        spareNode = newNodeIdx;
+      }
     }
 
-    if (done) { break; }
-
-    // Continue the loop to insert OURSELVES into the child node
-    nodeIdx = childNode;
-    min = childMin;
-    max = childMax;
+    // Continue to insert this body into the child node
+    box = childBox;
     depth++;
     if (depth > MAX_DEPTH) { break; }
   }
@@ -887,16 +1024,8 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
 @group(0) @binding(4) var<storage, read> order : array<u32>;
 // Each node's eight child records: centre of mass xyz, mass (see bhSummarize)
 @group(0) @binding(5) var<storage, read> records : array<vec4<f32>>;
-
-// MAX_DEPTH=30 permits internal children through depth 31. A depth-first walk
-// needs at most 1 + 7*31 pending nodes, so 256 entries cover every valid tree.
-const STACK_SIZE = 256;
-
-// Softened acceleration towards a point mass at offset r
-fn attraction(r: vec3<f32>, mass: f32) -> vec3<f32> {
-  let invDist = inverseSqrt(dot(r, r) + params.softening * params.softening);
-  return r * (params.gravity * mass * invDist * invDist * invDist);
-}
+// Each child record's quadrupole, packed (see bhSummarize)
+@group(0) @binding(6) var<storage, read> quadrupoles : array<vec4<u32>>;
 
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
@@ -914,10 +1043,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   let pos = posMass[bodyIdx].xyz;
   var newAcc = vec3(0.0);
 
-  // A node can be approximated when size / dist < theta. A child's size is its
-  // parent's half size, so each child's squared-distance threshold comes from the
-  // popped node rather than being fetched per child.
-  let invThetaSq = 1.0 / (params.theta * params.theta);
+  // A node can be approximated when size / theta + offset < dist, where offset is how far
+  // its centre of mass is from its centre. Without the offset, a node whose mass sits in
+  // one corner could be approximated for a target nearly as close as its far bodies, where
+  // the quadrupole expansion breaks down. A child's size is its parent's half size.
+  let invTheta = 1.0 / params.theta;
 
   // Stack of nodes to open, starting at the Root (which always contains this body).
   // Children are tested as soon as their parent is opened, so only nodes that need
@@ -930,7 +1060,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     stackPtr--;
     let nodeIdx = stack[stackPtr];
     let halfSize = nodes[nodeIdx].geom.w;
-    let threshold = halfSize * halfSize * invThetaSq;
+    let sizeOverTheta = halfSize * invTheta;
 
     // Invocations traverse independently here, so unlike bhForcesCoherent, only
     // load the records of occupied slots
@@ -948,11 +1078,15 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
           newAcc += attraction(r, source.w);
         }
       } else {
-        // It's a Node. Check if we can approximate: size / dist < theta
-        // If the stack is full, the point mass is used rather than dropping the node
-        let distSq = dot(r, r);
-        if (distSq > threshold || stackPtr >= STACK_SIZE) {
-          newAcc += attraction(r, source.w);
+        // It's a Node. Check if it can be approximated (see the opening test above)
+        // If the stack is full, the node is approximated rather than dropped
+        let quadrupole = quadrupoles[u32(nodeIdx) * 8u + i];
+        let openDist = sizeOverTheta + bitcast<f32>(quadrupole.w);
+        if (dot(r, r) > openDist * openDist || stackPtr >= STACK_SIZE) {
+          // The child's size is this node's half size
+          let gm = params.gravity * source.w;
+          let q = unpackQuadrupole(quadrupole, gm * halfSize * halfSize);
+          newAcc += quadrupoleAttraction(r, gm, q.quad, q.softTrace);
         } else {
           stack[stackPtr] = child;
           stackPtr++;
@@ -984,7 +1118,7 @@ enable subgroups;
 // comes from subgroupBroadcastFirst, and every push decision comes from subgroupAll.
 // Thus all lanes in a subgroup execute each collective in the same control flow.
 // The compiler cannot prove the private-stack invariant across the loop.
-// Each lane owns four targets; all four opening tests join the collective.
+// Each lane owns two targets; both opening tests join the collective.
 // Padded targets participate using a clamped position, but never access motion.
 diagnostic(off, subgroup_uniformity);
 
@@ -998,16 +1132,8 @@ diagnostic(off, subgroup_uniformity);
 @group(0) @binding(4) var<storage, read> order : array<u32>;
 // Each node's eight child records: centre of mass xyz, mass (see bhSummarize)
 @group(0) @binding(5) var<storage, read> records : array<vec4<f32>>;
-
-// MAX_DEPTH=30 permits internal children through depth 31. A depth-first walk
-// needs at most 1 + 7*31 pending nodes, so 256 entries cover every valid tree.
-const STACK_SIZE = 256;
-
-// Softened acceleration towards a point mass at offset r
-fn attraction(r: vec3<f32>, mass: f32) -> vec3<f32> {
-  let invDist = inverseSqrt(dot(r, r) + params.softening * params.softening);
-  return r * (params.gravity * mass * invDist * invDist * invDist);
-}
+// Each child record's quadrupole, packed (see bhSummarize)
+@group(0) @binding(6) var<storage, read> quadrupoles : array<vec4<u32>>;
 
 // Called only for a valid, uniquely owned target, after all subgroup collectives.
 fn finishBody(bodyIdx: u32, acceleration: vec3<f32>) {
@@ -1022,10 +1148,12 @@ fn finishBody(bodyIdx: u32, acceleration: vec3<f32>) {
 
 @compute @workgroup_size(128)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-  // Four adjacent targets amortize node loads and traversal over more force work.
+  // Two adjacent targets amortize node loads and traversal over more force work. More
+  // make the subgroup's targets spread wider, so it opens more nodes; with quadrupole
+  // interactions that costs more than it saves (two measured fastest of one to four).
   // Keep the accumulators explicit so they stay in registers. No subgroup width
   // or relationship between lane IDs and invocation IDs is assumed.
-  let rank0 = id.x * 4u;
+  let rank0 = id.x * 2u;
   let requested0 = order[min(rank0, params.numBodies - 1u)];
   let valid0 = rank0 < params.numBodies && requested0 < params.numBodies;
   let body0 = min(requested0, params.numBodies - 1u);
@@ -1039,24 +1167,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   let pos1 = posMass[body1].xyz;
   var acc1 = vec3(0.0);
 
-  let rank2 = rank0 + 2u;
-  let requested2 = order[min(rank2, params.numBodies - 1u)];
-  let valid2 = rank2 < params.numBodies && requested2 < params.numBodies;
-  let body2 = min(requested2, params.numBodies - 1u);
-  let pos2 = posMass[body2].xyz;
-  var acc2 = vec3(0.0);
-
-  let rank3 = rank0 + 3u;
-  let requested3 = order[min(rank3, params.numBodies - 1u)];
-  let valid3 = rank3 < params.numBodies && requested3 < params.numBodies;
-  let body3 = min(requested3, params.numBodies - 1u);
-  let pos3 = posMass[body3].xyz;
-  var acc3 = vec3(0.0);
-
-  // A node can be approximated when size / dist < theta. A child's size is its
-  // parent's half size, so each child's squared-distance threshold comes from the
-  // popped node rather than being fetched per child.
-  let invThetaSq = 1.0 / (params.theta * params.theta);
+  // A node can be approximated when size / theta + offset < dist, where offset is how far
+  // its centre of mass is from its centre. Without the offset, a node whose mass sits in
+  // one corner could be approximated for a target nearly as close as its far bodies, where
+  // the quadrupole expansion breaks down. A child's size is its parent's half size.
+  let invTheta = 1.0 / params.theta;
 
   // Stack of nodes to open, starting at the root (which contains every target).
   // Children are tested as soon as their parent is opened, so only nodes that need
@@ -1069,12 +1184,16 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     stackPtr--;
     let nodeIdx = stack[stackPtr];
     let halfSize = subgroupBroadcastFirst(nodes[nodeIdx].geom.w);
-    let threshold = halfSize * halfSize * invThetaSq;
+    let sizeOverTheta = halfSize * invTheta;
 
     // Issue every load for this node before using any of them, so they overlap
     let children = nodes[nodeIdx].children;
     var childRecords: array<vec4<f32>, 8>;
-    for (var i = 0u; i < 8u; i++) { childRecords[i] = records[u32(nodeIdx) * 8u + i]; }
+    var childQuads: array<vec4<u32>, 8>;
+    for (var i = 0u; i < 8u; i++) {
+      childRecords[i] = records[u32(nodeIdx) * 8u + i];
+      childQuads[i] = quadrupoles[u32(nodeIdx) * 8u + i];
+    }
 
     for (var i = 0u; i < 8u; i++) {
       let child = subgroupBroadcastFirst(children[i]);
@@ -1084,25 +1203,23 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
       let r0 = source.xyz - pos0;
       let r1 = source.xyz - pos1;
-      let r2 = source.xyz - pos2;
-      let r3 = source.xyz - pos3;
       if (child < 0) {
         // It's a Body. Self attraction is exactly zero: displacement is zero and softening > 0.
         acc0 += attraction(r0, source.w);
         acc1 += attraction(r1, source.w);
-        acc2 += attraction(r2, source.w);
-        acc3 += attraction(r3, source.w);
       } else {
         // It's a Node. Approximate only if EVERY target in EVERY participating lane
-        // passes size / dist < theta. Batching can only make this test more conservative.
-        // If the stack is full, the point mass is used rather than dropping the node
-        let canApproximate = dot(r0, r0) > threshold && dot(r1, r1) > threshold &&
-          dot(r2, r2) > threshold && dot(r3, r3) > threshold;
+        // passes the opening test. Batching can only make this test more conservative.
+        // If the stack is full, the node is approximated rather than dropped
+        let openDist = sizeOverTheta + bitcast<f32>(childQuads[i].w);
+        let threshold = openDist * openDist;
+        let canApproximate = dot(r0, r0) > threshold && dot(r1, r1) > threshold;
         if (subgroupBroadcastFirst(u32(subgroupAll(canApproximate))) != 0u || stackPtr >= STACK_SIZE) {
-          acc0 += attraction(r0, source.w);
-          acc1 += attraction(r1, source.w);
-          acc2 += attraction(r2, source.w);
-          acc3 += attraction(r3, source.w);
+          // The child's size is this node's half size
+          let gm = params.gravity * source.w;
+          let q = unpackQuadrupole(childQuads[i], gm * halfSize * halfSize);
+          acc0 += quadrupoleAttraction(r0, gm, q.quad, q.softTrace);
+          acc1 += quadrupoleAttraction(r1, gm, q.quad, q.softTrace);
         } else {
           stack[stackPtr] = child;
           stackPtr++;
@@ -1114,8 +1231,6 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   // the invocation owning that clamped body updates it.
   if (valid0) { finishBody(body0, acc0); }
   if (valid1) { finishBody(body1, acc1); }
-  if (valid2) { finishBody(body2, acc2); }
-  if (valid3) { finishBody(body3, acc3); }
 }
 `,XP=`// Params and Node are shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
@@ -1125,6 +1240,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 @group(0) @binding(3) var<storage, read_write> bounds : array<u32, 6>;
 @group(0) @binding(4) var<storage, read_write> counts : array<u32>;
 @group(0) @binding(5) var<storage, read_write> order : array<u32>;
+@group(0) @binding(6) var<storage, read_write> secondMoments : array<SecondMoment>;
 
 // Only the nodes the last tree used need zeroing (a zeroed node is empty),
 // since everything past them was never written. Early-out workgroups are cheap.
@@ -1148,6 +1264,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   nodes[id.x] = Node();
   counts[id.x] = 0u;
+  secondMoments[id.x] = SecondMoment();
 }
 `,ZP=`// Floats are stored as order-preserving uints so they can be reduced with atomicMin/Max
 struct Bounds {
@@ -1165,20 +1282,13 @@ struct Bounds {
 var<workgroup> localMin : array<atomic<u32>, 3>;
 var<workgroup> localMax : array<atomic<u32>, 3>;
 
-// Positive floats get the sign bit set, negative floats have all bits flipped,
-// so comparing the uints gives the same order as comparing the floats
-fn floatToOrdered(f: f32) -> u32 {
-  let bits = bitcast<u32>(f);
-  return select(bits | 0x80000000u, ~bits, (bits & 0x80000000u) != 0u);
-}
-
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>,
         @builtin(local_invocation_id) lid : vec3<u32>) {
-  // Reserve bhTree's three-level prefix, or just the root for small trees (see common.wgsl).
-  // bhClear has already used last step's count, and bhTree runs after this pass.
+  // Reserve the nodes bhTree seeds. bhClear has already used last step's count, and
+  // bhTree runs after this pass.
   if (id.x == 0u) {
-    allocator = select(1u, TOP_NODES, seedsTopPrefix());
+    allocator = seededNodes();
   }
 
   if (lid.x < 3u) {
@@ -1235,13 +1345,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   // Bodies sit at most MAX_DEPTH + 1 levels down (see bhTree)
   for (var depth = 0u; depth <= MAX_DEPTH + 1u; depth++) {
-    // Same octant test as bhTree, against the node's stored centre
-    let center = nodes[nodeIdx].geom.xyz;
-    var octant = 0u;
-    if (pos.x > center.x) { octant |= 1u; }
-    if (pos.y > center.y) { octant |= 2u; }
-    if (pos.z > center.z) { octant |= 4u; }
-
+    let octant = octantOf(pos, nodes[nodeIdx].geom.xyz);
     for (var i = 0u; i < octant; i++) {
       rank += bodiesUnder(nodes[nodeIdx].children[i]);
     }
@@ -1258,7 +1362,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     nodeIdx = child;
   }
 }
-`,$P=`// Params and Node are shared by every kernel, see common.wgsl
+`,$P=`// Params, Node and SecondMoment are shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // As built by bhTree. Left unchanged, so parents can read their children's sums
 // while other invocations summarize those children.
@@ -1269,9 +1373,15 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 @group(0) @binding(3) var<storage, read> posMass : array<vec4<f32>>;
 // Eight contiguous child records per node: centre of mass xyz, mass (0 = empty)
 @group(0) @binding(4) var<storage, read_write> records : array<vec4<f32>>;
+// As built by bhTree below its prefix. The prefix workgroup adds the prefix's own.
+@group(0) @binding(5) var<storage, read_write> secondMoments : array<SecondMoment>;
+// Each child record's quadrupole (see quadrupoleRecord)
+@group(0) @binding(6) var<storage, read_write> quadrupoles : array<vec4<u32>>;
 
 // What the force pass needs from a child slot. Bodies are copied as they are;
-// a node's moment is relative to its centre in units of its half size (see bhTree).
+// a node's moment is relative to its centre (see momentExponent in common.wgsl).
+// Kept apart from quadrupoleRecord: sharing one load and division between the two lets
+// the compiler round them differently, which changes the records' bits.
 fn childRecord(child: i32) -> vec4<f32> {
   if (child < 0) {
     return posMass[u32(-child - 1)];
@@ -1280,26 +1390,125 @@ fn childRecord(child: i32) -> vec4<f32> {
     let sums = nodes[child].sums;
     if (sums.x > 0) {
       let geom = nodes[child].geom;
-      return vec4(geom.xyz + vec3<f32>(sums.yzw) / f32(sums.x) * geom.w, f32(sums.x) / params.massScale);
+      let offset = vec3<f32>(sums.yzw) / f32(sums.x) * ldexp(1.0, momentExponent(geom.w));
+      return vec4(geom.xyz + offset, f32(sums.x) / params.massScale);
     }
   }
   return vec4(0.0);
 }
 
-// Gathers each node's children into one 128-byte block, so the force pass opens a
-// node with a single contiguous read instead of a scattered read chain per child.
-// Two invocations per node, four child slots each. Unused (spare) nodes have no
-// children, so their records are all empty.
-@compute @workgroup_size(256)
-fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-  let nodeIdx = id.x / 2u;
-  if (nodeIdx >= min(allocator, params.maxNodes)) {
+// A child node's quadrupole about its centre of mass, as halves: the traceless part
+// (3 * second moment - trace) xx, yy | xy, xz | yz, then the trace. It's normalized by the
+// node's mass * size^2, which keeps every component within +-3, so halves are precise
+// enough. w is the centre of mass's distance from the node's centre, as f32 bits, for the
+// force pass's opening test. Bodies and empty slots have none.
+fn quadrupoleRecord(child: i32) -> vec4<u32> {
+  if (child <= 0) {
+    return vec4(0u);
+  }
+  let sums = nodes[child].sums;
+  if (sums.x <= 0) {
+    return vec4(0u);
+  }
+  let halfSize = nodes[child].geom.w;
+  let second = secondMoments[child];
+  // Second moment about the centre of mass per unit mass, from the moments about the centre
+  let mass = f32(sums.x);
+  let offset = vec3<f32>(sums.yzw) / mass;
+  let unitsPerSize = ldexp(0.5 / halfSize, momentExponent(halfSize));
+  let toSizeSq = unitsPerSize * unitsPerSize;
+  let diag = (vec3<f32>(second.diag) / mass - offset * offset) * toSizeSq;
+  let cross = (vec3<f32>(second.cross) / mass - offset.xxy * offset.yzz) * toSizeSq;
+  let trace = diag.x + diag.y + diag.z;
+  let traceless = 3.0 * diag - trace;
+  let comOffset = length(offset) * ldexp(1.0, momentExponent(halfSize));
+  return vec4(pack2x16float(traceless.xy), pack2x16float(3.0 * cross.xy),
+    pack2x16float(vec2(3.0 * cross.z, trace)), bitcast<u32>(comOffset));
+}
+
+// A child's second moment about its parent's centre, in the parent's units (2^exponent)
+fn shiftedSecondMoment(child: i32, parentCenter: vec3<f32>, exponent: i32) -> array<vec3<f32>, 2> {
+  if (child < 0) {
+    let body = posMass[u32(-child - 1)];
+    let offset = ldexp(body.xyz - parentCenter, vec3(-exponent));
+    let moment = offset * (body.w * params.massScale);
+    return array(moment * offset, moment.xxy * offset.yzz);
+  }
+  if (child == 0) {
+    return array(vec3(0.0), vec3(0.0));
+  }
+  // A node's sums are about its own centre, offset from the parent's by shift
+  let sums = nodes[child].sums;
+  let geom = nodes[child].geom;
+  let second = secondMoments[child];
+  let toParentUnits = ldexp(1.0, momentExponent(geom.w) - exponent);
+  let mass = f32(sums.x);
+  let moment = vec3<f32>(sums.yzw) * toParentUnits;
+  let shift = ldexp(geom.xyz - parentCenter, vec3(-exponent));
+  let unitsSq = toParentUnits * toParentUnits;
+  return array(
+    vec3<f32>(second.diag) * unitsSq + 2.0 * moment * shift + mass * shift * shift,
+    vec3<f32>(second.cross) * unitsSq + moment.xxy * shift.yzz + shift.xxy * moment.yzz +
+      mass * shift.xxy * shift.yzz);
+}
+
+// bhTree's prefix nodes have no second moments of their own, since summing them for every
+// body would contend on a few hundred nodes. Build them from their children instead, a
+// level at a time from the bottom, then write the records whose children are prefix nodes.
+fn summarizePrefix(lid: u32) {
+  var levelStart = TOP_INTERNAL;
+  var levelEnd = TOP_NODES;
+  for (var level = 0u; level < TOP_LEVELS; level++) {
+    for (var nodeIdx = levelStart + lid; nodeIdx < levelEnd; nodeIdx += WORKGROUP_SIZE) {
+      let geom = nodes[nodeIdx].geom;
+      let exponent = momentExponent(geom.w);
+      var diag = vec3(0.0);
+      var cross = vec3(0.0);
+      for (var slot = 0u; slot < 8u; slot++) {
+        let shifted = shiftedSecondMoment(nodes[nodeIdx].children[slot], geom.xyz, exponent);
+        diag += shifted[0];
+        cross += shifted[1];
+      }
+      secondMoments[nodeIdx] = SecondMoment(vec3<i32>(round(diag)), vec3<i32>(round(cross)));
+    }
+    storageBarrier();
+    levelEnd = levelStart;
+    levelStart = (levelStart - 1u) / 8u;
+  }
+  for (var i = lid; i < TOP_INTERNAL * 8u; i += WORKGROUP_SIZE) {
+    let child = nodes[i / 8u].children[i % 8u];
+    records[i] = childRecord(child);
+    quadrupoles[i] = quadrupoleRecord(child);
+  }
+}
+
+// Gathers each node's children into one 128-byte block of records, and one of
+// quadrupoles, so the force pass opens a node with contiguous reads instead of a scattered
+// read chain per child. Two invocations per node, four child slots each. Unused (spare)
+// nodes have no children, so their records are all empty. One extra workgroup, the first
+// (so it overlaps the rest), handles the nodes whose children are in bhTree's prefix.
+@compute @workgroup_size(WORKGROUP_SIZE)
+fn main(@builtin(global_invocation_id) id : vec3<u32>,
+        @builtin(local_invocation_index) lid : u32,
+        @builtin(workgroup_id) group : vec3<u32>) {
+  let seedPrefix = seedsTopPrefix();
+  if (group.x == 0u) {
+    if (seedPrefix) {
+      summarizePrefix(lid);
+    }
+    return;
+  }
+
+  let nodeIdx = (id.x - WORKGROUP_SIZE) / 2u;
+  if ((seedPrefix && nodeIdx < TOP_INTERNAL) || nodeIdx >= min(allocator, params.maxNodes)) {
     return;
   }
 
   for (var k = 0u; k < 4u; k++) {
     let slot = (id.x % 2u) * 4u + k;
-    records[nodeIdx * 8u + slot] = childRecord(nodes[nodeIdx].children[slot]);
+    let child = nodes[nodeIdx].children[slot];
+    records[nodeIdx * 8u + slot] = childRecord(child);
+    quadrupoles[nodeIdx * 8u + slot] = quadrupoleRecord(child);
   }
 }
-`,eF=class e{device;pipeline;bindings;bindGroup=null;constructor(e,t,n){this.device=e,this.pipeline=t,this.bindings=n}static async create(t,n,r,i){let a=t.createShaderModule({label:n,code:`${r}\n${GP}`}),o=await t.createComputePipelineAsync({label:n,layout:`auto`,compute:{module:a}});return new e(t,o,i)}setBuffers(e){this.bindGroup=this.device.createBindGroup({layout:this.pipeline.getBindGroupLayout(0),entries:this.bindings.map((t,n)=>({binding:n,resource:{buffer:e[t]}}))})}dispatch(e,t){e.setPipeline(this.pipeline),e.setBindGroup(0,this.bindGroup),e.dispatchWorkgroups(t)}},tF=e=>e.features.has(`subgroups`)&&navigator.gpu.wgslLanguageFeatures.has(`subgroup_uniformity`),nF=e=>tF(e)?512:256,rF=(e,t,n,r,i)=>{let a=CP(e,`vec4`,n).toReadOnly(),o=CP(t,`vec4`,n*2).toReadOnly(),s=o.element(mP.mul(2)).xyz,c=o.element(mP.mul(2).add(1)).xyz,l=a.element(mP).xyz.add(s.mul(i)),u=lP.mul(jP(l,1)).xyz,d=yP.xy,f=new N_;f.side=2,f.vertexNode=cP.mul(jP(u.add(AP(d,0)),1));let p=OP(u),m=OP(d),h=SP(hP(c).div(r)),g=OP(gP(AP(.012,.063,.988),AP(1,.376,.188),h)),_=fP(m,m),v=p.add(AP(m,pP(.25).sub(_).sqrt())),y=cP.mul(jP(v,1));return f.depthNode=y.z.div(y.w),f.fragmentNode=sP(()=>(oP(_.greaterThan(.25)),jP(g,1)))(),f},iF=e=>eF.create(e,`bodiesIntegrate`,KP,[`params`,`posMass`,`motion`]),aF=e=>eF.create(e,`bhTree`,qP,[`params`,`posMass`,`nodes`,`allocator`,`bounds`,`counts`]),oF=e=>eF.create(e,`bhForces`,tF(e)?YP:JP,[`params`,`posMass`,`motion`,`nodes`,`order`,`records`]),sF=e=>eF.create(e,`bhBounds`,ZP,[`params`,`posMass`,`bounds`,`allocator`]),cF=e=>eF.create(e,`bhSummarize`,$P,[`params`,`nodes`,`allocator`,`posMass`,`records`]),lF=e=>eF.create(e,`bhOrder`,QP,[`params`,`posMass`,`nodes`,`counts`,`order`]),uF=e=>eF.create(e,`bhClear`,XP,[`params`,`nodes`,`allocator`,`bounds`,`counts`,`order`]),dF=1<<17,fF=2,pF=128,mF=0,hF=0,gF=3,_F=.5,vF=1/60,{device:yF,renderer:bF,scene:xF,camera:SF,controls:CF}=await IP(),wF=document.getElementById(`fpsText`),TF=document.getElementById(`bodiesText`),EF=document.getElementById(`gravityText`),DF=document.getElementById(`gravitySlider`),OF=document.getElementById(`restartButton`),kF=document.getElementById(`twinGalaxiesToggle`),AF=DF.valueAsNumber,jF=kF.checked,MF=()=>{EF.textContent=String(AF);let e=Number(DF.min),t=Number(DF.max);DF.style.setProperty(`--range-progress`,`${(AF-e)/(t-e)*100}%`)};MF();var NF=document.querySelectorAll(`#bodyCountButtons button`),PF=Math.min(yF.limits.maxStorageBufferBindingSize,yF.limits.maxBufferSize);for(let e of NF){let t=Number(e.value);e.title=`${t.toLocaleString()} bodies`,(t*fF*pF>PF||Math.ceil(t*fF*2/256)>yF.limits.maxComputeWorkgroupsPerDimension)&&(e.disabled=!0,e.title=`Unavailable on this GPU`)}var[FF,IF,LF,RF,zF,BF,VF]=await Promise.all([iF(yF),aF(yF),oF(yF),uF(yF),sF(yF),lF(yF),cF(yF)]),HF=nF(yF),UF=new DataView(new ArrayBuffer(32)),WF=yF.createBuffer({size:UF.byteLength,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST}),GF=0,KF=()=>{UF.setUint32(0,dF,!0),UF.setFloat32(4,AF,!0),UF.setFloat32(8,vF,!0),UF.setFloat32(12,hF,!0),UF.setFloat32(16,gF,!0),UF.setFloat32(20,_F,!0),UF.setUint32(24,mF,!0),UF.setFloat32(28,GF,!0),yF.queue.writeBuffer(WF,0,UF),qF.value=Math.sqrt((dF+hF)*AF)/15},qF=TP(1),JF=TP(0),YF=new Mi(new Zi(1,1));YF.frustumCulled=!1,xF.add(YF);var XF=new aP(bF),ZF=_P(xF,SF).getTextureNode(),QF=FP(ZF,null,6.5,{resolutionScale:.5});XF.outputColorTransform=!1,XF.outputNode=bP(ZF.add(QF.mul(.15)),jP(1/2.2));var $F=(e,t)=>{let n=yF.createBuffer({size:e,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});return t&&yF.queue.writeBuffer(n,0,t),n},eI=(e,t)=>{let n=new HC(1,t),r=bF.backend;return r.get(n).buffer=e,n},tI=[],nI=()=>{for(let e of tI)e.destroy();mF=dF*fF,hF=dF/2,TF.textContent=dF.toLocaleString();for(let e of NF)e.setAttribute(`aria-pressed`,String(Number(e.value)===dF));let e=jF?2:1,t=(dF/e)**(1/3)*10,n=t*.1,r=t*.05,i=UP({gravity:AF,centralMass:hF,diskMass:dF/e,rMin:n,rMax:t,halfThickness:r,softening:gF}),a=t*(jF?4:2.25),o=Qt.degToRad(30),s=a*Math.sin(o),c=a*Math.cos(o);SF.position.set(0,s,c),SF.lookAt(0,0,0);let l=jF?-t*1.5:0,u=jF?t*1.5:0,d=new Float32Array(dF*4),f=new Float32Array(dF*8);for(let e=0;e<dF;e++){let a=WP(n,t,r),o=e<dF/2?l:u;d[e*4]=a.x+o,d[e*4+1]=a.y,d[e*4+2]=a.z;let s=Math.sqrt(a.x*a.x+a.z*a.z),c=i(s),p=Qt.randFloat(.8,1.2);f[e*8]=a.z/s*c*p,f[e*8+2]=-a.x/s*c*p,d[e*4+3]=Qt.randFloat(.5,1.5)}d.set([l,0,0,hF],0),f.set([0,0,0],0),jF&&(d.set([u,0,0,hF],4),f.set([0,0,0],8));let p=dF*1.5+e*hF;GF=Math.floor(2147483647/(p*1.1)),KF();let m={posMass:$F(d.byteLength,d),motion:$F(f.byteLength,f),nodes:$F(mF*64),allocator:$F(4),bounds:$F(24),counts:$F(mF*4),order:$F(dF*4),records:$F(mF*pF)};tI=Object.values(m);for(let e of[FF,RF,zF,IF,VF,BF,LF])e.setBuffers({params:WF,...m});YF.material.dispose(),YF.material=rF(eI(m.posMass,4),eI(m.motion,4),dF,qF,JF),YF.count=dF};nI(),DF.oninput=()=>{AF=DF.valueAsNumber,MF(),KF()},OF.onclick=nI,kF.onchange=()=>{jF=kF.checked,nI()};for(let e of NF)e.onclick=()=>{let t=Number(e.value);t!==dF&&(dF=t,nI())};var rI=()=>{let e=yF.createCommandEncoder(),t=e.beginComputePass(),n=Math.ceil(dF/256);FF.dispatch(t,n),RF.dispatch(t,Math.ceil(mF/256)),zF.dispatch(t,n),IF.dispatch(t,n),VF.dispatch(t,Math.ceil(mF*2/256)),BF.dispatch(t,n),LF.dispatch(t,Math.ceil(dF/HF)),t.end(),yF.queue.submit([e.finish()])},iI=0,aI,oI=0,sI=0;bF.setAnimationLoop(e=>{let t=aI===void 0?0:(e-aI)/1e3;aI=e,oI+=t,sI++,oI>=.25&&(wF.textContent=Math.round(sI/oI).toLocaleString(),oI=0,sI=0),CF.update(t),iI=Math.min(iI+t,2*vF),iI>=vF&&(rI(),iI-=vF),JF.value=iI,XF.render()});
+`,eF=class e{device;pipeline;bindings;bindGroup=null;constructor(e,t,n){this.device=e,this.pipeline=t,this.bindings=n}static async create(t,n,r){let i=`${r}\n${GP}`,a=[];for(let[,e,t]of i.matchAll(/@binding\((\d+)\)\s*var(?:<[^>]*>)?\s+(\w+)/g))a[Number(e)]=t;let o=t.createShaderModule({label:n,code:i}),s=await t.createComputePipelineAsync({label:n,layout:`auto`,compute:{module:o}});return new e(t,s,a)}setBuffers(e){this.bindGroup=this.device.createBindGroup({layout:this.pipeline.getBindGroupLayout(0),entries:this.bindings.map((t,n)=>({binding:n,resource:{buffer:e[t]}}))})}dispatch(e,t){e.setPipeline(this.pipeline),e.setBindGroup(0,this.bindGroup),e.dispatchWorkgroups(t)}},tF=e=>e.features.has(`subgroups`)&&navigator.gpu.wgslLanguageFeatures.has(`subgroup_uniformity`),nF=e=>(tF(e),256),rF=(e,t,n,r,i)=>{let a=CP(e,`vec4`,n).toReadOnly(),o=CP(t,`vec4`,n*2).toReadOnly(),s=o.element(mP.mul(2)).xyz,c=o.element(mP.mul(2).add(1)).xyz,l=a.element(mP).xyz.add(s.mul(i)),u=lP.mul(jP(l,1)).xyz,d=yP.xy,f=new N_;f.side=2,f.vertexNode=cP.mul(jP(u.add(AP(d,0)),1));let p=OP(u),m=OP(d),h=SP(hP(c).div(r)),g=OP(gP(AP(.012,.063,.988),AP(1,.376,.188),h)),_=fP(m,m),v=p.add(AP(m,pP(.25).sub(_).sqrt())),y=cP.mul(jP(v,1));return f.depthNode=y.z.div(y.w),f.fragmentNode=sP(()=>(oP(_.greaterThan(.25)),jP(g,1)))(),f},iF=e=>eF.create(e,`bodiesIntegrate`,KP),aF=e=>eF.create(e,`bhTree`,qP),oF=e=>eF.create(e,`bhForces`,tF(e)?YP:JP),sF=e=>eF.create(e,`bhBounds`,ZP),cF=e=>eF.create(e,`bhSummarize`,$P),lF=e=>eF.create(e,`bhOrder`,QP),uF=e=>eF.create(e,`bhClear`,XP),dF=1<<17,fF=2,pF=128,mF=0,hF=0,gF=3,_F=1.1,vF=1/60,{device:yF,renderer:bF,scene:xF,camera:SF,controls:CF}=await IP(),wF=document.getElementById(`fpsText`),TF=document.getElementById(`bodiesText`),EF=document.getElementById(`gravityText`),DF=document.getElementById(`gravitySlider`),OF=document.getElementById(`restartButton`),kF=document.getElementById(`twinGalaxiesToggle`),AF=DF.valueAsNumber,jF=kF.checked,MF=()=>{EF.textContent=String(AF);let e=Qt.inverseLerp(Number(DF.min),Number(DF.max),AF);DF.style.setProperty(`--range-progress`,`${e*100}%`)};MF();var NF=document.querySelectorAll(`#bodyCountButtons button`),PF=Math.min(yF.limits.maxStorageBufferBindingSize,yF.limits.maxBufferSize);for(let e of NF){let t=Number(e.value);e.title=`${t.toLocaleString()} bodies`,(t*fF*pF>PF||Math.ceil(t*fF*2/256)+1>yF.limits.maxComputeWorkgroupsPerDimension)&&(e.disabled=!0,e.title=`Unavailable on this GPU`)}var FF=await Promise.all([iF(yF),aF(yF),oF(yF),uF(yF),sF(yF),lF(yF),cF(yF)]),[IF,LF,RF,zF,BF,VF,HF]=FF,UF=nF(yF),WF=new DataView(new ArrayBuffer(28)),GF=yF.createBuffer({size:WF.byteLength,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST}),KF=0,qF=()=>{WF.setUint32(0,dF,!0),WF.setFloat32(4,AF,!0),WF.setFloat32(8,vF,!0),WF.setFloat32(12,gF,!0),WF.setFloat32(16,_F,!0),WF.setUint32(20,mF,!0),WF.setFloat32(24,KF,!0),yF.queue.writeBuffer(GF,0,WF),JF.value=Math.sqrt((dF+hF)*AF)/15},JF=TP(1),YF=TP(0),XF=new Mi(new Zi(1,1));XF.frustumCulled=!1,xF.add(XF);var ZF=new aP(bF),QF=_P(xF,SF).getTextureNode(),$F=FP(QF,null,6.5,{resolutionScale:.5});ZF.outputColorTransform=!1,ZF.outputNode=bP(QF.add($F.mul(.15)),jP(1/2.2));var eI=(e,t)=>{let n=yF.createBuffer({size:e,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});return t&&yF.queue.writeBuffer(n,0,t),n},tI=(e,t)=>{let n=new HC(1,t),r=bF.backend;return r.get(n).buffer=e,n},nI=[],rI=()=>{for(let e of nI)e.destroy();mF=dF*fF,hF=dF/2,TF.textContent=dF.toLocaleString();for(let e of NF)e.setAttribute(`aria-pressed`,String(Number(e.value)===dF));let e=jF?2:1,t=(dF/e)**(1/3)*10,n=t*.1,r=t*.05,i=UP({gravity:AF,centralMass:hF,diskMass:dF/e,rMin:n,rMax:t,halfThickness:r,softening:gF}),a=t*(jF?4:2.25),o=Qt.degToRad(30),s=a*Math.sin(o),c=a*Math.cos(o);SF.position.set(0,s,c),SF.lookAt(0,0,0);let l=jF?-t*1.5:0,u=jF?t*1.5:0,d=new Float32Array(dF*4),f=new Float32Array(dF*8);for(let e=0;e<dF;e++){let a=WP(n,t,r),o=e<dF/2?l:u;d[e*4]=a.x+o,d[e*4+1]=a.y,d[e*4+2]=a.z;let s=Math.sqrt(a.x*a.x+a.z*a.z),c=i(s),p=Qt.randFloat(.8,1.2);f[e*8]=a.z/s*c*p,f[e*8+2]=-a.x/s*c*p,d[e*4+3]=Qt.randFloat(.5,1.5)}d.set([l,0,0,hF],0),f.set([0,0,0],0),jF&&(d.set([u,0,0,hF],4),f.set([0,0,0],8));let p=dF*1.5+e*hF;KF=Math.floor(2147483647/(p*1.1)),qF();let m={posMass:eI(d.byteLength,d),motion:eI(f.byteLength,f),nodes:eI(mF*64),secondMoments:eI(mF*32),allocator:eI(4),bounds:eI(24),counts:eI(mF*4),order:eI(dF*4),records:eI(mF*pF),quadrupoles:eI(mF*pF)};nI=Object.values(m);for(let e of FF)e.setBuffers({params:GF,...m});XF.material.dispose(),XF.material=rF(tI(m.posMass,4),tI(m.motion,4),dF,JF,YF),XF.count=dF};rI(),DF.oninput=()=>{AF=DF.valueAsNumber,MF(),qF()},OF.onclick=rI,kF.onchange=()=>{jF=kF.checked,rI()};for(let e of NF)e.onclick=()=>{let t=Number(e.value);t!==dF&&(dF=t,rI())};var iI=()=>{let e=yF.createCommandEncoder(),t=e.beginComputePass(),n=Math.ceil(dF/256);IF.dispatch(t,n),zF.dispatch(t,Math.ceil(mF/256)),BF.dispatch(t,n),LF.dispatch(t,n),HF.dispatch(t,Math.ceil(mF*2/256)+1),VF.dispatch(t,n),RF.dispatch(t,Math.ceil(dF/UF)),t.end(),yF.queue.submit([e.finish()])},aI=0,oI,sI=0,cI=0;bF.setAnimationLoop(e=>{let t=oI===void 0?0:(e-oI)/1e3;oI=e,sI+=t,cI++,sI>=.25&&(wF.textContent=Math.round(cI/sI).toLocaleString(),sI=0,cI=0),CF.update(t),aI=Math.min(aI+t,2*vF),aI>=vF&&(iI(),aI-=vF),YF.value=aI,ZF.render()});
