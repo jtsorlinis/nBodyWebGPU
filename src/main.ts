@@ -22,7 +22,6 @@ import {
   getBHForceBodiesPerWorkgroup,
 } from "./shaders";
 
-// Constants
 let numBodies = 1 << 17;
 // Every node gets eight contiguous child records for the force pass, so the tree's
 // capacity is also the record capacity. Trees have used at most 0.84 nodes per body,
@@ -59,9 +58,8 @@ let twinGalaxies = twinGalaxiesToggle.checked;
 
 const updateGravityDisplay = () => {
   gravityText.textContent = String(gravity);
-  const min = Number(gravitySlider.min);
-  const max = Number(gravitySlider.max);
-  gravitySlider.style.setProperty("--range-progress", `${(gravity - min) / (max - min) * 100}%`);
+  const progress = MathUtils.inverseLerp(Number(gravitySlider.min), Number(gravitySlider.max), gravity);
+  gravitySlider.style.setProperty("--range-progress", `${progress * 100}%`);
 };
 updateGravityDisplay();
 
@@ -84,7 +82,6 @@ for (const button of bodyCountButtons) {
   }
 }
 
-// Setup compute shaders
 const computeShaders = await Promise.all([
   createBodiesIntegrateShader(device),
   createBHTreeShader(device),
@@ -127,7 +124,6 @@ const updateParams = () => {
   maxAcc.value = Math.sqrt((numBodies + blackHoleMass) * gravity) / 15;
 };
 
-// Setup material and mesh
 const maxAcc = uniform(1);
 const extrapolationTime = uniform(0);
 
@@ -163,7 +159,6 @@ const shareWithRenderer = (buffer: GPUBuffer, itemSize: number) => {
   return attribute;
 };
 
-// Setup scene
 // Storage buffers for the current simulation, destroyed when it restarts
 let simBuffers: GPUBuffer[] = [];
 
@@ -178,7 +173,6 @@ const setup = () => {
     button.setAttribute("aria-pressed", String(Number(button.value) === numBodies));
   }
 
-  // Setup size based on number of bodies
   const numGalaxies = twinGalaxies ? 2 : 1;
   const spaceLimit = Math.pow(numBodies / numGalaxies, 1 / 3) * 10;
   const innerRadius = spaceLimit * 0.1;
@@ -205,7 +199,6 @@ const setup = () => {
 
   const galaxy1Offset = twinGalaxies ? -spaceLimit * 1.5 : 0;
   const galaxy2Offset = twinGalaxies ? spaceLimit * 1.5 : 0;
-  // Initialize bodies
   // posMass: xyz = position, w = mass
   // motion: velocity, acceleration (vec3s padded to 4 floats)
   const posMassArr = new Float32Array(numBodies * 4);
@@ -227,7 +220,6 @@ const setup = () => {
     motionArr[i * 8] = (pos.z / dist) * speed * speedNoise;
     motionArr[i * 8 + 2] = (-pos.x / dist) * speed * speedNoise;
 
-    // Set mass
     posMassArr[i * 4 + 3] = MathUtils.randFloat(0.5, 1.5);
   }
 
@@ -240,13 +232,11 @@ const setup = () => {
     motionArr.set([0, 0, 0], 8); // Vel
   }
 
-  // Set params
   // Fixed-point scale for the octree's mass/COM sums, so the total mass fits in an i32
   const maxTotalMass = numBodies * 1.5 + numGalaxies * blackHoleMass;
   massScale = Math.floor(0x7fffffff / (maxTotalMass * 1.1));
   updateParams();
 
-  // Copy data to GPU
   const buffers = {
     posMass: createStorageBuffer(posMassArr.byteLength, posMassArr),
     motion: createStorageBuffer(motionArr.byteLength, motionArr),
@@ -284,7 +274,6 @@ const setup = () => {
 
 setup();
 
-// UI interaction
 gravitySlider.oninput = () => {
   gravity = gravitySlider.valueAsNumber;
   updateGravityDisplay();

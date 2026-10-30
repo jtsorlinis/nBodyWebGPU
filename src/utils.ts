@@ -209,11 +209,7 @@ export const createRotationCurve = ({
 // A uniformly random point in a disk of radius r with a hole of radius min, lying in
 // the xz plane with y within halfThickness of it
 export const randomPointInDisk = (min: number, r: number, halfThickness: number) => {
-  if (min > r) {
-    throw new Error("min must be less than or equal to r");
-  }
-
-  const rho = Math.sqrt(Math.random() * (r * r - min * min) + min * min);
+  const rho = Math.sqrt(MathUtils.randFloat(min * min, r * r));
   const theta = Math.random() * 2 * Math.PI;
   const y = MathUtils.randFloat(-halfThickness, halfThickness);
 

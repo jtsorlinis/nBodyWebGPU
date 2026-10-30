@@ -106,13 +106,13 @@ export const createBodiesMaterial = (
   material.vertexNode = cameraProjectionMatrix.mul(vec4(center.add(vec3(corner, 0)), 1));
 
   const viewCenter = varying(center);
-  const particleOffset = varying(corner);
+  const offset = varying(corner);
   const mag = saturate(length(acc).div(maxAcc));
   const col = varying(mix(vec3(0.012, 0.063, 0.988), vec3(1.0, 0.376, 0.188), mag));
 
-  const radiusSq = dot(particleOffset, particleOffset);
-  // Keep spherical depth at overlaps, even though each particle uses just two triangles.
-  const surface = viewCenter.add(vec3(particleOffset, float(0.25).sub(radiusSq).sqrt()));
+  const radiusSq = dot(offset, offset);
+  // Keep spherical depth at overlaps, even though each body uses just two triangles.
+  const surface = viewCenter.add(vec3(offset, float(0.25).sub(radiusSq).sqrt()));
   const projected = cameraProjectionMatrix.mul(vec4(surface, 1));
   material.depthNode = projected.z.div(projected.w);
 
