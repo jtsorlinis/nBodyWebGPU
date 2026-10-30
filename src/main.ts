@@ -35,7 +35,9 @@ const recordBytesPerNode = 8 * 16;
 let maxNodes = 0;
 let blackHoleMass = 0;
 const softening = 3.0;
-const theta = 0.6;
+// With quadrupoles (and the offset opening test, see bhForcesCoherent) 1.1 is about as
+// accurate as monopoles at 0.5, for less work
+const theta = 1.1;
 const simDt = 1 / 60; // Fixed simulation timestep (seconds)
 
 const { device, renderer, scene, camera, controls } = await initScene();
