@@ -16,6 +16,8 @@
 
 // What the force pass needs from a child slot. Bodies are copied as they are;
 // a node's moment is relative to its centre (see momentExponent in common.wgsl).
+// Kept apart from quadrupoleRecord: sharing one load and division between the two lets
+// the compiler round them differently, which changes the records' bits.
 fn childRecord(child: i32) -> vec4<f32> {
   if (child < 0) {
     return posMass[u32(-child - 1)];
