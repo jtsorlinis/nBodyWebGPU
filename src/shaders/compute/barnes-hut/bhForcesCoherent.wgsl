@@ -75,10 +75,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   let pos3 = posMass[body3].xyz;
   var acc3 = vec3(0.0);
 
-  // A node can be approximated when size / dist < theta. A child's size is its
-  // parent's half size, so each child's squared-distance threshold comes from the
-  // popped node rather than being fetched per child.
-  let invThetaSq = 1.0 / (params.theta * params.theta);
+  // A node can be approximated when size / theta + offset < dist, where offset is how far
+  // its centre of mass is from its centre. Without the offset, a node whose mass sits in
+  // one corner could be approximated for a target nearly as close as its far bodies, where
+  // the quadrupole expansion breaks down. A child's size is its parent's half size.
+  let invTheta = 1.0 / params.theta;
 
   // Stack of nodes to open, starting at the root (which contains every target).
   // Children are tested as soon as their parent is opened, so only nodes that need
@@ -91,7 +92,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     stackPtr--;
     let nodeIdx = stack[stackPtr];
     let halfSize = subgroupBroadcastFirst(nodes[nodeIdx].geom.w);
-    let threshold = halfSize * halfSize * invThetaSq;
+    let sizeOverTheta = halfSize * invTheta;
 
     // Issue every load for this node before using any of them, so they overlap
     let children = nodes[nodeIdx].children;
@@ -122,6 +123,8 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
         // It's a Node. Approximate only if EVERY target in EVERY participating lane
         // passes size / dist < theta. Batching can only make this test more conservative.
         // If the stack is full, the node is approximated rather than dropped
+        let openDist = sizeOverTheta + bitcast<f32>(childQuads[i].w);
+        let threshold = openDist * openDist;
         let canApproximate = dot(r0, r0) > threshold && dot(r1, r1) > threshold &&
           dot(r2, r2) > threshold && dot(r3, r3) > threshold;
         if (subgroupBroadcastFirst(u32(subgroupAll(canApproximate))) != 0u || stackPtr >= STACK_SIZE) {

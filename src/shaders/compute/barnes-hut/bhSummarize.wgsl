@@ -34,7 +34,8 @@ fn childRecord(child: i32) -> vec4<f32> {
 // A child node's quadrupole about its centre of mass, as halves: the traceless part
 // (3 * second moment - trace) xx, yy | xy, xz | yz, then the trace. It's normalized by the
 // node's mass * size^2, which keeps every component within +-3, so halves are precise
-// enough. Bodies and empty slots have none.
+// enough. w is the centre of mass's distance from the node's centre, as f32 bits, for the
+// force pass's opening test. Bodies and empty slots have none.
 fn quadrupoleRecord(child: i32) -> vec4<u32> {
   if (child <= 0) {
     return vec4(0u);
@@ -54,8 +55,9 @@ fn quadrupoleRecord(child: i32) -> vec4<u32> {
   let cross = (vec3<f32>(second.cross) / mass - offset.xxy * offset.yzz) * toSizeSq;
   let trace = diag.x + diag.y + diag.z;
   let traceless = 3.0 * diag - trace;
+  let comOffset = length(offset) * ldexp(1.0, momentExponent(halfSize));
   return vec4(pack2x16float(traceless.xy), pack2x16float(3.0 * cross.xy),
-    pack2x16float(vec2(3.0 * cross.z, trace)), 0u);
+    pack2x16float(vec2(3.0 * cross.z, trace)), bitcast<u32>(comOffset));
 }
 
 // A child's second moment about its parent's centre, in the parent's units (2^exponent)

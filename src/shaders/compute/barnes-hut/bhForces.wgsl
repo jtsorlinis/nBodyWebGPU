@@ -37,10 +37,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   let pos = posMass[bodyIdx].xyz;
   var newAcc = vec3(0.0);
 
-  // A node can be approximated when size / dist < theta. A child's size is its
-  // parent's half size, so each child's squared-distance threshold comes from the
-  // popped node rather than being fetched per child.
-  let invThetaSq = 1.0 / (params.theta * params.theta);
+  // A node can be approximated when size / theta + offset < dist, where offset is how far
+  // its centre of mass is from its centre. Without the offset, a node whose mass sits in
+  // one corner could be approximated for a target nearly as close as its far bodies, where
+  // the quadrupole expansion breaks down. A child's size is its parent's half size.
+  let invTheta = 1.0 / params.theta;
 
   // Stack of nodes to open, starting at the Root (which always contains this body).
   // Children are tested as soon as their parent is opened, so only nodes that need
@@ -53,7 +54,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     stackPtr--;
     let nodeIdx = stack[stackPtr];
     let halfSize = nodes[nodeIdx].geom.w;
-    let threshold = halfSize * halfSize * invThetaSq;
+    let sizeOverTheta = halfSize * invTheta;
 
     // Invocations traverse independently here, so unlike bhForcesCoherent, only
     // load the records of occupied slots
@@ -73,11 +74,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
       } else {
         // It's a Node. Check if we can approximate: size / dist < theta
         // If the stack is full, the node is approximated rather than dropped
-        let distSq = dot(r, r);
-        if (distSq > threshold || stackPtr >= STACK_SIZE) {
+        let quadrupole = quadrupoles[u32(nodeIdx) * 8u + i];
+        let openDist = sizeOverTheta + bitcast<f32>(quadrupole.w);
+        if (dot(r, r) > openDist * openDist || stackPtr >= STACK_SIZE) {
           // The child's size is this node's half size
           let gm = params.gravity * source.w;
-          let q = unpackQuadrupole(quadrupoles[u32(nodeIdx) * 8u + i], gm * halfSize * halfSize);
+          let q = unpackQuadrupole(quadrupole, gm * halfSize * halfSize);
           newAcc += quadrupoleAttraction(r, gm, q.quad, q.softTrace);
         } else {
           stack[stackPtr] = child;
