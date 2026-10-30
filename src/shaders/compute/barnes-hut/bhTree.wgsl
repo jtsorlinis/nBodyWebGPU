@@ -1,9 +1,6 @@
 // Node (see common.wgsl), with atomics so invocations can build the tree concurrently
 struct BuildNode {
-  massInt: atomic<i32>,
-  comXInt: atomic<i32>,
-  comYInt: atomic<i32>,
-  comZInt: atomic<i32>,
+  sums: array<atomic<i32>, 4>,
   center: vec3<f32>,
   halfSize: f32,
   children: array<atomic<i32>, 8>,
@@ -22,13 +19,18 @@ struct Sums {
   cross: vec3<i32>, // second moment xy, xz, yz
 };
 
+struct Box {
+  min: vec3<f32>,
+  max: vec3<f32>,
+};
+
 // Params is shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // xyz = position, w = mass
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read_write> nodes : array<BuildNode>;
 @group(0) @binding(3) var<storage, read_write> allocator : atomic<u32>;
-// Min xyz then max xyz of all body positions, as order-preserving uints (see bhBounds)
+// Min xyz then max xyz of all body positions, as ordered uints (see floatToOrdered)
 @group(0) @binding(4) var<storage, read> bounds : array<u32, 6>;
 // Number of bodies under each node, for putting bodies in tree order (see bhOrder)
 @group(0) @binding(5) var<storage, read_write> counts : array<atomic<u32>>;
@@ -51,8 +53,14 @@ var<workgroup> scratch: array<atomic<i32>, SCRATCH_WORDS>;
 // Within WebGPU's 16 KiB baseline limit (15,776 bytes)
 const_assert (WORKGROUP_SIZE * 4u + SCRATCH_WORDS) * 4u <= 16384u;
 
-fn getOctant(pos: vec3<f32>, min: vec3<f32>, max: vec3<f32>) -> u32 {
-  return octantOf(pos, (min + max) * 0.5);
+fn getOctant(pos: vec3<f32>, box: Box) -> u32 {
+  return octantOf(pos, (box.min + box.max) * 0.5);
+}
+
+fn octantBox(box: Box, octant: u32) -> Box {
+  let upper = vec3<bool>((octant & 1u) != 0u, (octant & 2u) != 0u, (octant & 4u) != 0u);
+  let center = (box.min + box.max) * 0.5;
+  return Box(select(box.min, center, upper), select(center, box.max, upper));
 }
 
 // A body's integer mass, moment and second moment for a node.
@@ -73,10 +81,10 @@ fn contribution(body: vec4<f32>, nodeMin: vec3<f32>, nodeMax: vec3<f32>) -> Sums
 
 // Adds mass and moment sums covering count bodies to a node using integer atomics
 fn addFirstToNode(nodeIdx: i32, first: vec4<i32>, count: u32) {
-  atomicAdd(&nodes[nodeIdx].massInt, first.x);
-  atomicAdd(&nodes[nodeIdx].comXInt, first.y);
-  atomicAdd(&nodes[nodeIdx].comYInt, first.z);
-  atomicAdd(&nodes[nodeIdx].comZInt, first.w);
+  atomicAdd(&nodes[nodeIdx].sums[0], first.x);
+  atomicAdd(&nodes[nodeIdx].sums[1], first.y);
+  atomicAdd(&nodes[nodeIdx].sums[2], first.z);
+  atomicAdd(&nodes[nodeIdx].sums[3], first.w);
   atomicAdd(&counts[nodeIdx], count);
 }
 
@@ -144,8 +152,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   let hi = vec3(orderedToFloat(bounds[3]), orderedToFloat(bounds[4]), orderedToFloat(bounds[5]));
   let extent = hi - lo;
   let rootHalfSize = max(max(extent.x, extent.y), extent.z) * 0.51 + 1.0;
-  let rootMin = (lo + hi) * 0.5 - vec3(rootHalfSize);
-  let rootMax = (lo + hi) * 0.5 + vec3(rootHalfSize);
+  let root = Box((lo + hi) * 0.5 - vec3(rootHalfSize), (lo + hi) * 0.5 + vec3(rootHalfSize));
 
   let seedPrefix = seedsTopPrefix();
   let topLevels = select(0u, TOP_LEVELS, seedPrefix);
@@ -165,19 +172,14 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
         n = (n - 1u) / 8u;
         depth++;
       }
-      var lo = rootMin;
-      var hi = rootMax;
+      var box = root;
       while (depth > 0u) {
         depth--;
-        let octant = path[depth];
-        let upper = vec3<bool>((octant & 1u) != 0u, (octant & 2u) != 0u, (octant & 4u) != 0u);
-        let center = (lo + hi) * 0.5;
-        lo = select(lo, center, upper);
-        hi = select(center, hi, upper);
+        box = octantBox(box, path[depth]);
       }
-      nodes[index].center = (lo + hi) * 0.5;
-      nodes[index].halfSize = (hi.x - lo.x) * 0.5;
-      if (topLevels > 0u && index < TOP_INTERNAL) {
+      nodes[index].center = (box.min + box.max) * 0.5;
+      nodes[index].halfSize = (box.max.x - box.min.x) * 0.5;
+      if (seedPrefix && index < TOP_INTERNAL) {
         for (var octant = 0u; octant < 8u; octant++) {
           atomicStore(&nodes[index].children[octant], i32(index * 8u + 1u + octant));
         }
@@ -190,19 +192,15 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   workgroupBarrier();
 
   var startNode = 0u;
-  var startMin = rootMin;
-  var startMax = rootMax;
+  var start = root;
   if (id.x < params.numBodies) {
     let body = posMass[id.x];
     for (var depth = 0u; depth < topLevels; depth++) {
-      let octant = getOctant(body.xyz, startMin, startMax);
-      let upper = vec3<bool>((octant & 1u) != 0u, (octant & 2u) != 0u, (octant & 4u) != 0u);
-      let center = (startMin + startMax) * 0.5;
-      startMin = select(startMin, center, upper);
-      startMax = select(center, startMax, upper);
+      let octant = getOctant(body.xyz, start);
+      start = octantBox(start, octant);
       startNode = startNode * 8u + 1u + octant;
       // Round each body's contribution before reduction, just as insertion does.
-      addToScratch((startNode - 1u) * 5u, contribution(body, startMin, startMax).first);
+      addToScratch((startNode - 1u) * 5u, contribution(body, start.min, start.max).first);
     }
   }
   workgroupBarrier();
@@ -212,7 +210,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
 
   var rootSum = vec4<i32>(0);
   if (id.x < params.numBodies) {
-    rootSum = contribution(posMass[id.x], rootMin, rootMax).first;
+    rootSum = contribution(posMass[id.x], root.min, root.max).first;
   }
   rootSums[lid.x] = rootSum;
   workgroupBarrier();
@@ -232,7 +230,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   workgroupBarrier();
 
   if (id.x < params.numBodies) {
-    insertBody(i32(id.x), startNode, startMin, startMax, topLevels);
+    insertBody(i32(id.x), startNode, start, topLevels);
   }
 
   // Once the whole workgroup has inserted its bodies, add the cached sums to the tree.
@@ -252,12 +250,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
 
 // Inserts a body below the prefix node it starts in. The prefix already contains this
 // body's contributions; build only below it.
-fn insertBody(bodyIdx: i32, startNode: u32, startMin: vec3<f32>, startMax: vec3<f32>, topLevels: u32) {
+fn insertBody(bodyIdx: i32, startNode: u32, start: Box, topLevels: u32) {
   let body = posMass[bodyIdx];
   var nodeIdx = i32(startNode);
   var depth = topLevels;
-  var min = startMin;
-  var max = startMax;
+  var box = start;
 
   // A node this thread allocated but lost the race to link in, kept for its next split.
   // Without reuse, every thread that loses a race leaks a node, which adds up to several
@@ -265,97 +262,66 @@ fn insertBody(bodyIdx: i32, startNode: u32, startMin: vec3<f32>, startMax: vec3<
   var spareNode = -1i;
 
   loop {
-    // Update Mass/COM for current node (using atomics). Nodes on this path are already
-    // linked into the tree, so their sums can wait in the workgroup's cache.
+    // Nodes on this path are already linked into the tree, so their sums can wait in the
+    // workgroup's cache
     if (depth > topLevels) {
-      let sums = contribution(body, min, max);
+      let sums = contribution(body, box.min, box.max);
       if (depth > topLevels + CACHED_LEVELS || !addToCache(nodeIdx, sums)) {
         addToNode(nodeIdx, sums);
       }
     }
 
-    let octant = getOctant(body.xyz, min, max);
+    let octant = getOctant(body.xyz, box);
     let childPtr = &nodes[nodeIdx].children[octant];
+    let childBox = octantBox(box, octant);
 
-    // Bounds of the child octant
-    let center = (min + max) * 0.5;
-    var childMin = min;
-    var childMax = max;
-    if ((octant & 1u) != 0u) { childMin.x = center.x; } else { childMax.x = center.x; }
-    if ((octant & 2u) != 0u) { childMin.y = center.y; } else { childMax.y = center.y; }
-    if ((octant & 4u) != 0u) { childMin.z = center.z; } else { childMax.z = center.z; }
-
-    // CAS loop to insert or descend.
+    // Insert the body or descend, retrying whenever a CAS fails.
     // This is lock-free on purpose: WebGPU doesn't guarantee threads waiting on a lock let
     // the thread holding it run, so a spin lock here can hang the GPU.
-    var done = false;
-    var childNode = 0i;
     loop {
       let oldVal = atomicLoad(childPtr);
 
       if (oldVal == 0) {
-        // Case 1: Empty. Insert Body (encoded as -1 - bodyIdx)
-        done = atomicCompareExchangeWeak(childPtr, 0, -1 - bodyIdx).exchanged;
+        // Empty: insert the body
+        if (atomicCompareExchangeWeak(childPtr, 0, -1 - bodyIdx).exchanged) { return; }
       } else if (oldVal > 0) {
-        // Case 2: It's a Node. Descend into it
-        childNode = oldVal;
+        // A node: descend into it
+        nodeIdx = oldVal;
+        break;
       } else {
-        // Case 3: It's another Body. We need to split.
+        // Another body: split
         var newNodeIdx = spareNode;
         if (newNodeIdx < 0) {
           newNodeIdx = i32(atomicAdd(&allocator, 1u));
         }
-
         if (u32(newNodeIdx) >= params.maxNodes) {
           // Out of nodes: drop this body
-          done = true;
-        } else {
-          // Write new node geometry (the rest of the node is zero: from bhClear, or from
-          // the undo below if this is a reused spare)
-          nodes[newNodeIdx].center = (childMin + childMax) * 0.5;
-          nodes[newNodeIdx].halfSize = (childMax.x - childMin.x) * 0.5;
-
-          // Put the other body into the new node. Its sums go straight to the node, which
-          // the undo below may need to clear.
-          let otherBodyIdx = -oldVal - 1;
-          let otherBody = posMass[otherBodyIdx];
-          addToNode(newNodeIdx, contribution(otherBody, childMin, childMax));
-          let otherOctant = getOctant(otherBody.xyz, childMin, childMax);
-          let otherChildPtr = &nodes[newNodeIdx].children[otherOctant];
-          atomicStore(otherChildPtr, -1 - otherBodyIdx);
-
-          // Try to swap [Old Body] -> [New Node] in Parent
-          if (atomicCompareExchangeWeak(childPtr, oldVal, newNodeIdx).exchanged) {
-            spareNode = -1;
-            childNode = newNodeIdx;
-          } else {
-            // Someone else changed the slot first. Nobody else can see the new node yet,
-            // so undo it and keep it for this thread's next split
-            atomicStore(&nodes[newNodeIdx].massInt, 0);
-            atomicStore(&nodes[newNodeIdx].comXInt, 0);
-            atomicStore(&nodes[newNodeIdx].comYInt, 0);
-            atomicStore(&nodes[newNodeIdx].comZInt, 0);
-            atomicStore(&counts[newNodeIdx], 0u);
-            for (var axis = 0u; axis < 3u; axis++) {
-              atomicStore(&secondMoments[newNodeIdx].diag[axis], 0);
-              atomicStore(&secondMoments[newNodeIdx].cross[axis], 0);
-            }
-            atomicStore(otherChildPtr, 0);
-            spareNode = newNodeIdx;
-          }
+          return;
         }
-      }
-      // Otherwise a CAS failed: retry
 
-      if (done || childNode > 0) { break; }
+        // The rest of the new node is zero, from bhClear (a spare is unlinked again below)
+        nodes[newNodeIdx].center = (childBox.min + childBox.max) * 0.5;
+        nodes[newNodeIdx].halfSize = (childBox.max.x - childBox.min.x) * 0.5;
+
+        // Move the other body into the new node, and the new node into its slot
+        let otherBody = posMass[-oldVal - 1];
+        let otherChildPtr = &nodes[newNodeIdx].children[getOctant(otherBody.xyz, childBox)];
+        atomicStore(otherChildPtr, oldVal);
+        if (atomicCompareExchangeWeak(childPtr, oldVal, newNodeIdx).exchanged) {
+          addToNode(newNodeIdx, contribution(otherBody, childBox.min, childBox.max));
+          spareNode = -1;
+          nodeIdx = newNodeIdx;
+          break;
+        }
+        // Someone else changed the slot first. Nobody else can see the new node yet,
+        // so keep it for this thread's next split
+        atomicStore(otherChildPtr, 0);
+        spareNode = newNodeIdx;
+      }
     }
 
-    if (done) { break; }
-
-    // Continue the loop to insert OURSELVES into the child node
-    nodeIdx = childNode;
-    min = childMin;
-    max = childMax;
+    // Continue to insert this body into the child node
+    box = childBox;
     depth++;
     if (depth > MAX_DEPTH) { break; }
   }
