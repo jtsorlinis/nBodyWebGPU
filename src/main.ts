@@ -1,10 +1,12 @@
 import {
-  DefaultRenderingPipeline,
-  MeshBuilder,
-  StorageBuffer,
-  UniformBuffer,
-  Vector3,
-} from "@babylonjs/core";
+  Mesh,
+  NodeMaterial,
+  PlaneGeometry,
+  RenderPipeline,
+  StorageBufferAttribute,
+} from "three/webgpu";
+import { pass, pow, uniform, vec4 } from "three/tsl";
+import { gaussianBlur } from "three/addons/tsl/display/GaussianBlurNode.js";
 import "./style.css";
 import { createRotationCurve, initScene, randomPointInDisk } from "./utils";
 import {
@@ -36,7 +38,7 @@ const simDt = 1 / 60; // Fixed simulation timestep (seconds)
 
 let twinGalaxies = false;
 
-const { engine, scene, camera } = await initScene();
+const { device, renderer, scene, camera, controls } = await initScene();
 
 const fpsText = document.getElementById("fpsText") as HTMLElement;
 const bodiesText = document.getElementById("bodiesText") as HTMLElement;
@@ -63,36 +65,42 @@ const bodyCountButtons = document.querySelectorAll<HTMLButtonElement>(
 // The 128-byte child records are the largest buffer, and summarize dispatches two
 // invocations per node.
 const maxBufferBytes = Math.min(
-  engine._device.limits.maxStorageBufferBindingSize,
-  engine._device.limits.maxBufferSize,
+  device.limits.maxStorageBufferBindingSize,
+  device.limits.maxBufferSize,
 );
 for (const button of bodyCountButtons) {
   const count = Number(button.value);
   button.setAttribute("aria-pressed", String(count === numBodies));
   button.title = `${count.toLocaleString()} bodies`;
   if (count * nodesPerBody * 128 > maxBufferBytes ||
-      Math.ceil(count * nodesPerBody * 2 / 256) > engine._device.limits.maxComputeWorkgroupsPerDimension) {
+      Math.ceil(count * nodesPerBody * 2 / 256) > device.limits.maxComputeWorkgroupsPerDimension) {
     button.disabled = true;
     button.title = "Unavailable on this GPU";
   }
 }
 
 // Setup compute shaders
-const bodiesIntegrateShader = createBodiesIntegrateShader(engine);
-const bhTreeShader = createBHTreeShader(engine);
-const bhForcesShader = createBHForcesShader(engine);
-const bhClearShader = createBHClearShader(engine);
-const bhBoundsShader = createBHBoundsShader(engine);
-const bhOrderShader = createBHOrderShader(engine);
-const bhSummarizeShader = createBHSummarizeShader(engine);
+const [
+  bodiesIntegrateShader,
+  bhTreeShader,
+  bhForcesShader,
+  bhClearShader,
+  bhBoundsShader,
+  bhOrderShader,
+  bhSummarizeShader,
+] = await Promise.all([
+  createBodiesIntegrateShader(device),
+  createBHTreeShader(device),
+  createBHForcesShader(device),
+  createBHClearShader(device),
+  createBHBoundsShader(device),
+  createBHOrderShader(device),
+  createBHSummarizeShader(device),
+]);
 
-const forceBodiesPerWorkgroup = getBHForceBodiesPerWorkgroup(engine);
-const computeShaders = [bodiesIntegrateShader, bhClearShader, bhBoundsShader,
-  bhTreeShader, bhSummarizeShader, bhOrderShader, bhForcesShader];
-let computeShadersReady = false;
+const forceBodiesPerWorkgroup = getBHForceBodiesPerWorkgroup(device);
 
-const params = new UniformBuffer(engine);
-// Layout must match the shaders (std140/uniform alignment rules)
+// Layout must match the Params struct in the shaders (uniform alignment rules)
 // 0: numBodies (u32)
 // 4: gravity (f32)
 // 8: deltaTime (f32)
@@ -101,62 +109,76 @@ const params = new UniformBuffer(engine);
 // 20: theta (f32)
 // 24: maxNodes (u32)
 // 28: massScale (f32)
+const paramsData = new DataView(new ArrayBuffer(32));
+const params = device.createBuffer({
+  size: paramsData.byteLength,
+  usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+});
+let massScale = 0;
 
-params.addUniform("numBodies", 1);
-params.addUniform("gravity", 1);
-params.addUniform("dt", 1);
-params.addUniform("blackHoleMass", 1);
-params.addUniform("softening", 1);
-params.addUniform("theta", 1);
-params.addUniform("maxNodes", 1);
-params.addUniform("massScale", 1);
-
-params.updateFloat("softening", softening);
-params.updateFloat("theta", theta);
-params.updateFloat("dt", simDt);
-
-bodiesIntegrateShader.setUniformBuffer("params", params);
-bhTreeShader.setUniformBuffer("params", params);
-bhForcesShader.setUniformBuffer("params", params);
-bhClearShader.setUniformBuffer("params", params);
-bhBoundsShader.setUniformBuffer("params", params);
-bhOrderShader.setUniformBuffer("params", params);
-bhSummarizeShader.setUniformBuffer("params", params);
+const updateParams = () => {
+  paramsData.setUint32(0, numBodies, true);
+  paramsData.setFloat32(4, gravity, true);
+  paramsData.setFloat32(8, simDt, true);
+  paramsData.setFloat32(12, blackHoleMass, true);
+  paramsData.setFloat32(16, softening, true);
+  paramsData.setFloat32(20, theta, true);
+  paramsData.setUint32(24, maxNodes, true);
+  paramsData.setFloat32(28, massScale, true);
+  device.queue.writeBuffer(params, 0, paramsData);
+};
 
 // Setup material and mesh
-const bodiesMat = createBodiesMaterial(scene);
+const maxAcc = uniform(1);
+const extrapolationTime = uniform(0);
 
 // Update colours based on params
 const updateColours = () => {
-  const maxAcc = Math.sqrt((numBodies + blackHoleMass) * gravity) / 15;
-  bodiesMat.setFloat("maxAcc", maxAcc);
+  maxAcc.value = Math.sqrt((numBodies + blackHoleMass) * gravity) / 15;
 };
 
-// Bodies are drawn as camera-facing discs (see bodiesVertex)
-const bodyMesh = MeshBuilder.CreatePlane("body", { size: 1 });
-bodyMesh.material = bodiesMat;
-bodyMesh.buildBoundingInfo(
-  new Vector3(-1000000, -1000000, -1000000),
-  new Vector3(1000000, 1000000, 1000000),
-);
+// Bodies are drawn as camera-facing discs (see createBodiesMaterial)
+const bodyMesh = new Mesh(new PlaneGeometry(1, 1));
+bodyMesh.frustumCulled = false;
+scene.add(bodyMesh);
+let bodiesMat: NodeMaterial | undefined;
 
-// Add bloom
-var pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [
-  camera,
-]);
-pipeline.bloomEnabled = true;
-pipeline.bloomScale = 0.5;
-pipeline.bloomThreshold = 0.0;
+// Add bloom: a soft glow from a half-resolution blur of the scene
+const renderPipeline = new RenderPipeline(renderer);
+const sceneColor = pass(scene, camera).getTextureNode();
+const bloom = gaussianBlur(sceneColor, null, 6.5, { resolutionScale: 0.5 });
+// Gamma-encode with a plain 2.2 power curve instead of sRGB's, which lifts the faint glow
+renderPipeline.outputColorTransform = false;
+renderPipeline.outputNode = pow(sceneColor.add(bloom.mul(0.15)), vec4(1 / 2.2));
+
+const createStorageBuffer = (size: number, data?: Float32Array<ArrayBuffer>) => {
+  // New buffers are zeroed
+  const buffer = device.createBuffer({
+    size,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+  if (data) device.queue.writeBuffer(buffer, 0, data);
+  return buffer;
+};
+
+// Lets three.js read one of the simulation's buffers in place, rather than
+// uploading a copy of its own. three.js only creates a buffer for an attribute that has none.
+const shareWithRenderer = (buffer: GPUBuffer, itemSize: number) => {
+  const attribute = new StorageBufferAttribute(1, itemSize);
+  const backend = renderer.backend as unknown as { get(object: object): { buffer?: GPUBuffer } };
+  backend.get(attribute).buffer = buffer;
+  return attribute;
+};
 
 // Setup scene
-let posMassBuffer: StorageBuffer;
-let motionBuffer: StorageBuffer;
-let nodesBuffer: StorageBuffer;
-let allocatorBuffer: StorageBuffer;
-let boundsBuffer: StorageBuffer;
-let countsBuffer: StorageBuffer;
-let orderBuffer: StorageBuffer;
-let recordsBuffer: StorageBuffer;
+let posMassBuffer: GPUBuffer;
+let motionBuffer: GPUBuffer;
+let nodesBuffer: GPUBuffer;
+let allocatorBuffer: GPUBuffer;
+let boundsBuffer: GPUBuffer;
+let countsBuffer: GPUBuffer;
+let orderBuffer: GPUBuffer;
+let recordsBuffer: GPUBuffer;
 
 const setup = () => {
   bodiesText.textContent = numBodies.toLocaleString();
@@ -181,10 +203,10 @@ const setup = () => {
   const dist = spaceLimit * (twinGalaxies ? 4 : 2.25);
   const elevationAngle = 30 * (Math.PI / 180);
   const y = dist * Math.sin(elevationAngle);
-  const z = -dist * Math.cos(elevationAngle);
+  const z = dist * Math.cos(elevationAngle);
 
   camera.position.set(0, y, z);
-  camera.setTarget(Vector3.Zero());
+  camera.lookAt(0, 0, 0);
 
   let galaxy1Offset = twinGalaxies ? -spaceLimit * 1.5 : 0;
   let galaxy2Offset = twinGalaxies ? spaceLimit * 1.5 : 0;
@@ -200,16 +222,16 @@ const setup = () => {
     posMassArr[i * 4 + 1] = pos.z;
     posMassArr[i * 4 + 2] = pos.y;
 
-    // Circular Orbital Velocity
+    // Circular Orbital Velocity, anticlockwise seen from above
     const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
     const speed = orbitalSpeed(dist);
 
     // Add some random noise to velocity to make it less perfect
     const speedNoise = randRange(0.8, 1.2);
 
-    motionArr[i * 8] = (-pos.y / dist) * speed * speedNoise;
+    motionArr[i * 8] = (pos.y / dist) * speed * speedNoise;
     motionArr[i * 8 + 1] = 0;
-    motionArr[i * 8 + 2] = (pos.x / dist) * speed * speedNoise;
+    motionArr[i * 8 + 2] = (-pos.x / dist) * speed * speedNoise;
 
     // Set mass
     posMassArr[i * 4 + 3] = randRange(0.5, 1.5);
@@ -225,73 +247,58 @@ const setup = () => {
   }
 
   // Set params
-  params.updateUInt("numBodies", numBodies);
-  params.updateUInt("maxNodes", maxNodes);
-  params.updateFloat("gravity", gravity);
-  params.updateFloat("blackHoleMass", blackHoleMass);
   // Fixed-point scale for the octree's mass/COM sums, so the total mass fits in an i32
   const maxTotalMass = numBodies * 1.5 + numGalaxies * blackHoleMass;
-  params.updateFloat(
-    "massScale",
-    Math.floor(0x7fffffff / (maxTotalMass * 1.1)),
-  );
-  params.update();
+  massScale = Math.floor(0x7fffffff / (maxTotalMass * 1.1));
+  updateParams();
 
   // Copy data to GPU
-  posMassBuffer = new StorageBuffer(engine, posMassArr.byteLength);
-  posMassBuffer.update(posMassArr);
-  motionBuffer = new StorageBuffer(engine, motionArr.byteLength);
-  motionBuffer.update(motionArr);
+  posMassBuffer = createStorageBuffer(posMassArr.byteLength, posMassArr);
+  motionBuffer = createStorageBuffer(motionArr.byteLength, motionArr);
 
   // Nodes Buffer: 64 bytes per node. New buffers are zeroed, which is an empty tree
-  nodesBuffer = new StorageBuffer(engine, maxNodes * 64);
+  nodesBuffer = createStorageBuffer(maxNodes * 64);
 
   // Allocator: 1 uint
-  allocatorBuffer = new StorageBuffer(engine, 4);
+  allocatorBuffer = createStorageBuffer(4);
 
   // Bounds: min xyz, max xyz
-  boundsBuffer = new StorageBuffer(engine, 6 * 4);
+  boundsBuffer = createStorageBuffer(6 * 4);
 
   // Bodies under each node, and body indices in tree order: 1 uint each
-  countsBuffer = new StorageBuffer(engine, maxNodes * 4);
-  orderBuffer = new StorageBuffer(engine, numBodies * 4);
+  countsBuffer = createStorageBuffer(maxNodes * 4);
+  orderBuffer = createStorageBuffer(numBodies * 4);
 
   // Child records: 8 x (centre of mass xyz, mass) per node, rebuilt every step
-  recordsBuffer = new StorageBuffer(engine, maxNodes * 8 * 16);
+  recordsBuffer = createStorageBuffer(maxNodes * 8 * 16);
 
   // Bodies are updated in place, so the buffers only need binding once
-  bodiesIntegrateShader.setStorageBuffer("posMass", posMassBuffer);
-  bodiesIntegrateShader.setStorageBuffer("motion", motionBuffer);
-  bhClearShader.setStorageBuffer("nodes", nodesBuffer);
-  bhClearShader.setStorageBuffer("allocator", allocatorBuffer);
-  bhClearShader.setStorageBuffer("bounds", boundsBuffer);
-  bhClearShader.setStorageBuffer("counts", countsBuffer);
-  bhClearShader.setStorageBuffer("order", orderBuffer);
-  bhBoundsShader.setStorageBuffer("posMass", posMassBuffer);
-  bhBoundsShader.setStorageBuffer("bounds", boundsBuffer);
-  bhBoundsShader.setStorageBuffer("allocator", allocatorBuffer);
-  bhTreeShader.setStorageBuffer("posMass", posMassBuffer);
-  bhTreeShader.setStorageBuffer("nodes", nodesBuffer);
-  bhTreeShader.setStorageBuffer("allocator", allocatorBuffer);
-  bhTreeShader.setStorageBuffer("bounds", boundsBuffer);
-  bhTreeShader.setStorageBuffer("counts", countsBuffer);
-  bhSummarizeShader.setStorageBuffer("nodes", nodesBuffer);
-  bhSummarizeShader.setStorageBuffer("allocator", allocatorBuffer);
-  bhSummarizeShader.setStorageBuffer("posMass", posMassBuffer);
-  bhSummarizeShader.setStorageBuffer("records", recordsBuffer);
-  bhOrderShader.setStorageBuffer("posMass", posMassBuffer);
-  bhOrderShader.setStorageBuffer("nodes", nodesBuffer);
-  bhOrderShader.setStorageBuffer("counts", countsBuffer);
-  bhOrderShader.setStorageBuffer("order", orderBuffer);
-  bhForcesShader.setStorageBuffer("posMass", posMassBuffer);
-  bhForcesShader.setStorageBuffer("motion", motionBuffer);
-  bhForcesShader.setStorageBuffer("nodes", nodesBuffer);
-  bhForcesShader.setStorageBuffer("order", orderBuffer);
-  bhForcesShader.setStorageBuffer("records", recordsBuffer);
-  bodiesMat.setStorageBuffer("posMass", posMassBuffer);
-  bodiesMat.setStorageBuffer("motion", motionBuffer);
+  const buffers = {
+    params,
+    posMass: posMassBuffer,
+    motion: motionBuffer,
+    nodes: nodesBuffer,
+    allocator: allocatorBuffer,
+    bounds: boundsBuffer,
+    counts: countsBuffer,
+    order: orderBuffer,
+    records: recordsBuffer,
+  };
+  for (const shader of [bodiesIntegrateShader, bhClearShader, bhBoundsShader,
+    bhTreeShader, bhSummarizeShader, bhOrderShader, bhForcesShader]) {
+    shader.setBuffers(buffers);
+  }
 
-  bodyMesh.forcedInstanceCount = numBodies;
+  bodiesMat?.dispose();
+  bodiesMat = createBodiesMaterial(
+    shareWithRenderer(posMassBuffer, 4),
+    shareWithRenderer(motionBuffer, 4),
+    numBodies,
+    maxAcc,
+    extrapolationTime,
+  );
+  bodyMesh.material = bodiesMat;
+  bodyMesh.count = numBodies;
 };
 
 setup();
@@ -300,20 +307,19 @@ setup();
 gravitySlider.oninput = () => {
   gravity = gravitySlider.valueAsNumber;
   updateGravityDisplay();
-  params.updateFloat("gravity", gravity);
-  params.update();
+  updateParams();
   updateColours();
 };
 
 const restart = () => {
-  posMassBuffer.dispose();
-  motionBuffer.dispose();
-  nodesBuffer.dispose();
-  allocatorBuffer.dispose();
-  boundsBuffer.dispose();
-  countsBuffer.dispose();
-  orderBuffer.dispose();
-  recordsBuffer.dispose();
+  posMassBuffer.destroy();
+  motionBuffer.destroy();
+  nodesBuffer.destroy();
+  allocatorBuffer.destroy();
+  boundsBuffer.destroy();
+  countsBuffer.destroy();
+  orderBuffer.destroy();
+  recordsBuffer.destroy();
   setup();
 };
 
@@ -339,58 +345,66 @@ for (const button of bodyCountButtons) {
 }
 
 const step = () => {
-  // Avoid partial first steps while asynchronous shader compilation is pending.
-  if (!computeShadersReady) {
-    computeShadersReady = computeShaders.map(shader => shader.isReady()).every(Boolean);
-    if (!computeShadersReady) return false;
-  }
+  const encoder = device.createCommandEncoder();
+  const computePass = encoder.beginComputePass();
+
   // Pass 1: Integrate (Drift + Kick 1)
-  bodiesIntegrateShader.dispatch(Math.ceil(numBodies / 256));
+  bodiesIntegrateShader.dispatch(computePass, Math.ceil(numBodies / 256));
 
   // Pass 2: Barnes-Hut
   // 2a: Clear the Nodes the last tree used, and reset Bounds
-  bhClearShader.dispatch(Math.ceil(maxNodes / 256));
+  bhClearShader.dispatch(computePass, Math.ceil(maxNodes / 256));
 
   // 2b: Compute Bounds of all bodies (Root of the tree), and reset Allocator
-  bhBoundsShader.dispatch(Math.ceil(numBodies / 256));
+  bhBoundsShader.dispatch(computePass, Math.ceil(numBodies / 256));
 
   // 2c: Build Tree
-  bhTreeShader.dispatch(Math.ceil(numBodies / 256));
+  bhTreeShader.dispatch(computePass, Math.ceil(numBodies / 256));
 
   // 2d: Gather each node's child centres of mass into contiguous records for the force pass
-  bhSummarizeShader.dispatch(Math.ceil(maxNodes * 2 / 256));
+  bhSummarizeShader.dispatch(computePass, Math.ceil(maxNodes * 2 / 256));
 
   // 2e: Put bodies in tree order
-  bhOrderShader.dispatch(Math.ceil(numBodies / 256));
+  bhOrderShader.dispatch(computePass, Math.ceil(numBodies / 256));
 
   // 2f: Compute Forces (Kick 2)
-  bhForcesShader.dispatch(Math.ceil(numBodies / forceBodiesPerWorkgroup));
-  return true;
+  bhForcesShader.dispatch(computePass, Math.ceil(numBodies / forceBodiesPerWorkgroup));
+
+  computePass.end();
+  device.queue.submit([encoder.finish()]);
 };
 
 // Fixed timestep keeps the leapfrog integrator stable and results independent of frame rate.
 // At most one step runs per frame: if the GPU can't keep up (or the tab was hidden) the
 // simulation slows down instead of taking bigger, less accurate steps.
 let timeAccumulator = 0;
+let lastFrameTime: number | undefined;
 let fpsTimer = 0;
+let fpsFrames = 0;
 
-engine.runRenderLoop(async () => {
-  const frameTime = engine.getDeltaTime() / 1000;
+renderer.setAnimationLoop((time) => {
+  const frameTime = lastFrameTime === undefined ? 0 : (time - lastFrameTime) / 1000;
+  lastFrameTime = time;
 
   // Setting the text forces a layout, so only update it a few times a second
   fpsTimer += frameTime;
+  fpsFrames++;
   if (fpsTimer >= 0.25) {
-    fpsText.textContent = Math.round(engine.getFps()).toLocaleString();
+    fpsText.textContent = Math.round(fpsFrames / fpsTimer).toLocaleString();
     fpsTimer = 0;
+    fpsFrames = 0;
   }
+
+  controls.update(frameTime);
 
   timeAccumulator = Math.min(timeAccumulator + frameTime, 2 * simDt);
   if (timeAccumulator >= simDt) {
-    if (step()) timeAccumulator -= simDt;
+    step();
+    timeAccumulator -= simDt;
   }
 
   // Draw bodies where they'd be by now, so motion stays smooth at any refresh rate
-  bodiesMat.setFloat("extrapolationTime", timeAccumulator);
+  extrapolationTime.value = timeAccumulator;
 
-  scene.render();
+  renderPipeline.render();
 });

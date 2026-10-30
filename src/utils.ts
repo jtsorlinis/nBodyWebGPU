@@ -1,43 +1,140 @@
-import { Scene, UniversalCamera, Vector3, WebGPUEngine } from "@babylonjs/core";
+import { PerspectiveCamera, Scene, Vector3, WebGPURenderer } from "three/webgpu";
 
 export const initScene = async () => {
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
-  canvas.onpointerdown = (event) => {
+
+  // The compute passes share three.js's device so both can use the same buffers.
+  // Large body counts need the adapter's maximum buffer sizes, and subgroups when available.
+  const adapter = await navigator.gpu?.requestAdapter({ powerPreference: "high-performance" });
+  if (!adapter) {
+    throw new Error("WebGPU is not supported in this browser");
+  }
+  const requiredLimits: Record<string, number> = {};
+  for (const name in adapter.limits) {
+    if (name === "minSubgroupSize" || name === "maxSubgroupSize") {
+      // Chrome exposes these limits in "webgpu developer" mode, but they can't be set on the device.
+      continue;
+    }
+    requiredLimits[name] = adapter.limits[name as keyof GPUSupportedLimits];
+  }
+  const device = await adapter.requestDevice({
+    requiredFeatures: [...adapter.features] as GPUFeatureName[],
+    requiredLimits,
+  });
+
+  const renderer = new WebGPURenderer({ canvas, device });
+  await renderer.init();
+
+  const scene = new Scene();
+
+  const camera = new PerspectiveCamera(45, 1, 0.1, 10000);
+  const controls = attachCameraControls(camera, canvas);
+
+  const resize = () => {
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+    camera.aspect = canvas.clientWidth / canvas.clientHeight;
+    camera.updateProjectionMatrix();
+  };
+  resize();
+  window.addEventListener("resize", resize);
+
+  return { device, renderer, scene, camera, controls };
+};
+
+const lookSpeed = 1 / 250; // Radians per pixel dragged
+const moveSpeed = 300; // World units per second
+const pinchSpeed = 5; // World units per pixel the fingers spread
+const maxPitch = Math.PI / 2 - 0.001;
+
+// Camera-local directions for each held key (three.js cameras look down -z)
+const keyDirections: Record<string, Vector3> = {
+  KeyW: new Vector3(0, 0, -1),
+  KeyS: new Vector3(0, 0, 1),
+  KeyA: new Vector3(-1, 0, 0),
+  KeyD: new Vector3(1, 0, 0),
+  KeyE: new Vector3(0, 1, 0),
+  KeyQ: new Vector3(0, -1, 0),
+};
+
+// Drag to look and WASD (plus Q/E for down/up) to fly. On touch screens, pinch flies
+// forwards and backwards.
+const attachCameraControls = (camera: PerspectiveCamera, canvas: HTMLCanvasElement) => {
+  camera.rotation.order = "YXZ"; // Yaw, then pitch, with no roll
+
+  const heldKeys = new Set<string>();
+  const pointers = new Map<number, { x: number; y: number }>();
+  let pinchDistance = 0;
+
+  const getPinchDistance = () => {
+    const [a, b] = [...pointers.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+
+  canvas.addEventListener("pointerdown", (event) => {
+    canvas.setPointerCapture(event.pointerId);
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointers.size === 2) {
+      pinchDistance = getPinchDistance();
+    }
     if (event.pointerType === "mouse") {
       void canvas.requestPointerLock?.()?.catch(() => {
-        // Babylon's normal drag controls still work when pointer lock is unavailable.
+        // Dragging still works when pointer lock is unavailable.
       });
     }
-  };
-
-  canvas.onpointerup = () => {
-    document.exitPointerLock?.();
-  };
-
-  const engine = new WebGPUEngine(canvas, {
-    setMaximumLimits: true,
-    enableAllFeatures: true,
   });
-  await engine.initAsync();
-  window.addEventListener("resize", () => engine.resize());
 
-  const scene = new Scene(engine);
-  scene.clearColor.set(0, 0, 0, 1);
+  canvas.addEventListener("pointermove", (event) => {
+    const last = pointers.get(event.pointerId);
+    if (!last) return;
+    // A locked pointer stays put, so only its movement is reported
+    const locked = document.pointerLockElement === canvas;
+    const dx = locked ? event.movementX : event.clientX - last.x;
+    const dy = locked ? event.movementY : event.clientY - last.y;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
-  const camera = new UniversalCamera("camera", new Vector3(0, 0, -10), scene);
-  camera.minZ = 0.1;
-  camera.speed = 100;
-  camera.angularSensibility = 250;
-  camera.inertia = 0;
-  camera.keysLeft = [65];
-  camera.keysRight = [68];
-  camera.keysUp = [87];
-  camera.keysDown = [83];
-  camera.keysUpward = [69];
-  camera.keysDownward = [81];
-  camera.attachControl();
+    if (pointers.size === 1) {
+      camera.rotation.y -= dx * lookSpeed;
+      camera.rotation.x = Math.min(Math.max(camera.rotation.x - dy * lookSpeed, -maxPitch), maxPitch);
+    } else if (pointers.size === 2) {
+      const distance = getPinchDistance();
+      camera.translateZ((pinchDistance - distance) * pinchSpeed);
+      pinchDistance = distance;
+    }
+  });
 
-  return { engine, scene, camera };
+  const release = (event: PointerEvent) => {
+    pointers.delete(event.pointerId);
+    if (pointers.size === 2) {
+      pinchDistance = getPinchDistance();
+    }
+    if (event.pointerType === "mouse") {
+      document.exitPointerLock?.();
+    }
+  };
+  canvas.addEventListener("pointerup", release);
+  canvas.addEventListener("pointercancel", release);
+
+  window.addEventListener("keydown", (event) => {
+    // Skip shortcuts, whose keyup may never arrive
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    heldKeys.add(event.code);
+  });
+  window.addEventListener("keyup", (event) => heldKeys.delete(event.code));
+  window.addEventListener("blur", () => heldKeys.clear());
+
+  const move = new Vector3();
+  return {
+    update: (deltaTime: number) => {
+      move.set(0, 0, 0);
+      for (const key of heldKeys) {
+        const direction = keyDirections[key];
+        if (direction) move.add(direction);
+      }
+      if (move.lengthSq() === 0) return;
+      move.multiplyScalar(moveSpeed * deltaTime).applyQuaternion(camera.quaternion);
+      camera.position.add(move);
+    },
+  };
 };
 
 export const randomPointInSphere = (min: number, r: number) => {
