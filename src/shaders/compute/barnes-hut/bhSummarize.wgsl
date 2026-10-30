@@ -93,7 +93,7 @@ fn summarizePrefix(lid: u32) {
   var levelStart = TOP_INTERNAL;
   var levelEnd = TOP_NODES;
   for (var level = 0u; level < TOP_LEVELS; level++) {
-    for (var nodeIdx = levelStart + lid; nodeIdx < levelEnd; nodeIdx += 256u) {
+    for (var nodeIdx = levelStart + lid; nodeIdx < levelEnd; nodeIdx += WORKGROUP_SIZE) {
       let geom = nodes[nodeIdx].geom;
       let exponent = momentExponent(geom.w);
       var diag = vec3(0.0);
@@ -109,7 +109,7 @@ fn summarizePrefix(lid: u32) {
     levelEnd = levelStart;
     levelStart = (levelStart - 1u) / 8u;
   }
-  for (var i = lid; i < TOP_INTERNAL * 8u; i += 256u) {
+  for (var i = lid; i < TOP_INTERNAL * 8u; i += WORKGROUP_SIZE) {
     let child = nodes[i / 8u].children[i % 8u];
     records[i] = childRecord(child);
     quadrupoles[i] = quadrupoleRecord(child);
@@ -121,7 +121,7 @@ fn summarizePrefix(lid: u32) {
 // read chain per child. Two invocations per node, four child slots each. Unused (spare)
 // nodes have no children, so their records are all empty. One extra workgroup, the first
 // (so it overlaps the rest), handles the nodes whose children are in bhTree's prefix.
-@compute @workgroup_size(256)
+@compute @workgroup_size(WORKGROUP_SIZE)
 fn main(@builtin(global_invocation_id) id : vec3<u32>,
         @builtin(local_invocation_index) lid : u32,
         @builtin(workgroup_id) group : vec3<u32>) {
@@ -133,7 +133,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
     return;
   }
 
-  let nodeIdx = (id.x - 256u) / 2u;
+  let nodeIdx = (id.x - WORKGROUP_SIZE) / 2u;
   if ((seedPrefix && nodeIdx < TOP_INTERNAL) || nodeIdx >= min(allocator, params.maxNodes)) {
     return;
   }

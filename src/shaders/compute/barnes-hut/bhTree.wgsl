@@ -41,14 +41,15 @@ struct Sums {
 // still share nodes: CACHE_SIZE node indices, then CACHE_WORDS sums per entry (the five,
 // then the second moment). Integer sums don't depend on the order they're added in, so
 // the tree comes out the same.
-// Together these use 15,776 bytes, within WebGPU's 16 KiB baseline limit.
 const SCRATCH_WORDS = (TOP_NODES - 1u) * 5u;
 const CACHE_WORDS = 11u;
 const CACHE_SIZE = SCRATCH_WORDS / (CACHE_WORDS + 1u);
 const CACHED_LEVELS = 4u;
 const EMPTY_SLOT = -1;
-var<workgroup> rootSums: array<vec4<i32>, 256>;
+var<workgroup> rootSums: array<vec4<i32>, WORKGROUP_SIZE>;
 var<workgroup> scratch: array<atomic<i32>, SCRATCH_WORDS>;
+// Within WebGPU's 16 KiB baseline limit (15,776 bytes)
+const_assert (WORKGROUP_SIZE * 4u + SCRATCH_WORDS) * 4u <= 16384u;
 
 fn getOctant(pos: vec3<f32>, min: vec3<f32>, max: vec3<f32>) -> u32 {
   return octantOf(pos, (min + max) * 0.5);
@@ -136,7 +137,7 @@ fn addToCache(nodeIdx: i32, sums: Sums) -> bool {
   return false;
 }
 
-@compute @workgroup_size(256)
+@compute @workgroup_size(WORKGROUP_SIZE)
 fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation_id) lid: vec3<u32>) {
   // Root is a cube around all bodies, padded so none sit exactly on its boundary
   let lo = vec3(orderedToFloat(bounds[0]), orderedToFloat(bounds[1]), orderedToFloat(bounds[2]));
@@ -154,8 +155,8 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   // 585 nodes even when fewer than 585 body invocations are dispatched.
   // Insertion starts BELOW its internal links and computes geometry locally, so
   // no insertion reads these writes; the next dispatch observes the finished tree.
-  if (id.x < 256u) {
-    for (var index = lid.x; index < topNodes; index += 256u) {
+  if (id.x < WORKGROUP_SIZE) {
+    for (var index = lid.x; index < topNodes; index += WORKGROUP_SIZE) {
       var path: array<u32, TOP_LEVELS>;
       var n = index;
       var depth = 0u;
@@ -183,7 +184,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
       }
     }
   }
-  for (var word = lid.x; word < SCRATCH_WORDS; word += 256u) {
+  for (var word = lid.x; word < SCRATCH_WORDS; word += WORKGROUP_SIZE) {
     atomicStore(&scratch[word], 0);
   }
   workgroupBarrier();
@@ -205,7 +206,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
     }
   }
   workgroupBarrier();
-  for (var n = lid.x; n < topNodes - 1u; n += 256u) {
+  for (var n = lid.x; n < topNodes - 1u; n += WORKGROUP_SIZE) {
     flushScratch(n * 5u, i32(n + 1u));
   }
 
@@ -215,17 +216,17 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   }
   rootSums[lid.x] = rootSum;
   workgroupBarrier();
-  for (var stride = 128u; stride > 0u; stride >>= 1u) {
+  for (var stride = WORKGROUP_SIZE / 2u; stride > 0u; stride >>= 1u) {
     if (lid.x < stride) { rootSums[lid.x] += rootSums[lid.x + stride]; }
     workgroupBarrier();
   }
   if (lid.x == 0u) {
-    addFirstToNode(0, rootSums[0], min(256u, params.numBodies - id.x));
+    addFirstToNode(0, rootSums[0], min(WORKGROUP_SIZE, params.numBodies - id.x));
   }
 
   // Every invocation has finished with the prefix sums (the barriers above), so scratch
   // becomes the cache for insertion
-  for (var word = lid.x; word < SCRATCH_WORDS; word += 256u) {
+  for (var word = lid.x; word < SCRATCH_WORDS; word += WORKGROUP_SIZE) {
     atomicStore(&scratch[word], select(0, EMPTY_SLOT, word < CACHE_SIZE));
   }
   workgroupBarrier();
@@ -237,7 +238,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   // Once the whole workgroup has inserted its bodies, add the cached sums to the tree.
   // Nothing reads node sums until the next dispatch.
   workgroupBarrier();
-  for (var slot = lid.x; slot < CACHE_SIZE; slot += 256u) {
+  for (var slot = lid.x; slot < CACHE_SIZE; slot += WORKGROUP_SIZE) {
     let nodeIdx = atomicLoad(&scratch[slot]);
     if (nodeIdx != EMPTY_SLOT) {
       let base = CACHE_SIZE + slot * CACHE_WORDS;

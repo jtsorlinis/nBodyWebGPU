@@ -1,6 +1,10 @@
 // Declarations the compute kernels share. shaders/index.ts appends this file to each
 // kernel, which binds params itself; anything a kernel doesn't use is ignored.
 
+// bhTree's and bhSummarize's workgroup size, which their strides and first-workgroup
+// tests are written in terms of
+const WORKGROUP_SIZE = 256u;
+
 // The uniform block every kernel reads. Its layout must match updateParams in main.ts.
 struct Params {
   numBodies: u32,
