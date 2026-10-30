@@ -74,9 +74,9 @@ class ComputeShader {
 const supportsCoherentTraversal = (device: GPUDevice) =>
   device.features.has("subgroups") &&
   navigator.gpu.wgslLanguageFeatures.has("subgroup_uniformity");
-// The coherent shader handles four targets per invocation, with 128 invocations.
+// The coherent shader handles two targets per invocation, with 128 invocations.
 export const getBHForceBodiesPerWorkgroup = (device: GPUDevice) =>
-  supportsCoherentTraversal(device) ? 128 * 4 : 256;
+  supportsCoherentTraversal(device) ? 128 * 2 : 256;
 
 // Bodies are drawn as camera-facing discs, read straight from the simulation's buffers
 export const createBodiesMaterial = (
