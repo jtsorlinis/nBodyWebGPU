@@ -8,6 +8,8 @@
 @group(0) @binding(4) var<storage, read> order : array<u32>;
 // Each node's eight child records: centre of mass xyz, mass (see bhSummarize)
 @group(0) @binding(5) var<storage, read> records : array<vec4<f32>>;
+// Each child record's quadrupole, packed (see bhSummarize)
+@group(0) @binding(6) var<storage, read> quadrupoles : array<vec4<u32>>;
 
 // MAX_DEPTH=30 permits internal children through depth 31. A depth-first walk
 // needs at most 1 + 7*31 pending nodes, so 256 entries cover every valid tree.
@@ -70,10 +72,13 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
         }
       } else {
         // It's a Node. Check if we can approximate: size / dist < theta
-        // If the stack is full, the point mass is used rather than dropping the node
+        // If the stack is full, the node is approximated rather than dropped
         let distSq = dot(r, r);
         if (distSq > threshold || stackPtr >= STACK_SIZE) {
-          newAcc += attraction(r, source.w);
+          // The child's size is this node's half size
+          let gm = params.gravity * source.w;
+          let q = unpackQuadrupole(quadrupoles[u32(nodeIdx) * 8u + i], gm * halfSize * halfSize);
+          newAcc += quadrupoleAttraction(r, gm, q.quad, q.softTrace);
         } else {
           stack[stackPtr] = child;
           stackPtr++;

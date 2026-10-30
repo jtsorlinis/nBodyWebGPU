@@ -28,7 +28,8 @@ let numBodies = 1 << 17;
 // capacity is also the record capacity. Trees have used at most 0.84 nodes per body,
 // including failed allocations that insertion reuses.
 const nodesPerBody = 2;
-// Eight child records per node: centre of mass xyz, mass
+// Eight child records per node: centre of mass xyz, mass. Their quadrupoles are a
+// separate buffer of the same size.
 const recordBytesPerNode = 8 * 16;
 // Derived from numBodies by setup
 let maxNodes = 0;
@@ -75,7 +76,7 @@ for (const button of bodyCountButtons) {
   const count = Number(button.value);
   button.title = `${count.toLocaleString()} bodies`;
   if (count * nodesPerBody * recordBytesPerNode > maxBufferBytes ||
-      Math.ceil(count * nodesPerBody * 2 / 256) > device.limits.maxComputeWorkgroupsPerDimension) {
+      Math.ceil(count * nodesPerBody * 2 / 256) + 1 > device.limits.maxComputeWorkgroupsPerDimension) {
     button.disabled = true;
     button.title = "Unavailable on this GPU";
   }
@@ -247,8 +248,9 @@ const setup = () => {
   const buffers = {
     posMass: createStorageBuffer(posMassArr.byteLength, posMassArr),
     motion: createStorageBuffer(motionArr.byteLength, motionArr),
-    // 64 bytes per node. New buffers are zeroed, which is an empty tree
+    // 64 and 32 bytes per node. New buffers are zeroed, which is an empty tree
     nodes: createStorageBuffer(maxNodes * 64),
+    secondMoments: createStorageBuffer(maxNodes * 32),
     // 1 uint
     allocator: createStorageBuffer(4),
     // min xyz, max xyz
@@ -258,6 +260,7 @@ const setup = () => {
     order: createStorageBuffer(numBodies * 4),
     // Rebuilt every step
     records: createStorageBuffer(maxNodes * recordBytesPerNode),
+    quadrupoles: createStorageBuffer(maxNodes * recordBytesPerNode),
   };
   simBuffers = Object.values(buffers);
 
@@ -321,8 +324,9 @@ const step = () => {
   // 2c: Build Tree
   bhTreeShader.dispatch(computePass, bodyWorkgroups);
 
-  // 2d: Gather each node's child centres of mass into contiguous records for the force pass
-  bhSummarizeShader.dispatch(computePass, Math.ceil(maxNodes * 2 / 256));
+  // 2d: Gather each node's child centres of mass and quadrupoles into contiguous records
+  // for the force pass, plus one workgroup for the tree's top levels
+  bhSummarizeShader.dispatch(computePass, Math.ceil(maxNodes * 2 / 256) + 1);
 
   // 2e: Put bodies in tree order
   bhOrderShader.dispatch(computePass, bodyWorkgroups);

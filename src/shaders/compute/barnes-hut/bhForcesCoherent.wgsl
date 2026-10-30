@@ -18,6 +18,8 @@ diagnostic(off, subgroup_uniformity);
 @group(0) @binding(4) var<storage, read> order : array<u32>;
 // Each node's eight child records: centre of mass xyz, mass (see bhSummarize)
 @group(0) @binding(5) var<storage, read> records : array<vec4<f32>>;
+// Each child record's quadrupole, packed (see bhSummarize)
+@group(0) @binding(6) var<storage, read> quadrupoles : array<vec4<u32>>;
 
 // MAX_DEPTH=30 permits internal children through depth 31. A depth-first walk
 // needs at most 1 + 7*31 pending nodes, so 256 entries cover every valid tree.
@@ -94,7 +96,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     // Issue every load for this node before using any of them, so they overlap
     let children = nodes[nodeIdx].children;
     var childRecords: array<vec4<f32>, 8>;
-    for (var i = 0u; i < 8u; i++) { childRecords[i] = records[u32(nodeIdx) * 8u + i]; }
+    var childQuads: array<vec4<u32>, 8>;
+    for (var i = 0u; i < 8u; i++) {
+      childRecords[i] = records[u32(nodeIdx) * 8u + i];
+      childQuads[i] = quadrupoles[u32(nodeIdx) * 8u + i];
+    }
 
     for (var i = 0u; i < 8u; i++) {
       let child = subgroupBroadcastFirst(children[i]);
@@ -115,14 +121,17 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
       } else {
         // It's a Node. Approximate only if EVERY target in EVERY participating lane
         // passes size / dist < theta. Batching can only make this test more conservative.
-        // If the stack is full, the point mass is used rather than dropping the node
+        // If the stack is full, the node is approximated rather than dropped
         let canApproximate = dot(r0, r0) > threshold && dot(r1, r1) > threshold &&
           dot(r2, r2) > threshold && dot(r3, r3) > threshold;
         if (subgroupBroadcastFirst(u32(subgroupAll(canApproximate))) != 0u || stackPtr >= STACK_SIZE) {
-          acc0 += attraction(r0, source.w);
-          acc1 += attraction(r1, source.w);
-          acc2 += attraction(r2, source.w);
-          acc3 += attraction(r3, source.w);
+          // The child's size is this node's half size
+          let gm = params.gravity * source.w;
+          let q = unpackQuadrupole(childQuads[i], gm * halfSize * halfSize);
+          acc0 += quadrupoleAttraction(r0, gm, q.quad, q.softTrace);
+          acc1 += quadrupoleAttraction(r1, gm, q.quad, q.softTrace);
+          acc2 += quadrupoleAttraction(r2, gm, q.quad, q.softTrace);
+          acc3 += quadrupoleAttraction(r3, gm, q.quad, q.softTrace);
         } else {
           stack[stackPtr] = child;
           stackPtr++;

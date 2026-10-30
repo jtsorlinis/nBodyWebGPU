@@ -6,6 +6,7 @@
 @group(0) @binding(3) var<storage, read_write> bounds : array<u32, 6>;
 @group(0) @binding(4) var<storage, read_write> counts : array<u32>;
 @group(0) @binding(5) var<storage, read_write> order : array<u32>;
+@group(0) @binding(6) var<storage, read_write> secondMoments : array<SecondMoment>;
 
 // Only the nodes the last tree used need zeroing (a zeroed node is empty),
 // since everything past them was never written. Early-out workgroups are cheap.
@@ -29,4 +30,5 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   nodes[id.x] = Node();
   counts[id.x] = 0u;
+  secondMoments[id.x] = SecondMoment();
 }

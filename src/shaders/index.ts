@@ -125,12 +125,12 @@ export const createBodiesIntegrateShader = (device: GPUDevice) =>
 
 export const createBHTreeShader = (device: GPUDevice) =>
   ComputeShader.create(device, "bhTree", bhTreeSource,
-    ["params", "posMass", "nodes", "allocator", "bounds", "counts"]);
+    ["params", "posMass", "nodes", "allocator", "bounds", "counts", "secondMoments"]);
 
 export const createBHForcesShader = (device: GPUDevice) =>
   ComputeShader.create(device, "bhForces",
     supportsCoherentTraversal(device) ? bhCoherentSource : bhForcesSource,
-    ["params", "posMass", "motion", "nodes", "order", "records"]);
+    ["params", "posMass", "motion", "nodes", "order", "records", "quadrupoles"]);
 
 export const createBHBoundsShader = (device: GPUDevice) =>
   ComputeShader.create(device, "bhBounds", bhBoundsSource,
@@ -138,7 +138,7 @@ export const createBHBoundsShader = (device: GPUDevice) =>
 
 export const createBHSummarizeShader = (device: GPUDevice) =>
   ComputeShader.create(device, "bhSummarize", bhSummarizeSource,
-    ["params", "nodes", "allocator", "posMass", "records"]);
+    ["params", "nodes", "allocator", "posMass", "records", "secondMoments", "quadrupoles"]);
 
 export const createBHOrderShader = (device: GPUDevice) =>
   ComputeShader.create(device, "bhOrder", bhOrderSource,
@@ -146,4 +146,4 @@ export const createBHOrderShader = (device: GPUDevice) =>
 
 export const createBHClearShader = (device: GPUDevice) =>
   ComputeShader.create(device, "bhClear", bhClearSource,
-    ["params", "nodes", "allocator", "bounds", "counts", "order"]);
+    ["params", "nodes", "allocator", "bounds", "counts", "order", "secondMoments"]);

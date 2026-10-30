@@ -27,6 +27,14 @@ struct Node {
   children: array<i32, 8>,
 };
 
+// A node's integer second moment about its centre (mass * offset * offset), in units of
+// 2^(2 * momentExponent), 32 bytes. bhTree builds it through an atomic view of the same
+// layout. Kept apart from Node so the force pass's node reads stay small.
+struct SecondMoment {
+  diag: vec3<i32>, // xx, yy, zz
+  cross: vec3<i32>, // xy, xz, yz
+};
+
 // A node's moment is in units of 2^momentExponent(halfSize), the power of two just above
 // its half size. It comes straight from the half size's bits, and scaling by it is exact,
 // so every place bhTree works out a body's moment for a node gets the same integers (a
@@ -35,12 +43,44 @@ fn momentExponent(halfSize: f32) -> i32 {
   return i32((bitcast<u32>(halfSize) >> 23u) & 0xFFu) - 126;
 }
 
+// Softened acceleration towards a node's mass and quadrupole, at offset r from its centre
+// of mass. This is the softened point mass's potential expanded to second order about the
+// centre of mass (the first-order term is zero there), so it is exact for a single body.
+// gm is gravity * mass; quad holds gravity * the traceless quadrupole (3 * second moment
+// - trace), and softTrace is gravity * softening^2 * trace (see bhSummarize).
+fn quadrupoleAttraction(r: vec3<f32>, gm: f32, quad: mat3x3<f32>, softTrace: f32) -> vec3<f32> {
+  let invDist = inverseSqrt(dot(r, r) + params.softening * params.softening);
+  let invDistSq = invDist * invDist;
+  let qr = quad * r;
+  let radial = gm + 2.5 * invDistSq * invDistSq * (dot(r, qr) - softTrace);
+  return (radial * r - invDistSq * qr) * (invDistSq * invDist);
+}
+
+// Unpacks a child's quadrupole record (see bhSummarize) for quadrupoleAttraction. The
+// record is normalized by the child's mass * size^2; scale is gravity times that.
+struct Quadrupole {
+  quad: mat3x3<f32>,
+  softTrace: f32,
+};
+fn unpackQuadrupole(packed: vec4<u32>, scale: f32) -> Quadrupole {
+  let diag = unpack2x16float(packed.x) * scale; // xx, yy
+  let cross = unpack2x16float(packed.y) * scale; // xy, xz
+  let rest = unpack2x16float(packed.z) * scale; // yz, trace
+  let quad = mat3x3<f32>(
+    vec3(diag.x, cross.x, cross.y),
+    vec3(cross.x, diag.y, rest.x),
+    vec3(cross.y, rest.x, -diag.x - diag.y));
+  return Quadrupole(quad, params.softening * params.softening * rest.y);
+}
+
 // bhTree drops bodies that would need nodes deeper than this
 const MAX_DEPTH = 30u;
 
 // bhTree's complete three-level prefix: 1 + 8 + 64 + 512 nodes. bhBounds reserves it
 // before bhTree allocates the rest.
 const TOP_NODES = 585u;
+// The prefix nodes above its last level: 1 + 8 + 64
+const TOP_INTERNAL = 73u;
 
 // Small trees seed only the root, so the prefix doesn't consume most of their
 // allocation budget
