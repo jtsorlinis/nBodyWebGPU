@@ -114,6 +114,7 @@ const attachCameraControls = (camera: PerspectiveCamera, canvas: HTMLCanvasEleme
   };
   canvas.addEventListener("pointerup", release);
   canvas.addEventListener("pointercancel", release);
+  canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   window.addEventListener("keydown", (event) => {
     // Skip shortcuts, whose keyup may never arrive
