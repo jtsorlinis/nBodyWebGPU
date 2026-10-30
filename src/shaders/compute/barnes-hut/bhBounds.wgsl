@@ -1,20 +1,10 @@
-struct Params {
-  numBodies: u32,
-  gravity: f32,
-  deltaTime: f32,
-  blackHoleMass: f32,
-  softening: f32,
-  theta: f32,
-  maxNodes: u32,
-  massScale: f32,
-}
-
 // Floats are stored as order-preserving uints so they can be reduced with atomicMin/Max
 struct Bounds {
   minBits: array<atomic<u32>, 3>,
   maxBits: array<atomic<u32>, 3>,
 };
 
+// Params is shared by every kernel, see params.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // xyz = position, w = mass
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;

@@ -17,6 +17,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl";
+import paramsSource from "./compute/params.wgsl?raw";
 import bodiesIntegrateSource from "./compute/bodiesIntegrate.wgsl?raw";
 import bhTreeSource from "./compute/barnes-hut/bhTree.wgsl?raw";
 import bhForcesSource from "./compute/barnes-hut/bhForces.wgsl?raw";
@@ -41,7 +42,9 @@ export class ComputeShader {
   }
 
   static async create(device: GPUDevice, label: string, code: string, bindings: readonly string[]) {
-    const module = device.createShaderModule({ label, code });
+    // Every kernel reads the shared Params block. WGSL declarations can come in any order,
+    // so appending it keeps directives first and compile errors on the kernel's own lines.
+    const module = device.createShaderModule({ label, code: `${code}\n${paramsSource}` });
     const pipeline = await device.createComputePipelineAsync({
       label,
       layout: "auto",

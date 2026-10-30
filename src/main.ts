@@ -100,7 +100,7 @@ const [
 
 const forceBodiesPerWorkgroup = getBHForceBodiesPerWorkgroup(device);
 
-// Layout must match the Params struct in the shaders (uniform alignment rules)
+// Layout must match the Params struct in shaders/compute/params.wgsl (uniform alignment rules)
 // 0: numBodies (u32)
 // 4: gravity (f32)
 // 8: deltaTime (f32)

@@ -1,14 +1,3 @@
-struct Params {
-  numBodies: u32,
-  gravity: f32,
-  deltaTime: f32,
-  blackHoleMass: f32,
-  softening: f32,
-  theta: f32,
-  maxNodes: u32,
-  massScale: f32,
-}
-
 // Child slots: 0 = empty, > 0 = node index (the root is never a child), < 0 = body (-1 - bodyIdx).
 // A zeroed node is therefore an empty node, which is what bhClear resets nodes to.
 struct Node {
@@ -21,6 +10,7 @@ struct Node {
   children: array<atomic<i32>, 8>,
 };
 
+// Params is shared by every kernel, see params.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // xyz = position, w = mass
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;

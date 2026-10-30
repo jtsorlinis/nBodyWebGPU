@@ -1,14 +1,3 @@
-struct Params {
-  numBodies: u32,
-  gravity: f32,
-  deltaTime: f32,
-  blackHoleMass: f32,
-  softening: f32,
-  theta: f32,
-  maxNodes: u32,
-  massScale: f32,
-}
-
 struct Motion {
   vel : vec3<f32>,
   acc : vec3<f32>,
@@ -21,6 +10,7 @@ struct Node {
   children: array<i32, 8>, // 0 = empty, > 0 = node, < 0 = body (-1 - bodyIdx)
 };
 
+// Params is shared by every kernel, see params.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // xyz = position, w = mass
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;
