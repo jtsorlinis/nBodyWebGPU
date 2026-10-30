@@ -26,8 +26,8 @@ import bhBoundsSource from "./compute/barnes-hut/bhBounds.wgsl?raw";
 import bhOrderSource from "./compute/barnes-hut/bhOrder.wgsl?raw";
 import bhSummarizeSource from "./compute/barnes-hut/bhSummarize.wgsl?raw";
 
-// A WGSL compute shader run directly on the device three.js renders with.
-// Bindings are all in group 0, numbered in the order their names are given.
+// A WGSL compute shader run directly on the device three.js renders with. Its bindings
+// are all in group 0, and each one is given the buffer of the same name.
 class ComputeShader {
   private readonly device: GPUDevice;
   private readonly pipeline: GPUComputePipeline;
@@ -40,10 +40,15 @@ class ComputeShader {
     this.bindings = bindings;
   }
 
-  static async create(device: GPUDevice, label: string, code: string, bindings: readonly string[]) {
+  static async create(device: GPUDevice, label: string, kernel: string) {
     // Every kernel uses the shared declarations. WGSL declarations can come in any order,
     // so appending them keeps directives first and compile errors on the kernel's own lines.
-    const module = device.createShaderModule({ label, code: `${code}\n${commonSource}` });
+    const code = `${kernel}\n${commonSource}`;
+    const bindings: string[] = [];
+    for (const [, binding, name] of code.matchAll(/@binding\((\d+)\)\s*var(?:<[^>]*>)?\s+(\w+)/g)) {
+      bindings[Number(binding)] = name;
+    }
+    const module = device.createShaderModule({ label, code });
     const pipeline = await device.createComputePipelineAsync({
       label,
       layout: "auto",
@@ -70,7 +75,7 @@ class ComputeShader {
 }
 
 // Subgroup traversal shares opening decisions without assuming a subgroup size or
-// any mapping between lane IDs and particle IDs. Keep a portable independent path.
+// any mapping between lane IDs and body IDs. Keep a portable independent path.
 const supportsCoherentTraversal = (device: GPUDevice) =>
   device.features.has("subgroups") &&
   navigator.gpu.wgslLanguageFeatures.has("subgroup_uniformity");
@@ -120,30 +125,23 @@ export const createBodiesMaterial = (
 };
 
 export const createBodiesIntegrateShader = (device: GPUDevice) =>
-  ComputeShader.create(device, "bodiesIntegrate", bodiesIntegrateSource,
-    ["params", "posMass", "motion"]);
+  ComputeShader.create(device, "bodiesIntegrate", bodiesIntegrateSource);
 
 export const createBHTreeShader = (device: GPUDevice) =>
-  ComputeShader.create(device, "bhTree", bhTreeSource,
-    ["params", "posMass", "nodes", "allocator", "bounds", "counts", "secondMoments"]);
+  ComputeShader.create(device, "bhTree", bhTreeSource);
 
 export const createBHForcesShader = (device: GPUDevice) =>
   ComputeShader.create(device, "bhForces",
-    supportsCoherentTraversal(device) ? bhCoherentSource : bhForcesSource,
-    ["params", "posMass", "motion", "nodes", "order", "records", "quadrupoles"]);
+    supportsCoherentTraversal(device) ? bhCoherentSource : bhForcesSource);
 
 export const createBHBoundsShader = (device: GPUDevice) =>
-  ComputeShader.create(device, "bhBounds", bhBoundsSource,
-    ["params", "posMass", "bounds", "allocator"]);
+  ComputeShader.create(device, "bhBounds", bhBoundsSource);
 
 export const createBHSummarizeShader = (device: GPUDevice) =>
-  ComputeShader.create(device, "bhSummarize", bhSummarizeSource,
-    ["params", "nodes", "allocator", "posMass", "records", "secondMoments", "quadrupoles"]);
+  ComputeShader.create(device, "bhSummarize", bhSummarizeSource);
 
 export const createBHOrderShader = (device: GPUDevice) =>
-  ComputeShader.create(device, "bhOrder", bhOrderSource,
-    ["params", "posMass", "nodes", "counts", "order"]);
+  ComputeShader.create(device, "bhOrder", bhOrderSource);
 
 export const createBHClearShader = (device: GPUDevice) =>
-  ComputeShader.create(device, "bhClear", bhClearSource,
-    ["params", "nodes", "allocator", "bounds", "counts", "order", "secondMoments"]);
+  ComputeShader.create(device, "bhClear", bhClearSource);

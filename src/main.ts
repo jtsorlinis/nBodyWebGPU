@@ -85,15 +85,7 @@ for (const button of bodyCountButtons) {
 }
 
 // Setup compute shaders
-const [
-  bodiesIntegrateShader,
-  bhTreeShader,
-  bhForcesShader,
-  bhClearShader,
-  bhBoundsShader,
-  bhOrderShader,
-  bhSummarizeShader,
-] = await Promise.all([
+const computeShaders = await Promise.all([
   createBodiesIntegrateShader(device),
   createBHTreeShader(device),
   createBHForcesShader(device),
@@ -102,6 +94,15 @@ const [
   createBHOrderShader(device),
   createBHSummarizeShader(device),
 ]);
+const [
+  bodiesIntegrateShader,
+  bhTreeShader,
+  bhForcesShader,
+  bhClearShader,
+  bhBoundsShader,
+  bhOrderShader,
+  bhSummarizeShader,
+] = computeShaders;
 
 const forceBodiesPerWorkgroup = getBHForceBodiesPerWorkgroup(device);
 
@@ -267,8 +268,7 @@ const setup = () => {
   simBuffers = Object.values(buffers);
 
   // Bodies are updated in place, so the buffers only need binding once
-  for (const shader of [bodiesIntegrateShader, bhClearShader, bhBoundsShader,
-    bhTreeShader, bhSummarizeShader, bhOrderShader, bhForcesShader]) {
+  for (const shader of computeShaders) {
     shader.setBuffers({ params, ...buffers });
   }
 
