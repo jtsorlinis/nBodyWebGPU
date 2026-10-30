@@ -30,13 +30,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
   // Bodies sit at most MAX_DEPTH + 1 levels down (see bhTree)
   for (var depth = 0u; depth <= MAX_DEPTH + 1u; depth++) {
-    // Same octant test as bhTree, against the node's stored centre
-    let center = nodes[nodeIdx].geom.xyz;
-    var octant = 0u;
-    if (pos.x > center.x) { octant |= 1u; }
-    if (pos.y > center.y) { octant |= 2u; }
-    if (pos.z > center.z) { octant |= 4u; }
-
+    let octant = octantOf(pos, nodes[nodeIdx].geom.xyz);
     for (var i = 0u; i < octant; i++) {
       rank += bodiesUnder(nodes[nodeIdx].children[i]);
     }

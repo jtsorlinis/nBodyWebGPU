@@ -35,10 +35,6 @@ struct Sums {
 // Built for every node below the prefix; bhSummarize works out the prefix's own
 @group(0) @binding(6) var<storage, read_write> secondMoments : array<BuildSecondMoment>;
 
-// Seed a complete three-level prefix of TOP_NODES (see common.wgsl), in breadth-first
-// order. Workgroup aggregation removes most global atomic contention near the root.
-const TOP_LEVELS = 3u;
-
 // Workgroup sums are kept as five words: mass, moment xyz, then the number of bodies.
 // scratch first holds them for each prefix node below the root. Then it caches the sums
 // insertion adds to the CACHED_LEVELS levels below the prefix, where clustered bodies
@@ -54,17 +50,8 @@ const EMPTY_SLOT = -1;
 var<workgroup> rootSums: array<vec4<i32>, 256>;
 var<workgroup> scratch: array<atomic<i32>, SCRATCH_WORDS>;
 
-fn orderedToFloat(bits: u32) -> f32 {
-  return bitcast<f32>(select(~bits, bits & 0x7FFFFFFFu, (bits & 0x80000000u) != 0u));
-}
-
 fn getOctant(pos: vec3<f32>, min: vec3<f32>, max: vec3<f32>) -> u32 {
-  let center = (min + max) * 0.5;
-  var octant = 0u;
-  if (pos.x > center.x) { octant |= 1u; }
-  if (pos.y > center.y) { octant |= 2u; }
-  if (pos.z > center.z) { octant |= 4u; }
-  return octant;
+  return octantOf(pos, (min + max) * 0.5);
 }
 
 // A body's integer mass, moment and second moment for a node.
@@ -161,7 +148,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
 
   let seedPrefix = seedsTopPrefix();
   let topLevels = select(0u, TOP_LEVELS, seedPrefix);
-  let topNodes = select(1u, TOP_NODES, seedPrefix);
+  let topNodes = seededNodes();
 
   // Only the first workgroup initializes the prefix. Its strided loop covers all
   // 585 nodes even when fewer than 585 body invocations are dispatched.

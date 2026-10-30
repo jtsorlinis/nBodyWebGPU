@@ -43,6 +43,16 @@ fn momentExponent(halfSize: f32) -> i32 {
   return i32((bitcast<u32>(halfSize) >> 23u) & 0xFFu) - 126;
 }
 
+// MAX_DEPTH=30 permits internal children through depth 31. A depth-first walk
+// needs at most 1 + 7*31 pending nodes, so 256 entries cover every valid tree.
+const STACK_SIZE = 256;
+
+// Softened acceleration towards a point mass at offset r
+fn attraction(r: vec3<f32>, mass: f32) -> vec3<f32> {
+  let invDist = inverseSqrt(dot(r, r) + params.softening * params.softening);
+  return r * (params.gravity * mass * invDist * invDist * invDist);
+}
+
 // Softened acceleration towards a node's mass and quadrupole, at offset r from its centre
 // of mass. This is the softened point mass's potential expanded to second order about the
 // centre of mass (the first-order term is zero there), so it is exact for a single body.
@@ -76,8 +86,31 @@ fn unpackQuadrupole(packed: vec4<u32>, scale: f32) -> Quadrupole {
 // bhTree drops bodies that would need nodes deeper than this
 const MAX_DEPTH = 30u;
 
-// bhTree's complete three-level prefix: 1 + 8 + 64 + 512 nodes. bhBounds reserves it
-// before bhTree allocates the rest.
+// The child octant of a node centred at center that pos falls in
+fn octantOf(pos: vec3<f32>, center: vec3<f32>) -> u32 {
+  var octant = 0u;
+  if (pos.x > center.x) { octant |= 1u; }
+  if (pos.y > center.y) { octant |= 2u; }
+  if (pos.z > center.z) { octant |= 4u; }
+  return octant;
+}
+
+// Bounds are reduced as uints with atomicMin/Max. Positive floats get the sign bit set and
+// negative floats have all bits flipped, so comparing the uints orders them like the floats.
+fn floatToOrdered(f: f32) -> u32 {
+  let bits = bitcast<u32>(f);
+  return select(bits | 0x80000000u, ~bits, (bits & 0x80000000u) != 0u);
+}
+
+fn orderedToFloat(bits: u32) -> f32 {
+  return bitcast<f32>(select(~bits, bits & 0x7FFFFFFFu, (bits & 0x80000000u) != 0u));
+}
+
+// bhTree seeds a complete prefix, the root and the TOP_LEVELS levels below it: 1 + 8 + 64
+// + 512 nodes, in breadth-first order, so it can sum them per workgroup instead of
+// contending on global atomics near the root. bhBounds reserves it before bhTree
+// allocates the rest.
+const TOP_LEVELS = 3u;
 const TOP_NODES = 585u;
 // The prefix nodes above its last level: 1 + 8 + 64
 const TOP_INTERNAL = 73u;
@@ -86,4 +119,9 @@ const TOP_INTERNAL = 73u;
 // allocation budget
 fn seedsTopPrefix() -> bool {
   return params.numBodies >= 1024u && params.maxNodes >= TOP_NODES;
+}
+
+// The nodes bhBounds reserves and bhTree seeds: the prefix, or just the root
+fn seededNodes() -> u32 {
+  return select(1u, TOP_NODES, seedsTopPrefix());
 }

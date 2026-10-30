@@ -92,7 +92,7 @@ fn shiftedSecondMoment(child: i32, parentCenter: vec3<f32>, exponent: i32) -> ar
 fn summarizePrefix(lid: u32) {
   var levelStart = TOP_INTERNAL;
   var levelEnd = TOP_NODES;
-  for (var level = 0u; level < 3u; level++) {
+  for (var level = 0u; level < TOP_LEVELS; level++) {
     for (var nodeIdx = levelStart + lid; nodeIdx < levelEnd; nodeIdx += 256u) {
       let geom = nodes[nodeIdx].geom;
       let exponent = momentExponent(geom.w);

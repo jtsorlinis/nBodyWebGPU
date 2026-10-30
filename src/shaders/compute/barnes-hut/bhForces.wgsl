@@ -11,16 +11,6 @@
 // Each child record's quadrupole, packed (see bhSummarize)
 @group(0) @binding(6) var<storage, read> quadrupoles : array<vec4<u32>>;
 
-// MAX_DEPTH=30 permits internal children through depth 31. A depth-first walk
-// needs at most 1 + 7*31 pending nodes, so 256 entries cover every valid tree.
-const STACK_SIZE = 256;
-
-// Softened acceleration towards a point mass at offset r
-fn attraction(r: vec3<f32>, mass: f32) -> vec3<f32> {
-  let invDist = inverseSqrt(dot(r, r) + params.softening * params.softening);
-  return r * (params.gravity * mass * invDist * invDist * invDist);
-}
-
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   if (id.x >= params.numBodies) {

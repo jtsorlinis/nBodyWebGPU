@@ -14,20 +14,13 @@ struct Bounds {
 var<workgroup> localMin : array<atomic<u32>, 3>;
 var<workgroup> localMax : array<atomic<u32>, 3>;
 
-// Positive floats get the sign bit set, negative floats have all bits flipped,
-// so comparing the uints gives the same order as comparing the floats
-fn floatToOrdered(f: f32) -> u32 {
-  let bits = bitcast<u32>(f);
-  return select(bits | 0x80000000u, ~bits, (bits & 0x80000000u) != 0u);
-}
-
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>,
         @builtin(local_invocation_id) lid : vec3<u32>) {
-  // Reserve bhTree's three-level prefix, or just the root for small trees (see common.wgsl).
-  // bhClear has already used last step's count, and bhTree runs after this pass.
+  // Reserve the nodes bhTree seeds. bhClear has already used last step's count, and
+  // bhTree runs after this pass.
   if (id.x == 0u) {
-    allocator = select(1u, TOP_NODES, seedsTopPrefix());
+    allocator = seededNodes();
   }
 
   if (lid.x < 3u) {
