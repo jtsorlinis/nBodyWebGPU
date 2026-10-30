@@ -1,10 +1,4 @@
-struct Node {
-  sums: vec4<i32>,
-  geom: vec4<f32>,
-  children: array<i32, 8>,
-};
-
-// Params is shared by every kernel, see params.wgsl
+// Params and Node are shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 @group(0) @binding(1) var<storage, read_write> nodes : array<Node>;
 // Number of nodes the last tree build allocated
@@ -13,7 +7,7 @@ struct Node {
 @group(0) @binding(4) var<storage, read_write> counts : array<u32>;
 @group(0) @binding(5) var<storage, read_write> order : array<u32>;
 
-// Only the nodes the last tree used need zeroing (a zeroed node is empty, see bhTree),
+// Only the nodes the last tree used need zeroing (a zeroed node is empty),
 // since everything past them was never written. Early-out workgroups are cheap.
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {

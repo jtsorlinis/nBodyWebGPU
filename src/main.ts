@@ -1,6 +1,7 @@
 import {
+  MathUtils,
+  type Material,
   Mesh,
-  NodeMaterial,
   PlaneGeometry,
   RenderPipeline,
   StorageBufferAttribute,
@@ -20,23 +21,21 @@ import {
   createBHSummarizeShader,
   getBHForceBodiesPerWorkgroup,
 } from "./shaders";
-import { randRange } from "./utils";
 
 // Constants
-const initialNumBodies = 1 << 17;
-let numBodies = initialNumBodies;
+let numBodies = 1 << 17;
 // Every node gets eight contiguous child records for the force pass, so the tree's
 // capacity is also the record capacity. Trees have used at most 0.84 nodes per body,
 // including failed allocations that insertion reuses.
 const nodesPerBody = 2;
-let maxNodes = numBodies * nodesPerBody;
-let gravity = 5;
-let blackHoleMass = numBodies / 2;
+// Eight child records per node: centre of mass xyz, mass
+const recordBytesPerNode = 8 * 16;
+// Derived from numBodies by setup
+let maxNodes = 0;
+let blackHoleMass = 0;
 const softening = 3.0;
 const theta = 0.5;
 const simDt = 1 / 60; // Fixed simulation timestep (seconds)
-
-let twinGalaxies = false;
 
 const { device, renderer, scene, camera, controls } = await initScene();
 
@@ -46,6 +45,15 @@ const gravityText = document.getElementById("gravityText") as HTMLElement;
 const gravitySlider = document.getElementById(
   "gravitySlider",
 ) as HTMLInputElement;
+const restartButton = document.getElementById("restartButton") as HTMLElement;
+const twinGalaxiesToggle = document.getElementById(
+  "twinGalaxiesToggle",
+) as HTMLInputElement;
+
+// The controls hold the starting settings
+let gravity = gravitySlider.valueAsNumber;
+let twinGalaxies = twinGalaxiesToggle.checked;
+
 const updateGravityDisplay = () => {
   gravityText.textContent = String(gravity);
   const min = Number(gravitySlider.min);
@@ -54,15 +62,10 @@ const updateGravityDisplay = () => {
 };
 updateGravityDisplay();
 
-const restartButton = document.getElementById("restartButton") as HTMLElement;
-const twinGalaxiesToggle = document.getElementById(
-  "twinGalaxiesToggle",
-) as HTMLInputElement;
-
 const bodyCountButtons = document.querySelectorAll<HTMLButtonElement>(
   "#bodyCountButtons button",
 );
-// The 128-byte child records are the largest buffer, and summarize dispatches two
+// The child records are the largest buffer, and summarize dispatches two
 // invocations per node.
 const maxBufferBytes = Math.min(
   device.limits.maxStorageBufferBindingSize,
@@ -70,9 +73,8 @@ const maxBufferBytes = Math.min(
 );
 for (const button of bodyCountButtons) {
   const count = Number(button.value);
-  button.setAttribute("aria-pressed", String(count === numBodies));
   button.title = `${count.toLocaleString()} bodies`;
-  if (count * nodesPerBody * 128 > maxBufferBytes ||
+  if (count * nodesPerBody * recordBytesPerNode > maxBufferBytes ||
       Math.ceil(count * nodesPerBody * 2 / 256) > device.limits.maxComputeWorkgroupsPerDimension) {
     button.disabled = true;
     button.title = "Unavailable on this GPU";
@@ -100,15 +102,7 @@ const [
 
 const forceBodiesPerWorkgroup = getBHForceBodiesPerWorkgroup(device);
 
-// Layout must match the Params struct in shaders/compute/params.wgsl (uniform alignment rules)
-// 0: numBodies (u32)
-// 4: gravity (f32)
-// 8: deltaTime (f32)
-// 12: blackHoleMass (f32)
-// 16: softening (f32)
-// 20: theta (f32)
-// 24: maxNodes (u32)
-// 28: massScale (f32)
+// Layout must match the Params struct in shaders/compute/common.wgsl (uniform alignment rules)
 const paramsData = new DataView(new ArrayBuffer(32));
 const params = device.createBuffer({
   size: paramsData.byteLength,
@@ -116,6 +110,7 @@ const params = device.createBuffer({
 });
 let massScale = 0;
 
+// Sends the settings to the compute shaders, and rescales the colours to match
 const updateParams = () => {
   paramsData.setUint32(0, numBodies, true);
   paramsData.setFloat32(4, gravity, true);
@@ -126,22 +121,17 @@ const updateParams = () => {
   paramsData.setUint32(24, maxNodes, true);
   paramsData.setFloat32(28, massScale, true);
   device.queue.writeBuffer(params, 0, paramsData);
+  maxAcc.value = Math.sqrt((numBodies + blackHoleMass) * gravity) / 15;
 };
 
 // Setup material and mesh
 const maxAcc = uniform(1);
 const extrapolationTime = uniform(0);
 
-// Update colours based on params
-const updateColours = () => {
-  maxAcc.value = Math.sqrt((numBodies + blackHoleMass) * gravity) / 15;
-};
-
 // Bodies are drawn as camera-facing discs (see createBodiesMaterial)
-const bodyMesh = new Mesh(new PlaneGeometry(1, 1));
+const bodyMesh = new Mesh<PlaneGeometry, Material>(new PlaneGeometry(1, 1));
 bodyMesh.frustumCulled = false;
 scene.add(bodyMesh);
-let bodiesMat: NodeMaterial | undefined;
 
 // Add bloom: a soft glow from a half-resolution blur of the scene
 const renderPipeline = new RenderPipeline(renderer);
@@ -171,23 +161,25 @@ const shareWithRenderer = (buffer: GPUBuffer, itemSize: number) => {
 };
 
 // Setup scene
-let posMassBuffer: GPUBuffer;
-let motionBuffer: GPUBuffer;
-let nodesBuffer: GPUBuffer;
-let allocatorBuffer: GPUBuffer;
-let boundsBuffer: GPUBuffer;
-let countsBuffer: GPUBuffer;
-let orderBuffer: GPUBuffer;
-let recordsBuffer: GPUBuffer;
+// Storage buffers for the current simulation, destroyed when it restarts
+let simBuffers: GPUBuffer[] = [];
 
+// Starts the simulation over with the current settings
 const setup = () => {
+  for (const buffer of simBuffers) buffer.destroy();
+
+  maxNodes = numBodies * nodesPerBody;
+  blackHoleMass = numBodies / 2;
   bodiesText.textContent = numBodies.toLocaleString();
-  updateColours();
+  for (const button of bodyCountButtons) {
+    button.setAttribute("aria-pressed", String(Number(button.value) === numBodies));
+  }
 
   // Setup size based on number of bodies
   const numGalaxies = twinGalaxies ? 2 : 1;
   const spaceLimit = Math.pow(numBodies / numGalaxies, 1 / 3) * 10;
   const innerRadius = spaceLimit * 0.1;
+  const halfThickness = spaceLimit * 0.05;
 
   // Speed for a circular orbit at each radius, including the pull of the disk itself
   const orbitalSpeed = createRotationCurve({
@@ -196,45 +188,44 @@ const setup = () => {
     diskMass: numBodies / numGalaxies, // Bodies have a mean mass of 1
     rMin: innerRadius,
     rMax: spaceLimit,
-    halfThickness: spaceLimit * 0.05, // Matches randomPointInDisk
+    halfThickness,
     softening,
   });
 
-  const dist = spaceLimit * (twinGalaxies ? 4 : 2.25);
-  const elevationAngle = 30 * (Math.PI / 180);
-  const y = dist * Math.sin(elevationAngle);
-  const z = dist * Math.cos(elevationAngle);
+  const cameraDist = spaceLimit * (twinGalaxies ? 4 : 2.25);
+  const elevationAngle = MathUtils.degToRad(30);
+  const y = cameraDist * Math.sin(elevationAngle);
+  const z = cameraDist * Math.cos(elevationAngle);
 
   camera.position.set(0, y, z);
   camera.lookAt(0, 0, 0);
 
-  let galaxy1Offset = twinGalaxies ? -spaceLimit * 1.5 : 0;
-  let galaxy2Offset = twinGalaxies ? spaceLimit * 1.5 : 0;
-  // Intialize buffers
+  const galaxy1Offset = twinGalaxies ? -spaceLimit * 1.5 : 0;
+  const galaxy2Offset = twinGalaxies ? spaceLimit * 1.5 : 0;
+  // Initialize bodies
   // posMass: xyz = position, w = mass
   // motion: velocity, acceleration (vec3s padded to 4 floats)
   const posMassArr = new Float32Array(numBodies * 4);
   const motionArr = new Float32Array(numBodies * 8);
   for (let i = 0; i < numBodies; i++) {
-    const pos = randomPointInDisk(innerRadius, spaceLimit);
+    const pos = randomPointInDisk(innerRadius, spaceLimit, halfThickness);
     const offset = i < numBodies / 2 ? galaxy1Offset : galaxy2Offset;
     posMassArr[i * 4] = pos.x + offset;
-    posMassArr[i * 4 + 1] = pos.z;
-    posMassArr[i * 4 + 2] = pos.y;
+    posMassArr[i * 4 + 1] = pos.y;
+    posMassArr[i * 4 + 2] = pos.z;
 
     // Circular Orbital Velocity, anticlockwise seen from above
-    const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
+    const dist = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
     const speed = orbitalSpeed(dist);
 
     // Add some random noise to velocity to make it less perfect
-    const speedNoise = randRange(0.8, 1.2);
+    const speedNoise = MathUtils.randFloat(0.8, 1.2);
 
-    motionArr[i * 8] = (pos.y / dist) * speed * speedNoise;
-    motionArr[i * 8 + 1] = 0;
+    motionArr[i * 8] = (pos.z / dist) * speed * speedNoise;
     motionArr[i * 8 + 2] = (-pos.x / dist) * speed * speedNoise;
 
     // Set mass
-    posMassArr[i * 4 + 3] = randRange(0.5, 1.5);
+    posMassArr[i * 4 + 3] = MathUtils.randFloat(0.5, 1.5);
   }
 
   // Black hole(s)
@@ -253,51 +244,37 @@ const setup = () => {
   updateParams();
 
   // Copy data to GPU
-  posMassBuffer = createStorageBuffer(posMassArr.byteLength, posMassArr);
-  motionBuffer = createStorageBuffer(motionArr.byteLength, motionArr);
-
-  // Nodes Buffer: 64 bytes per node. New buffers are zeroed, which is an empty tree
-  nodesBuffer = createStorageBuffer(maxNodes * 64);
-
-  // Allocator: 1 uint
-  allocatorBuffer = createStorageBuffer(4);
-
-  // Bounds: min xyz, max xyz
-  boundsBuffer = createStorageBuffer(6 * 4);
-
-  // Bodies under each node, and body indices in tree order: 1 uint each
-  countsBuffer = createStorageBuffer(maxNodes * 4);
-  orderBuffer = createStorageBuffer(numBodies * 4);
-
-  // Child records: 8 x (centre of mass xyz, mass) per node, rebuilt every step
-  recordsBuffer = createStorageBuffer(maxNodes * 8 * 16);
+  const buffers = {
+    posMass: createStorageBuffer(posMassArr.byteLength, posMassArr),
+    motion: createStorageBuffer(motionArr.byteLength, motionArr),
+    // 64 bytes per node. New buffers are zeroed, which is an empty tree
+    nodes: createStorageBuffer(maxNodes * 64),
+    // 1 uint
+    allocator: createStorageBuffer(4),
+    // min xyz, max xyz
+    bounds: createStorageBuffer(6 * 4),
+    // Bodies under each node, and body indices in tree order: 1 uint each
+    counts: createStorageBuffer(maxNodes * 4),
+    order: createStorageBuffer(numBodies * 4),
+    // Rebuilt every step
+    records: createStorageBuffer(maxNodes * recordBytesPerNode),
+  };
+  simBuffers = Object.values(buffers);
 
   // Bodies are updated in place, so the buffers only need binding once
-  const buffers = {
-    params,
-    posMass: posMassBuffer,
-    motion: motionBuffer,
-    nodes: nodesBuffer,
-    allocator: allocatorBuffer,
-    bounds: boundsBuffer,
-    counts: countsBuffer,
-    order: orderBuffer,
-    records: recordsBuffer,
-  };
   for (const shader of [bodiesIntegrateShader, bhClearShader, bhBoundsShader,
     bhTreeShader, bhSummarizeShader, bhOrderShader, bhForcesShader]) {
-    shader.setBuffers(buffers);
+    shader.setBuffers({ params, ...buffers });
   }
 
-  bodiesMat?.dispose();
-  bodiesMat = createBodiesMaterial(
-    shareWithRenderer(posMassBuffer, 4),
-    shareWithRenderer(motionBuffer, 4),
+  bodyMesh.material.dispose();
+  bodyMesh.material = createBodiesMaterial(
+    shareWithRenderer(buffers.posMass, 4),
+    shareWithRenderer(buffers.motion, 4),
     numBodies,
     maxAcc,
     extrapolationTime,
   );
-  bodyMesh.material = bodiesMat;
   bodyMesh.count = numBodies;
 };
 
@@ -308,26 +285,13 @@ gravitySlider.oninput = () => {
   gravity = gravitySlider.valueAsNumber;
   updateGravityDisplay();
   updateParams();
-  updateColours();
 };
 
-const restart = () => {
-  posMassBuffer.destroy();
-  motionBuffer.destroy();
-  nodesBuffer.destroy();
-  allocatorBuffer.destroy();
-  boundsBuffer.destroy();
-  countsBuffer.destroy();
-  orderBuffer.destroy();
-  recordsBuffer.destroy();
-  setup();
-};
-
-restartButton.onclick = restart;
+restartButton.onclick = setup;
 
 twinGalaxiesToggle.onchange = () => {
   twinGalaxies = twinGalaxiesToggle.checked;
-  restart();
+  setup();
 };
 
 for (const button of bodyCountButtons) {
@@ -335,37 +299,33 @@ for (const button of bodyCountButtons) {
     const count = Number(button.value);
     if (count === numBodies) return;
     numBodies = count;
-    maxNodes = numBodies * nodesPerBody;
-    blackHoleMass = numBodies / 2;
-    for (const other of bodyCountButtons) {
-      other.setAttribute("aria-pressed", String(Number(other.value) === numBodies));
-    }
-    restart();
+    setup();
   };
 }
 
 const step = () => {
   const encoder = device.createCommandEncoder();
   const computePass = encoder.beginComputePass();
+  const bodyWorkgroups = Math.ceil(numBodies / 256);
 
   // Pass 1: Integrate (Drift + Kick 1)
-  bodiesIntegrateShader.dispatch(computePass, Math.ceil(numBodies / 256));
+  bodiesIntegrateShader.dispatch(computePass, bodyWorkgroups);
 
   // Pass 2: Barnes-Hut
-  // 2a: Clear the Nodes the last tree used, and reset Bounds
+  // 2a: Clear the Nodes the last tree used, and reset Bounds and the tree order
   bhClearShader.dispatch(computePass, Math.ceil(maxNodes / 256));
 
   // 2b: Compute Bounds of all bodies (Root of the tree), and reset Allocator
-  bhBoundsShader.dispatch(computePass, Math.ceil(numBodies / 256));
+  bhBoundsShader.dispatch(computePass, bodyWorkgroups);
 
   // 2c: Build Tree
-  bhTreeShader.dispatch(computePass, Math.ceil(numBodies / 256));
+  bhTreeShader.dispatch(computePass, bodyWorkgroups);
 
   // 2d: Gather each node's child centres of mass into contiguous records for the force pass
   bhSummarizeShader.dispatch(computePass, Math.ceil(maxNodes * 2 / 256));
 
   // 2e: Put bodies in tree order
-  bhOrderShader.dispatch(computePass, Math.ceil(numBodies / 256));
+  bhOrderShader.dispatch(computePass, bodyWorkgroups);
 
   // 2f: Compute Forces (Kick 2)
   bhForcesShader.dispatch(computePass, Math.ceil(numBodies / forceBodiesPerWorkgroup));

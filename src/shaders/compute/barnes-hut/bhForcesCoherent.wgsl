@@ -7,19 +7,8 @@ enable subgroups;
 // Each lane owns four targets; all four opening tests join the collective.
 // Padded targets participate using a clamped position, but never access motion.
 diagnostic(off, subgroup_uniformity);
-struct Motion {
-  vel : vec3<f32>,
-  acc : vec3<f32>,
-};
 
-// As built by bhTree (bhSummarize leaves nodes unchanged)
-struct Node {
-  sums: vec4<i32>, // integer mass, then moment relative to the centre in half sizes
-  geom: vec4<f32>, // center xyz, half size
-  children: array<i32, 8>, // 0 = empty, > 0 = node, < 0 = body (-1 - bodyIdx)
-};
-
-// Params is shared by every kernel, see params.wgsl
+// Params, Motion and Node are shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // xyz = position, w = mass
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;

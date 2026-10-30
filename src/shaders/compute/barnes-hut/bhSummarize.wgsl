@@ -1,13 +1,7 @@
+// Params and Node are shared by every kernel, see common.wgsl
+@group(0) @binding(0) var<uniform> params : Params;
 // As built by bhTree. Left unchanged, so parents can read their children's sums
 // while other invocations summarize those children.
-struct Node {
-  sums: vec4<i32>, // integer mass, then moment relative to the centre in half sizes
-  geom: vec4<f32>, // center xyz, half size
-  children: array<i32, 8>, // 0 = empty, > 0 = node, < 0 = body (-1 - bodyIdx)
-};
-
-// Params is shared by every kernel, see params.wgsl
-@group(0) @binding(0) var<uniform> params : Params;
 @group(0) @binding(1) var<storage, read> nodes : array<Node>;
 // Number of nodes this tree build allocated
 @group(0) @binding(2) var<storage, read> allocator : u32;

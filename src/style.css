@@ -7,6 +7,7 @@
   --accent: #b8adff;
   --muted: #afb3c4;
   --line: #2c2f3c;
+  --on-accent: #211a3d;
 }
 
 * {
@@ -219,13 +220,13 @@ button:focus-visible, summary:focus-visible, a:focus-visible, input:focus-visibl
 
 #bodyCountButtons button[aria-pressed="true"] {
   background: var(--accent);
-  color: #211a3d;
+  color: var(--on-accent);
   box-shadow: 0 1px 4px #0003;
 }
 
 #bodyCountButtons button[aria-pressed="true"]:hover {
   background: #c9bfff;
-  color: #211a3d;
+  color: var(--on-accent);
 }
 
 .gravity-control {
@@ -328,7 +329,7 @@ button:focus-visible, summary:focus-visible, a:focus-visible, input:focus-visibl
 
 #twinGalaxiesToggle:checked::after {
   transform: translateX(16px);
-  background: #211a3d;
+  background: var(--on-accent);
 }
 
 #restartButton {
@@ -357,13 +358,16 @@ button:focus-visible, summary:focus-visible, a:focus-visible, input:focus-visibl
   background: #191c27;
 }
 
-#restartButton svg {
-  width: 16px;
-  height: 16px;
+#restartButton svg, #sourceButton svg {
   stroke: currentColor;
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+#restartButton svg {
+  width: 16px;
+  height: 16px;
 }
 
 .navigation-hint {
@@ -408,10 +412,6 @@ kbd {
 #sourceButton svg {
   width: 15px;
   height: 15px;
-  stroke: currentColor;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .external-arrow {
@@ -444,12 +444,10 @@ kbd {
   .navigation-hint {
     display: none;
   }
-
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     transition: none !important;
   }
-
 }

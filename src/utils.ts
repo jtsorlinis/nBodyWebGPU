@@ -1,4 +1,4 @@
-import { PerspectiveCamera, Scene, Vector3, WebGPURenderer } from "three/webgpu";
+import { MathUtils, PerspectiveCamera, Scene, Vector3, WebGPURenderer } from "three/webgpu";
 
 export const initScene = async () => {
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
@@ -90,11 +90,12 @@ const attachCameraControls = (camera: PerspectiveCamera, canvas: HTMLCanvasEleme
     const locked = document.pointerLockElement === canvas;
     const dx = locked ? event.movementX : event.clientX - last.x;
     const dy = locked ? event.movementY : event.clientY - last.y;
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    last.x = event.clientX;
+    last.y = event.clientY;
 
     if (pointers.size === 1) {
       camera.rotation.y -= dx * lookSpeed;
-      camera.rotation.x = Math.min(Math.max(camera.rotation.x - dy * lookSpeed, -maxPitch), maxPitch);
+      camera.rotation.x = MathUtils.clamp(camera.rotation.x - dy * lookSpeed, -maxPitch, maxPitch);
     } else if (pointers.size === 2) {
       const distance = getPinchDistance();
       camera.translateZ((pinchDistance - distance) * pinchSpeed);
@@ -136,27 +137,6 @@ const attachCameraControls = (camera: PerspectiveCamera, canvas: HTMLCanvasEleme
     },
   };
 };
-
-export const randomPointInSphere = (min: number, r: number) => {
-  if (min > r) {
-    throw new Error("min must be less than or equal to r");
-  }
-
-  let rho = Math.cbrt(
-    Math.random() * (Math.pow(r, 3) - Math.pow(min, 3)) + Math.pow(min, 3),
-  );
-  let theta = Math.random() * 2 * Math.PI;
-  let phi = Math.acos(1 - Math.random() * 2);
-
-  let x = rho * Math.sin(phi) * Math.cos(theta);
-  let y = rho * Math.sin(phi) * Math.sin(theta);
-  let z = rho * Math.cos(phi);
-
-  return new Vector3(x, y, z);
-};
-
-export const randRange = (min: number, max: number) =>
-  min + Math.random() * (max - min);
 
 // Circular orbital speed vs radius for a uniform-density disk around a central mass,
 // using the same softened gravity as the shaders. The disk's own pull is integrated
@@ -219,25 +199,22 @@ export const createRotationCurve = ({
 
   return (r: number) => {
     const t = ((r - rMin) / (rMax - rMin)) * (numSamples - 1);
-    const i = Math.min(Math.max(Math.floor(t), 0), numSamples - 2);
-    const f = Math.min(Math.max(t - i, 0), 1);
-    return speeds[i] * (1 - f) + speeds[i + 1] * f;
+    const i = MathUtils.clamp(Math.floor(t), 0, numSamples - 2);
+    const f = MathUtils.clamp(t - i, 0, 1);
+    return MathUtils.lerp(speeds[i], speeds[i + 1], f);
   };
 };
 
-export const randomPointInDisk = (min: number, r: number) => {
+// A uniformly random point in a disk of radius r with a hole of radius min, lying in
+// the xz plane with y within halfThickness of it
+export const randomPointInDisk = (min: number, r: number, halfThickness: number) => {
   if (min > r) {
     throw new Error("min must be less than or equal to r");
   }
 
-  let rho = Math.sqrt(
-    Math.random() * (Math.pow(r, 2) - Math.pow(min, 2)) + Math.pow(min, 2),
-  );
-  let theta = Math.random() * 2 * Math.PI;
+  const rho = Math.sqrt(Math.random() * (r * r - min * min) + min * min);
+  const theta = Math.random() * 2 * Math.PI;
+  const y = MathUtils.randFloat(-halfThickness, halfThickness);
 
-  let x = rho * Math.cos(theta);
-  let y = rho * Math.sin(theta);
-  let z = randRange(-r * 0.05, r * 0.05); // Thin disk
-
-  return new Vector3(x, y, z);
+  return new Vector3(rho * Math.cos(theta), y, rho * Math.sin(theta));
 };

@@ -1,8 +1,7 @@
-import { DoubleSide, NodeMaterial, StorageBufferAttribute, type UniformNode } from "three/webgpu";
+import { DoubleSide, NodeMaterial, type StorageBufferAttribute, type UniformNode } from "three/webgpu";
 import {
   Discard,
   Fn,
-  If,
   cameraProjectionMatrix,
   cameraViewMatrix,
   dot,
@@ -17,7 +16,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl";
-import paramsSource from "./compute/params.wgsl?raw";
+import commonSource from "./compute/common.wgsl?raw";
 import bodiesIntegrateSource from "./compute/bodiesIntegrate.wgsl?raw";
 import bhTreeSource from "./compute/barnes-hut/bhTree.wgsl?raw";
 import bhForcesSource from "./compute/barnes-hut/bhForces.wgsl?raw";
@@ -29,7 +28,7 @@ import bhSummarizeSource from "./compute/barnes-hut/bhSummarize.wgsl?raw";
 
 // A WGSL compute shader run directly on the device three.js renders with.
 // Bindings are all in group 0, numbered in the order their names are given.
-export class ComputeShader {
+class ComputeShader {
   private readonly device: GPUDevice;
   private readonly pipeline: GPUComputePipeline;
   private readonly bindings: readonly string[];
@@ -42,9 +41,9 @@ export class ComputeShader {
   }
 
   static async create(device: GPUDevice, label: string, code: string, bindings: readonly string[]) {
-    // Every kernel reads the shared Params block. WGSL declarations can come in any order,
-    // so appending it keeps directives first and compile errors on the kernel's own lines.
-    const module = device.createShaderModule({ label, code: `${code}\n${paramsSource}` });
+    // Every kernel uses the shared declarations. WGSL declarations can come in any order,
+    // so appending them keeps directives first and compile errors on the kernel's own lines.
+    const module = device.createShaderModule({ label, code: `${code}\n${commonSource}` });
     const pipeline = await device.createComputePipelineAsync({
       label,
       layout: "auto",
@@ -72,7 +71,7 @@ export class ComputeShader {
 
 // Subgroup traversal shares opening decisions without assuming a subgroup size or
 // any mapping between lane IDs and particle IDs. Keep a portable independent path.
-export const supportsCoherentTraversal = (device: GPUDevice) =>
+const supportsCoherentTraversal = (device: GPUDevice) =>
   device.features.has("subgroups") &&
   navigator.gpu.wgslLanguageFeatures.has("subgroup_uniformity");
 // The coherent shader handles four targets per invocation, with 128 invocations.
@@ -113,9 +112,7 @@ export const createBodiesMaterial = (
   material.depthNode = projected.z.div(projected.w);
 
   material.fragmentNode = Fn(() => {
-    If(radiusSq.greaterThan(0.25), () => {
-      Discard();
-    });
+    Discard(radiusSq.greaterThan(0.25));
     return vec4(col, 1);
   })();
 

@@ -1,9 +1,4 @@
-struct Motion {
-  vel : vec3<f32>,
-  acc : vec3<f32>,
-};
-
-// Params is shared by every kernel, see params.wgsl
+// Params and Motion are shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // xyz = position, w = mass
 @group(0) @binding(1) var<storage, read_write> posMass : array<vec4<f32>>;

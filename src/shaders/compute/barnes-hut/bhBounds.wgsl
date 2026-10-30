@@ -4,7 +4,7 @@ struct Bounds {
   maxBits: array<atomic<u32>, 3>,
 };
 
-// Params is shared by every kernel, see params.wgsl
+// Params is shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // xyz = position, w = mass
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;
@@ -24,11 +24,10 @@ fn floatToOrdered(f: f32) -> u32 {
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>,
         @builtin(local_invocation_id) lid : vec3<u32>) {
-  // Reserve bhTree's complete three-level prefix (1 + 8 + 64 + 512 nodes).
-  // Small trees seed only the root. This condition must match bhTree.
+  // Reserve bhTree's three-level prefix, or just the root for small trees (see common.wgsl).
   // bhClear has already used last step's count, and bhTree runs after this pass.
   if (id.x == 0u) {
-    allocator = select(1u, 585u, params.numBodies >= 1024u && params.maxNodes >= 585u);
+    allocator = select(1u, TOP_NODES, seedsTopPrefix());
   }
 
   if (lid.x < 3u) {

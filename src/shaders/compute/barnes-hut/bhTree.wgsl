@@ -1,6 +1,5 @@
-// Child slots: 0 = empty, > 0 = node index (the root is never a child), < 0 = body (-1 - bodyIdx).
-// A zeroed node is therefore an empty node, which is what bhClear resets nodes to.
-struct Node {
+// Node (see common.wgsl), with atomics so invocations can build the tree concurrently
+struct BuildNode {
   massInt: atomic<i32>,
   comXInt: atomic<i32>,
   comYInt: atomic<i32>,
@@ -10,22 +9,20 @@ struct Node {
   children: array<atomic<i32>, 8>,
 };
 
-// Params is shared by every kernel, see params.wgsl
+// Params is shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // xyz = position, w = mass
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;
-@group(0) @binding(2) var<storage, read_write> nodes : array<Node>;
+@group(0) @binding(2) var<storage, read_write> nodes : array<BuildNode>;
 @group(0) @binding(3) var<storage, read_write> allocator : atomic<u32>;
 // Min xyz then max xyz of all body positions, as order-preserving uints (see bhBounds)
 @group(0) @binding(4) var<storage, read> bounds : array<u32, 6>;
 // Number of bodies under each node, for putting bodies in tree order (see bhOrder)
 @group(0) @binding(5) var<storage, read_write> counts : array<atomic<u32>>;
 
-// Reserve a complete three-level prefix: 1 + 8 + 64 + 512 nodes, in breadth-first
-// order. bhBounds reserves the same prefix before dynamic allocation starts.
-// Workgroup aggregation removes most global atomic contention near the root.
+// Seed a complete three-level prefix of TOP_NODES (see common.wgsl), in breadth-first
+// order. Workgroup aggregation removes most global atomic contention near the root.
 const TOP_LEVELS = 3u;
-const TOP_NODES = 585u;
 const TOP_INTERNAL = 73u;
 struct TopSum {
   mass: atomic<i32>,
@@ -37,7 +34,6 @@ struct TopSum {
 // Together these use 15,776 bytes, within WebGPU's 16 KiB baseline limit.
 var<workgroup> rootSums: array<vec4<i32>, 256>;
 var<workgroup> topSums: array<TopSum, TOP_NODES - 1u>;
-const MAX_DEPTH = 30u;
 
 fn orderedToFloat(bits: u32) -> f32 {
   return bitcast<f32>(select(~bits, bits & 0x7FFFFFFFu, (bits & 0x80000000u) != 0u));
@@ -55,7 +51,7 @@ fn getOctant(pos: vec3<f32>, min: vec3<f32>, max: vec3<f32>) -> u32 {
 // Add a body's mass and moment to a node using integer atomics.
 // The moment is stored relative to the node's centre in units of its half size, so each
 // body contributes at most +-mass * massScale per axis (sums can't overflow) and the
-// precision is the same at every depth. bhForces decodes it back to a centre of mass.
+// precision is the same at every depth. bhSummarize decodes it back to a centre of mass.
 fn accumulate(nodeIdx: i32, body: vec4<f32>, nodeMin: vec3<f32>, nodeMax: vec3<f32>) {
   let center = (nodeMin + nodeMax) * 0.5;
   let halfSize = (nodeMax.x - nodeMin.x) * 0.5;
@@ -78,9 +74,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   let rootMin = (lo + hi) * 0.5 - vec3(rootHalfSize);
   let rootMax = (lo + hi) * 0.5 + vec3(rootHalfSize);
 
-  // Small trees retain root-only seeding so the prefix doesn't consume most of
-  // their allocation budget. Keep this condition in sync with bhBounds.
-  let seedPrefix = params.numBodies >= 1024u && params.maxNodes >= TOP_NODES;
+  let seedPrefix = seedsTopPrefix();
   let topLevels = select(0u, TOP_LEVELS, seedPrefix);
   let topNodes = select(1u, TOP_NODES, seedPrefix);
 
@@ -170,11 +164,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   }
   rootSums[lid.x] = contribution;
   workgroupBarrier();
-  for (var stride=128u; stride>0u; stride >>= 1u) {
-    if(lid.x < stride) { rootSums[lid.x] += rootSums[lid.x + stride]; }
+  for (var stride = 128u; stride > 0u; stride >>= 1u) {
+    if (lid.x < stride) { rootSums[lid.x] += rootSums[lid.x + stride]; }
     workgroupBarrier();
   }
-  if(lid.x == 0u) {
+  if (lid.x == 0u) {
     atomicAdd(&nodes[0].massInt, rootSums[0].x);
     atomicAdd(&nodes[0].comXInt, rootSums[0].y);
     atomicAdd(&nodes[0].comYInt, rootSums[0].z);

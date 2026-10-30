@@ -1,18 +1,10 @@
-struct Node {
-  sums: vec4<i32>,
-  geom: vec4<f32>,
-  children: array<i32, 8>,
-};
-
-// Params is shared by every kernel, see params.wgsl
+// Params and Node are shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // xyz = position, w = mass
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read> nodes : array<Node>;
 @group(0) @binding(3) var<storage, read> counts : array<u32>;
 @group(0) @binding(4) var<storage, read_write> order : array<u32>;
-
-const MAX_DEPTH = 30u;
 
 // Bodies under a child slot: a node's count, 1 for a body, 0 if empty
 fn bodiesUnder(child: i32) -> u32 {
