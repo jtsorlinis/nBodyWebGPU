@@ -1,1 +1,0 @@
-export{t as depthVertexShaderWGSL}from"./depth.vertex-BOskaAv2.js";

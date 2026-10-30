@@ -1,1 +1,0 @@
-export{t as bonesDeclaration}from"./bonesDeclaration-oDxSsnww.js";

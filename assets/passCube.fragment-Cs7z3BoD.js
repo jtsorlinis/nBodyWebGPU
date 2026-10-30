@@ -1,1 +1,0 @@
-export{t as passCubePixelShaderWGSL}from"./passCube.fragment-CVlgZk8U.js";

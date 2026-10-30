@@ -1,1 +1,0 @@
-export{t as gaussianSplattingFragmentDeclarationWGSL}from"./gaussianSplattingFragmentDeclaration-BUkYdklu.js";

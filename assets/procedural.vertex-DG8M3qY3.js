@@ -1,1 +1,0 @@
-export{t as proceduralVertexShaderWGSL}from"./procedural.vertex-CLx-NHx5.js";

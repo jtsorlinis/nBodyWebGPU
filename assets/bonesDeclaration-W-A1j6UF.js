@@ -1,1 +1,0 @@
-export{t as bonesDeclarationWGSL}from"./bonesDeclaration-CyjXpdlz.js";

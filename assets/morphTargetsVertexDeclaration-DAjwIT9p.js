@@ -1,1 +1,0 @@
-export{t as morphTargetsVertexDeclaration}from"./morphTargetsVertexDeclaration-DQIU8BV5.js";

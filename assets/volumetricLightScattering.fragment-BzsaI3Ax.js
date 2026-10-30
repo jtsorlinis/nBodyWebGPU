@@ -1,1 +1,0 @@
-export{t as volumetricLightScatteringPixelShaderWGSL}from"./volumetricLightScattering.fragment-BWZaE6dA.js";

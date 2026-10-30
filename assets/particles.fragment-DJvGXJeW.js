@@ -1,1 +1,0 @@
-export{t as particlesPixelShader}from"./particles.fragment-B5MNUP41.js";

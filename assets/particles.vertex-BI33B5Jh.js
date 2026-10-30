@@ -1,1 +1,0 @@
-export{t as particlesVertexShaderWGSL}from"./particles.vertex-Bb7EBjRX.js";

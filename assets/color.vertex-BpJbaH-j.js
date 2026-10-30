@@ -1,1 +1,0 @@
-export{t as colorVertexShaderWGSL}from"./color.vertex-DJODYwTz.js";

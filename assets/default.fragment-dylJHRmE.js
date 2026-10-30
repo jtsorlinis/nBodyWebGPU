@@ -1,1 +1,0 @@
-export{t as defaultPixelShaderWGSL}from"./default.fragment-B8RDwxYo.js";

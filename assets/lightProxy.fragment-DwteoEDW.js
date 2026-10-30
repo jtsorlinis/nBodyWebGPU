@@ -1,1 +1,0 @@
-export{t as lightProxyPixelShader}from"./lightProxy.fragment-BGXIUNiN.js";

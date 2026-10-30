@@ -1,1 +1,0 @@
-export{t as fogFragmentDeclarationWGSL}from"./fogFragmentDeclaration-CWCikRBp.js";

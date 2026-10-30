@@ -1,1 +1,0 @@
-export{t as bonesVertexWGSL}from"./bonesVertex-3u5jVDJW.js";

@@ -1,1 +1,0 @@
-export{t as lightsFragmentFunctionsWGSL}from"./lightsFragmentFunctions-CdWoT-tT.js";

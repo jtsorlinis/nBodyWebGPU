@@ -1,1 +1,0 @@
-export{t as pbrPixelShaderWGSL}from"./pbr.fragment-d9Kk2FIQ.js";

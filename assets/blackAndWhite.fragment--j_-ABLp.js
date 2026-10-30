@@ -1,1 +1,0 @@
-export{t as blackAndWhitePixelShaderWGSL}from"./blackAndWhite.fragment-CeHNgjuX.js";

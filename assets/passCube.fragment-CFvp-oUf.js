@@ -1,1 +1,0 @@
-export{t as passCubePixelShader}from"./passCube.fragment-DfWfpmDG.js";

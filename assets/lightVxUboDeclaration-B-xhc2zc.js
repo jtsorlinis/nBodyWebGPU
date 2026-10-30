@@ -1,1 +1,0 @@
-export{t as lightVxUboDeclaration}from"./lightVxUboDeclaration-CMPrkkNu.js";

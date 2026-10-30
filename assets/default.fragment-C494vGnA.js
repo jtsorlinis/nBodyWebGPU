@@ -1,1 +1,0 @@
-export{t as defaultPixelShader}from"./default.fragment-D_TL43eD.js";

@@ -1,1 +1,0 @@
-export{t as openpbrVertexShaderWGSL}from"./openpbr.vertex-AJSab5S3.js";

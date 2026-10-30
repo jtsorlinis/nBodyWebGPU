@@ -1,1 +1,0 @@
-export{t as iblDominantDirectionPixelShader}from"./iblDominantDirection.fragment-D-AvJO79.js";
