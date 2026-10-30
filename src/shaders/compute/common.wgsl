@@ -21,11 +21,19 @@ struct Motion {
 // An octree node, 64 bytes. bhTree builds it through an atomic view of the same layout.
 // A zeroed node is an empty node, which is what bhClear resets nodes to.
 struct Node {
-  sums: vec4<i32>, // integer mass, then moment relative to the centre in half sizes
+  sums: vec4<i32>, // integer mass, then moment relative to the centre (see momentExponent)
   geom: vec4<f32>, // center xyz, half size
   // 0 = empty, > 0 = node index (the root is never a child), < 0 = body (-1 - bodyIdx)
   children: array<i32, 8>,
 };
+
+// A node's moment is in units of 2^momentExponent(halfSize), the power of two just above
+// its half size. It comes straight from the half size's bits, and scaling by it is exact,
+// so every place bhTree works out a body's moment for a node gets the same integers (a
+// division could round differently in each, which makes the tree depend on timing).
+fn momentExponent(halfSize: f32) -> i32 {
+  return i32((bitcast<u32>(halfSize) >> 23u) & 0xFFu) - 126;
+}
 
 // bhTree drops bodies that would need nodes deeper than this
 const MAX_DEPTH = 30u;

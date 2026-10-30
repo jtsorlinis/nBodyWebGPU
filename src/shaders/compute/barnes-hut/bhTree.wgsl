@@ -24,16 +24,19 @@ struct BuildNode {
 // order. Workgroup aggregation removes most global atomic contention near the root.
 const TOP_LEVELS = 3u;
 const TOP_INTERNAL = 73u;
-struct TopSum {
-  mass: atomic<i32>,
-  x: atomic<i32>,
-  y: atomic<i32>,
-  z: atomic<i32>,
-  count: atomic<u32>,
-}
+
+// Workgroup sums are kept as five words: mass, moment xyz, then the number of bodies.
+// scratch first holds them for each prefix node below the root. Then it caches the sums
+// insertion adds to the CACHED_LEVELS levels below the prefix, where clustered bodies
+// still share nodes: CACHE_SIZE node indices, then five sums per entry. Integer sums
+// don't depend on the order they're added in, so the tree comes out the same.
 // Together these use 15,776 bytes, within WebGPU's 16 KiB baseline limit.
+const SCRATCH_WORDS = (TOP_NODES - 1u) * 5u;
+const CACHE_SIZE = SCRATCH_WORDS / 6u;
+const CACHED_LEVELS = 4u;
+const EMPTY_SLOT = -1;
 var<workgroup> rootSums: array<vec4<i32>, 256>;
-var<workgroup> topSums: array<TopSum, TOP_NODES - 1u>;
+var<workgroup> scratch: array<atomic<i32>, SCRATCH_WORDS>;
 
 fn orderedToFloat(bits: u32) -> f32 {
   return bitcast<f32>(select(~bits, bits & 0x7FFFFFFFu, (bits & 0x80000000u) != 0u));
@@ -48,20 +51,61 @@ fn getOctant(pos: vec3<f32>, min: vec3<f32>, max: vec3<f32>) -> u32 {
   return octant;
 }
 
-// Add a body's mass and moment to a node using integer atomics.
-// The moment is stored relative to the node's centre in units of its half size, so each
-// body contributes at most +-mass * massScale per axis (sums can't overflow) and the
-// precision is the same at every depth. bhSummarize decodes it back to a centre of mass.
-fn accumulate(nodeIdx: i32, body: vec4<f32>, nodeMin: vec3<f32>, nodeMax: vec3<f32>) {
+// A body's integer mass and moment for a node.
+// The moment is stored relative to the node's centre in units of the power of two just
+// above its half size (see common.wgsl), so each body contributes less than
+// +-mass * massScale per axis (sums can't overflow) and the precision is about the same at
+// every depth. bhSummarize decodes it back to a centre of mass.
+fn contribution(body: vec4<f32>, nodeMin: vec3<f32>, nodeMax: vec3<f32>) -> vec4<i32> {
   let center = (nodeMin + nodeMax) * 0.5;
   let halfSize = (nodeMax.x - nodeMin.x) * 0.5;
   let weight = body.w * params.massScale;
-  let moment = (body.xyz - center) / halfSize * weight;
-  atomicAdd(&nodes[nodeIdx].massInt, i32(round(weight)));
-  atomicAdd(&nodes[nodeIdx].comXInt, i32(round(moment.x)));
-  atomicAdd(&nodes[nodeIdx].comYInt, i32(round(moment.y)));
-  atomicAdd(&nodes[nodeIdx].comZInt, i32(round(moment.z)));
-  atomicAdd(&counts[nodeIdx], 1u);
+  let moment = (body.xyz - center) * ldexp(weight, -momentExponent(halfSize));
+  return vec4<i32>(i32(round(weight)), vec3<i32>(round(moment)));
+}
+
+// Adds sums covering count bodies to a node using integer atomics
+fn addToNode(nodeIdx: i32, sums: vec4<i32>, count: u32) {
+  atomicAdd(&nodes[nodeIdx].massInt, sums.x);
+  atomicAdd(&nodes[nodeIdx].comXInt, sums.y);
+  atomicAdd(&nodes[nodeIdx].comYInt, sums.z);
+  atomicAdd(&nodes[nodeIdx].comZInt, sums.w);
+  atomicAdd(&counts[nodeIdx], count);
+}
+
+// Adds one body's sums to the five scratch words at base
+fn addToScratch(base: u32, sums: vec4<i32>) {
+  atomicAdd(&scratch[base], sums.x);
+  atomicAdd(&scratch[base + 1u], sums.y);
+  atomicAdd(&scratch[base + 2u], sums.z);
+  atomicAdd(&scratch[base + 3u], sums.w);
+  atomicAdd(&scratch[base + 4u], 1);
+}
+
+// Adds the five scratch words at base to a node, if any bodies were added to them
+fn flushScratch(base: u32, nodeIdx: i32) {
+  let count = atomicLoad(&scratch[base + 4u]);
+  if (count > 0) {
+    let sums = vec4(atomicLoad(&scratch[base]), atomicLoad(&scratch[base + 1u]),
+      atomicLoad(&scratch[base + 2u]), atomicLoad(&scratch[base + 3u]));
+    addToNode(nodeIdx, sums, u32(count));
+  }
+}
+
+// Adds a body's sums to the node's cache entry, claiming a free one if it has none.
+// Returns false if the few slots it may use belong to other nodes.
+fn addToCache(nodeIdx: i32, sums: vec4<i32>) -> bool {
+  var slot = ((u32(nodeIdx) * 2654435761u) >> 16u) % CACHE_SIZE;
+  for (var probe = 0u; probe < 4u; probe++) {
+    // A spurious failure just moves on, so a node can end up with two entries
+    let claim = atomicCompareExchangeWeak(&scratch[slot], EMPTY_SLOT, nodeIdx);
+    if (claim.exchanged || claim.old_value == nodeIdx) {
+      addToScratch(CACHE_SIZE + slot * 5u, sums);
+      return true;
+    }
+    slot = (slot + 1u) % CACHE_SIZE;
+  }
+  return false;
 }
 
 @compute @workgroup_size(256)
@@ -111,12 +155,8 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
       }
     }
   }
-  for (var n = lid.x; n < topNodes - 1u; n += 256u) {
-    atomicStore(&topSums[n].mass, 0);
-    atomicStore(&topSums[n].x, 0);
-    atomicStore(&topSums[n].y, 0);
-    atomicStore(&topSums[n].z, 0);
-    atomicStore(&topSums[n].count, 0u);
+  for (var word = lid.x; word < SCRATCH_WORDS; word += 256u) {
+    atomicStore(&scratch[word], 0);
   }
   workgroupBarrier();
 
@@ -125,7 +165,6 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   var startMax = rootMax;
   if (id.x < params.numBodies) {
     let body = posMass[id.x];
-    let weight = body.w * params.massScale;
     for (var depth = 0u; depth < topLevels; depth++) {
       let octant = getOctant(body.xyz, startMin, startMax);
       let upper = vec3<bool>((octant & 1u) != 0u, (octant & 2u) != 0u, (octant & 4u) != 0u);
@@ -133,56 +172,55 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
       startMin = select(startMin, center, upper);
       startMax = select(center, startMax, upper);
       startNode = startNode * 8u + 1u + octant;
-      let moment = (body.xyz - (startMin + startMax) * 0.5) / ((startMax.x - startMin.x) * 0.5) * weight;
-      let n = startNode - 1u;
-      // Round each body's contribution before reduction, just as accumulate does.
-      atomicAdd(&topSums[n].mass, i32(round(weight)));
-      atomicAdd(&topSums[n].x, i32(round(moment.x)));
-      atomicAdd(&topSums[n].y, i32(round(moment.y)));
-      atomicAdd(&topSums[n].z, i32(round(moment.z)));
-      atomicAdd(&topSums[n].count, 1u);
+      // Round each body's contribution before reduction, just as insertion does.
+      addToScratch((startNode - 1u) * 5u, contribution(body, startMin, startMax));
     }
   }
   workgroupBarrier();
   for (var n = lid.x; n < topNodes - 1u; n += 256u) {
-    let count = atomicLoad(&topSums[n].count);
-    if (count > 0u) {
-      atomicAdd(&nodes[n + 1u].massInt, atomicLoad(&topSums[n].mass));
-      atomicAdd(&nodes[n + 1u].comXInt, atomicLoad(&topSums[n].x));
-      atomicAdd(&nodes[n + 1u].comYInt, atomicLoad(&topSums[n].y));
-      atomicAdd(&nodes[n + 1u].comZInt, atomicLoad(&topSums[n].z));
-      atomicAdd(&counts[n + 1u], count);
-    }
+    flushScratch(n * 5u, i32(n + 1u));
   }
 
-  var contribution = vec4<i32>(0);
+  var rootSum = vec4<i32>(0);
   if (id.x < params.numBodies) {
-    let body = posMass[id.x];
-    let weight = body.w * params.massScale;
-    let moment = (body.xyz - (rootMin + rootMax) * 0.5) / ((rootMax.x - rootMin.x) * 0.5) * weight;
-    contribution = vec4<i32>(i32(round(weight)), vec3<i32>(round(moment)));
+    rootSum = contribution(posMass[id.x], rootMin, rootMax);
   }
-  rootSums[lid.x] = contribution;
+  rootSums[lid.x] = rootSum;
   workgroupBarrier();
   for (var stride = 128u; stride > 0u; stride >>= 1u) {
     if (lid.x < stride) { rootSums[lid.x] += rootSums[lid.x + stride]; }
     workgroupBarrier();
   }
   if (lid.x == 0u) {
-    atomicAdd(&nodes[0].massInt, rootSums[0].x);
-    atomicAdd(&nodes[0].comXInt, rootSums[0].y);
-    atomicAdd(&nodes[0].comYInt, rootSums[0].z);
-    atomicAdd(&nodes[0].comZInt, rootSums[0].w);
-    atomicAdd(&counts[0], min(256u, params.numBodies - id.x));
-  }
-  if (id.x >= params.numBodies) {
-    return;
+    addToNode(0, rootSums[0], min(256u, params.numBodies - id.x));
   }
 
-  let bodyIdx = i32(id.x);
+  // Every invocation has finished with the prefix sums (the barriers above), so scratch
+  // becomes the cache for insertion
+  for (var word = lid.x; word < SCRATCH_WORDS; word += 256u) {
+    atomicStore(&scratch[word], select(0, EMPTY_SLOT, word < CACHE_SIZE));
+  }
+  workgroupBarrier();
+
+  if (id.x < params.numBodies) {
+    insertBody(i32(id.x), startNode, startMin, startMax, topLevels);
+  }
+
+  // Once the whole workgroup has inserted its bodies, add the cached sums to the tree.
+  // Nothing reads node sums until the next dispatch.
+  workgroupBarrier();
+  for (var slot = lid.x; slot < CACHE_SIZE; slot += 256u) {
+    let nodeIdx = atomicLoad(&scratch[slot]);
+    if (nodeIdx != EMPTY_SLOT) {
+      flushScratch(CACHE_SIZE + slot * 5u, nodeIdx);
+    }
+  }
+}
+
+// Inserts a body below the prefix node it starts in. The prefix already contains this
+// body's contributions; build only below it.
+fn insertBody(bodyIdx: i32, startNode: u32, startMin: vec3<f32>, startMax: vec3<f32>, topLevels: u32) {
   let body = posMass[bodyIdx];
-
-  // The prefix already contains this body's contributions; build only below it.
   var nodeIdx = i32(startNode);
   var depth = topLevels;
   var min = startMin;
@@ -194,8 +232,14 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   var spareNode = -1i;
 
   loop {
-    // Update Mass/COM for current node (using atomics)
-    if (depth > topLevels) { accumulate(nodeIdx, body, min, max); }
+    // Update Mass/COM for current node (using atomics). Nodes on this path are already
+    // linked into the tree, so their sums can wait in the workgroup's cache.
+    if (depth > topLevels) {
+      let sums = contribution(body, min, max);
+      if (depth > topLevels + CACHED_LEVELS || !addToCache(nodeIdx, sums)) {
+        addToNode(nodeIdx, sums, 1u);
+      }
+    }
 
     let octant = getOctant(body.xyz, min, max);
     let childPtr = &nodes[nodeIdx].children[octant];
@@ -238,10 +282,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
           nodes[newNodeIdx].center = (childMin + childMax) * 0.5;
           nodes[newNodeIdx].halfSize = (childMax.x - childMin.x) * 0.5;
 
-          // Put the other body into the new node
+          // Put the other body into the new node. Its sums go straight to the node, which
+          // the undo below may need to clear.
           let otherBodyIdx = -oldVal - 1;
           let otherBody = posMass[otherBodyIdx];
-          accumulate(newNodeIdx, otherBody, childMin, childMax);
+          addToNode(newNodeIdx, contribution(otherBody, childMin, childMax), 1u);
           let otherOctant = getOctant(otherBody.xyz, childMin, childMax);
           let otherChildPtr = &nodes[newNodeIdx].children[otherOctant];
           atomicStore(otherChildPtr, -1 - otherBodyIdx);

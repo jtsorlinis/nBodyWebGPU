@@ -34,7 +34,7 @@ const recordBytesPerNode = 8 * 16;
 let maxNodes = 0;
 let blackHoleMass = 0;
 const softening = 3.0;
-const theta = 0.5;
+const theta = 0.6;
 const simDt = 1 / 60; // Fixed simulation timestep (seconds)
 
 const { device, renderer, scene, camera, controls } = await initScene();

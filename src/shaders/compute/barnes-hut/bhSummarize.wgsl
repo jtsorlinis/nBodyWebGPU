@@ -11,7 +11,7 @@
 @group(0) @binding(4) var<storage, read_write> records : array<vec4<f32>>;
 
 // What the force pass needs from a child slot. Bodies are copied as they are;
-// a node's moment is relative to its centre in units of its half size (see bhTree).
+// a node's moment is relative to its centre (see momentExponent in common.wgsl).
 fn childRecord(child: i32) -> vec4<f32> {
   if (child < 0) {
     return posMass[u32(-child - 1)];
@@ -20,7 +20,8 @@ fn childRecord(child: i32) -> vec4<f32> {
     let sums = nodes[child].sums;
     if (sums.x > 0) {
       let geom = nodes[child].geom;
-      return vec4(geom.xyz + vec3<f32>(sums.yzw) / f32(sums.x) * geom.w, f32(sums.x) / params.massScale);
+      let offset = vec3<f32>(sums.yzw) / f32(sums.x) * ldexp(1.0, momentExponent(geom.w));
+      return vec4(geom.xyz + offset, f32(sums.x) / params.massScale);
     }
   }
   return vec4(0.0);
