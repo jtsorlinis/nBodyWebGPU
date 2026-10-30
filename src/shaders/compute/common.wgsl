@@ -6,7 +6,6 @@ struct Params {
   numBodies: u32,
   gravity: f32,
   deltaTime: f32,
-  blackHoleMass: f32,
   softening: f32,
   theta: f32,
   maxNodes: u32,

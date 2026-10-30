@@ -107,7 +107,7 @@ const [
 const forceBodiesPerWorkgroup = getBHForceBodiesPerWorkgroup(device);
 
 // Layout must match the Params struct in shaders/compute/common.wgsl (uniform alignment rules)
-const paramsData = new DataView(new ArrayBuffer(32));
+const paramsData = new DataView(new ArrayBuffer(28));
 const params = device.createBuffer({
   size: paramsData.byteLength,
   usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -119,11 +119,10 @@ const updateParams = () => {
   paramsData.setUint32(0, numBodies, true);
   paramsData.setFloat32(4, gravity, true);
   paramsData.setFloat32(8, simDt, true);
-  paramsData.setFloat32(12, blackHoleMass, true);
-  paramsData.setFloat32(16, softening, true);
-  paramsData.setFloat32(20, theta, true);
-  paramsData.setUint32(24, maxNodes, true);
-  paramsData.setFloat32(28, massScale, true);
+  paramsData.setFloat32(12, softening, true);
+  paramsData.setFloat32(16, theta, true);
+  paramsData.setUint32(20, maxNodes, true);
+  paramsData.setFloat32(24, massScale, true);
   device.queue.writeBuffer(params, 0, paramsData);
   maxAcc.value = Math.sqrt((numBodies + blackHoleMass) * gravity) / 15;
 };
