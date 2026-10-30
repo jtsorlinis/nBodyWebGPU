@@ -121,7 +121,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
         acc3 += attraction(r3, source.w);
       } else {
         // It's a Node. Approximate only if EVERY target in EVERY participating lane
-        // passes size / dist < theta. Batching can only make this test more conservative.
+        // passes the opening test. Batching can only make this test more conservative.
         // If the stack is full, the node is approximated rather than dropped
         let openDist = sizeOverTheta + bitcast<f32>(childQuads[i].w);
         let threshold = openDist * openDist;

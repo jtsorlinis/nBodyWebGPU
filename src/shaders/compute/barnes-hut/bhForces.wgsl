@@ -72,7 +72,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
           newAcc += attraction(r, source.w);
         }
       } else {
-        // It's a Node. Check if we can approximate: size / dist < theta
+        // It's a Node. Check if it can be approximated (see the opening test above)
         // If the stack is full, the node is approximated rather than dropped
         let quadrupole = quadrupoles[u32(nodeIdx) * 8u + i];
         let openDist = sizeOverTheta + bitcast<f32>(quadrupole.w);
