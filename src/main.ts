@@ -2,14 +2,15 @@ import {
   MathUtils,
   type Material,
   Mesh,
+  NeutralToneMapping,
   PlaneGeometry,
   RenderPipeline,
   StorageBufferAttribute,
 } from "three/webgpu";
-import { pass, pow, uniform, vec4 } from "three/tsl";
+import { pass, uniform } from "three/tsl";
 import { gaussianBlur } from "three/addons/tsl/display/GaussianBlurNode.js";
 import "./style.css";
-import { createRotationCurve, initScene, randomPointInDisk } from "./utils";
+import { createGalaxy, initScene } from "./utils";
 import {
   createBodiesIntegrateShader,
   createBodiesMaterial,
@@ -34,9 +35,17 @@ const recordBytesPerNode = 8 * 16;
 let maxNodes = 0;
 let blackHoleMass = 0;
 const softening = 3.0;
-// With quadrupoles (and the offset opening test, see bhForcesCoherent) 1.1 is about as
-// accurate as monopoles at 0.5, for less work
-const theta = 1.1;
+// The force shaders cap each body's acceleration at this (see finishBody)
+const maxAcceleration = 1000;
+// The share of each galaxy's stars in its bulge rather than its disc
+const bulgeFraction = 0.2;
+// How much random motion the discs start with (see createGalaxy). At 1.5 they stay
+// smooth; at 1 they grow spiral arms.
+const toomreQ = 1.0;
+// With quadrupoles (and the offset opening test, see bhForcesCoherent) 1.25 keeps the
+// median force error around 0.2-0.3% of an exact sum, and under about 2.5% for the worst
+// 1% of bodies. 1.1 is about 1.5 times as accurate, for about 15% more work.
+const theta = 1.25;
 const simDt = 1 / 60; // Fixed simulation timestep (seconds)
 
 const { device, renderer, scene, camera } = await initScene();
@@ -132,13 +141,15 @@ const bodyMesh = new Mesh<PlaneGeometry, Material>(new PlaneGeometry(1, 1));
 bodyMesh.frustumCulled = false;
 scene.add(bodyMesh);
 
+// Dense regions can add up to far more light than a screen shows. Neutral tone mapping
+// rolls them off to white like a camera would, but keeps colours true below that.
+renderer.toneMapping = NeutralToneMapping;
+
 // Add bloom: a soft glow from a half-resolution blur of the scene
 const renderPipeline = new RenderPipeline(renderer);
 const sceneColor = pass(scene, camera).getTextureNode();
 const bloom = gaussianBlur(sceneColor, null, 6.5, { resolutionScale: 0.5 });
-// Gamma-encode with a plain 2.2 power curve instead of sRGB's, which lifts the faint glow
-renderPipeline.outputColorTransform = false;
-renderPipeline.outputNode = pow(sceneColor.add(bloom.mul(0.15)), vec4(1 / 2.2));
+renderPipeline.outputNode = sceneColor.add(bloom.mul(0.2));
 
 const createStorageBuffer = (size: number, data?: Float32Array<ArrayBuffer>) => {
   // New buffers are zeroed
@@ -175,21 +186,26 @@ const setup = () => {
 
   const numGalaxies = twinGalaxies ? 2 : 1;
   const spaceLimit = Math.pow(numBodies / numGalaxies, 1 / 3) * 10;
-  const innerRadius = spaceLimit * 0.1;
-  const halfThickness = spaceLimit * 0.05;
+  const starsPerGalaxy = numBodies / numGalaxies; // Bodies have a mean mass of 1
 
-  // Speed for a circular orbit at each radius, including the pull of the disk itself
-  const orbitalSpeed = createRotationCurve({
+  const galaxy = createGalaxy({
     gravity,
-    centralMass: blackHoleMass,
-    diskMass: numBodies / numGalaxies, // Bodies have a mean mass of 1
-    rMin: innerRadius,
-    rMax: spaceLimit,
-    halfThickness,
     softening,
+    blackHoleMass,
+    bulgeMass: starsPerGalaxy * bulgeFraction,
+    bulgeRadius: spaceLimit * 0.08,
+    diskMass: starsPerGalaxy * (1 - bulgeFraction),
+    diskScaleLength: spaceLimit / 4,
+    diskScaleHeight: spaceLimit / 40,
+    toomreQ,
+    // Closer in, the black hole pulls harder than the force shaders' cap, which flings
+    // stars out instead of holding them in orbit. Stars flung far out make the tree
+    // bigger and every step slower.
+    rMin: Math.max(spaceLimit * 0.03, 1.2 * Math.sqrt((gravity * blackHoleMass) / maxAcceleration)),
+    rMax: spaceLimit,
   });
 
-  const cameraDist = spaceLimit * (twinGalaxies ? 4 : 2.25);
+  const cameraDist = spaceLimit * (twinGalaxies ? 3.5 : 2.25);
   const elevationAngle = MathUtils.degToRad(30);
   const y = cameraDist * Math.sin(elevationAngle);
   const z = cameraDist * Math.cos(elevationAngle);
@@ -197,30 +213,24 @@ const setup = () => {
   camera.position.set(0, y, z);
   camera.lookAt(0, 0, 0);
 
-  const galaxy1Offset = twinGalaxies ? -spaceLimit * 1.5 : 0;
-  const galaxy2Offset = twinGalaxies ? spaceLimit * 1.5 : 0;
+  // Twin galaxies start with a small gap between their faint outer discs
+  const galaxy1Offset = twinGalaxies ? -spaceLimit * 1.25 : 0;
+  const galaxy2Offset = twinGalaxies ? spaceLimit * 1.25 : 0;
   // posMass: xyz = position, w = mass
   // motion: velocity, acceleration (vec3s padded to 4 floats)
   const posMassArr = new Float32Array(numBodies * 4);
   const motionArr = new Float32Array(numBodies * 8);
   for (let i = 0; i < numBodies; i++) {
-    const pos = randomPointInDisk(innerRadius, spaceLimit, halfThickness);
+    const { pos, vel } = Math.random() < bulgeFraction ? galaxy.bulgeStar() : galaxy.diskStar();
     const offset = i < numBodies / 2 ? galaxy1Offset : galaxy2Offset;
     posMassArr[i * 4] = pos.x + offset;
     posMassArr[i * 4 + 1] = pos.y;
     posMassArr[i * 4 + 2] = pos.z;
-
-    // Circular Orbital Velocity, anticlockwise seen from above
-    const dist = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
-    const speed = orbitalSpeed(dist);
-
-    // Add some random noise to velocity to make it less perfect
-    const speedNoise = MathUtils.randFloat(0.8, 1.2);
-
-    motionArr[i * 8] = (pos.z / dist) * speed * speedNoise;
-    motionArr[i * 8 + 2] = (-pos.x / dist) * speed * speedNoise;
-
     posMassArr[i * 4 + 3] = MathUtils.randFloat(0.5, 1.5);
+
+    motionArr[i * 8] = vel.x;
+    motionArr[i * 8 + 1] = vel.y;
+    motionArr[i * 8 + 2] = vel.z;
   }
 
   // Black hole(s)

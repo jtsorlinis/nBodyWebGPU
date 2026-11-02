@@ -1,16 +1,24 @@
-import { DoubleSide, NodeMaterial, type StorageBufferAttribute, type UniformNode } from "three/webgpu";
 import {
-  Discard,
-  Fn,
+  AdditiveBlending,
+  DoubleSide,
+  NodeMaterial,
+  type StorageBufferAttribute,
+  type UniformNode,
+} from "three/webgpu";
+import {
   cameraProjectionMatrix,
   cameraViewMatrix,
   dot,
+  exp,
   float,
   instanceIndex,
   length,
+  max,
   mix,
   positionGeometry,
   saturate,
+  screenSize,
+  select,
   storage,
   varying,
   vec3,
@@ -83,7 +91,13 @@ const supportsCoherentTraversal = (device: GPUDevice) =>
 export const getBHForceBodiesPerWorkgroup = (device: GPUDevice) =>
   supportsCoherentTraversal(device) ? 128 * 2 : 256;
 
-// Bodies are drawn as camera-facing discs, read straight from the simulation's buffers
+// Each star's light is a Gaussian with this standard deviation, in world units...
+const starSigma = 0.25;
+// ...or this many pixels, if that's wider, so distant stars don't flicker
+const minSigmaPixels = 0.7;
+
+// Bodies are drawn as soft points of light that add up, so dense regions glow brighter.
+// They're read straight from the simulation's buffers.
 export const createBodiesMaterial = (
   posMass: StorageBufferAttribute,
   motion: StorageBufferAttribute,
@@ -94,32 +108,51 @@ export const createBodiesMaterial = (
   const bodies = storage(posMass, "vec4", numBodies).toReadOnly();
   // Two vec4s per body: velocity, then acceleration
   const motions = storage(motion, "vec4", numBodies * 2).toReadOnly();
+  const body = bodies.element(instanceIndex);
   const vel = motions.element(instanceIndex.mul(2)).xyz;
   const acc = motions.element(instanceIndex.mul(2).add(1)).xyz;
 
-  const pos = bodies.element(instanceIndex).xyz.add(vel.mul(extrapolationTime));
+  const pos = body.xyz.add(vel.mul(extrapolationTime));
   const center = cameraViewMatrix.mul(vec4(pos, 1)).xyz;
-  const corner = positionGeometry.xy;
+
+  // A star widened to the minimum size is dimmed to give off the same total light,
+  // which also keeps a region's brightness the same at any zoom
+  const verticalScale = cameraProjectionMatrix.mul(vec4(0, 1, 0, 0)).y;
+  const pixelsPerUnit = verticalScale.mul(screenSize.y).div(center.z.mul(-2));
+  const sigma = max(starSigma, float(minSigmaPixels).div(pixelsPerUnit));
+  // The quad reaches 3 standard deviations, where the Gaussian has all but faded out
+  const corner = positionGeometry.xy.mul(6);
 
   const material = new NodeMaterial();
   material.side = DoubleSide;
-  material.vertexNode = cameraProjectionMatrix.mul(vec4(center.add(vec3(corner, 0)), 1));
+  material.blending = AdditiveBlending;
+  // Nothing else is drawn, and light adds up in any order
+  material.depthTest = false;
+  material.depthWrite = false;
+  material.vertexNode = cameraProjectionMatrix.mul(vec4(center.add(vec3(corner.mul(sigma), 0)), 1));
 
-  const viewCenter = varying(center);
+  // Heavier stars are hotter and much brighter, so the few blue giants outshine the
+  // many warm dwarfs. Stars feeling a strong pull, mostly in the old bulge around a
+  // black hole, are cooled.
+  const mass = body.w;
+  const pull = saturate(length(acc).div(maxAcc));
+  const heat = saturate(mass.sub(0.5)).mul(pull.mul(-0.5).add(1));
+  // Along the blackbody curve, in linear sRGB: 3500 K, 6000 K, 15000 K
+  const warm = vec3(1.0, 0.552, 0.25);
+  const white = vec3(1.0, 0.896, 0.863);
+  const blue = vec3(0.462, 0.61, 1.0);
+  const colour = mix(mix(warm, white, saturate(heat.mul(2))), blue, saturate(heat.mul(2).sub(1)));
+  // Black holes give off no light
+  const luminosity = select(mass.greaterThan(2), float(0), mass.pow(2.5));
+  // Stars per area grow with the cube root of the body count (see spaceLimit in setup),
+  // so each one is dimmed to keep the galaxy equally bright
+  const starLight = 15 / Math.cbrt(numBodies) / (2 * Math.PI);
+  const light = varying(colour.mul(luminosity).mul(starLight).div(sigma.mul(sigma)));
+
   const offset = varying(corner);
-  const mag = saturate(length(acc).div(maxAcc));
-  const col = varying(mix(vec3(0.012, 0.063, 0.988), vec3(1.0, 0.376, 0.188), mag));
-
-  const radiusSq = dot(offset, offset);
-  // Keep spherical depth at overlaps, even though each body uses just two triangles.
-  const surface = viewCenter.add(vec3(offset, float(0.25).sub(radiusSq).sqrt()));
-  const projected = cameraProjectionMatrix.mul(vec4(surface, 1));
-  material.depthNode = projected.z.div(projected.w);
-
-  material.fragmentNode = Fn(() => {
-    Discard(radiusSq.greaterThan(0.25));
-    return vec4(col, 1);
-  })();
+  // Fades to zero at the quad's inscribed circle, so its edges don't show
+  const falloff = exp(dot(offset, offset).mul(-0.5)).sub(Math.exp(-4.5)).max(0);
+  material.fragmentNode = vec4(light.mul(falloff), 1);
 
   return material;
 };
