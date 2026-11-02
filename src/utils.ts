@@ -1,4 +1,5 @@
 import { MathUtils, PerspectiveCamera, Scene, Vector3, WebGPURenderer } from "three/webgpu";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 export const initScene = async () => {
   const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
@@ -28,7 +29,13 @@ export const initScene = async () => {
   const scene = new Scene();
 
   const camera = new PerspectiveCamera(45, 1, 0.1, 10000);
-  const controls = attachCameraControls(camera, canvas);
+
+  // Drag to orbit the origin, where the galaxies stay centred, and scroll or pinch to zoom
+  const controls = new OrbitControls(camera, canvas);
+  controls.enablePan = false;
+  controls.cursorStyle = "grab"; // A closed hand while dragging
+  controls.minDistance = 10;
+  controls.maxDistance = camera.far / 2; // Keeps the galaxies inside the far plane
 
   const resize = () => {
     renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
@@ -38,105 +45,7 @@ export const initScene = async () => {
   resize();
   window.addEventListener("resize", resize);
 
-  return { device, renderer, scene, camera, controls };
-};
-
-const lookSpeed = 1 / 250; // Radians per pixel dragged
-const moveSpeed = 300; // World units per second
-const pinchSpeed = 5; // World units per pixel the fingers spread
-const maxPitch = Math.PI / 2 - 0.001;
-
-// Camera-local directions for each held key (three.js cameras look down -z)
-const keyDirections: Record<string, Vector3> = {
-  KeyW: new Vector3(0, 0, -1),
-  KeyS: new Vector3(0, 0, 1),
-  KeyA: new Vector3(-1, 0, 0),
-  KeyD: new Vector3(1, 0, 0),
-  KeyE: new Vector3(0, 1, 0),
-  KeyQ: new Vector3(0, -1, 0),
-};
-
-// Drag to look and WASD (plus Q/E for down/up) to fly. On touch screens, pinch flies
-// forwards and backwards.
-const attachCameraControls = (camera: PerspectiveCamera, canvas: HTMLCanvasElement) => {
-  camera.rotation.order = "YXZ"; // Yaw, then pitch, with no roll
-
-  const heldKeys = new Set<string>();
-  const pointers = new Map<number, { x: number; y: number }>();
-  let pinchDistance = 0;
-
-  const getPinchDistance = () => {
-    const [a, b] = [...pointers.values()];
-    return Math.hypot(a.x - b.x, a.y - b.y);
-  };
-
-  canvas.addEventListener("pointerdown", (event) => {
-    canvas.setPointerCapture(event.pointerId);
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (pointers.size === 2) {
-      pinchDistance = getPinchDistance();
-    }
-    if (event.pointerType === "mouse") {
-      void canvas.requestPointerLock?.()?.catch(() => {
-        // Dragging still works when pointer lock is unavailable.
-      });
-    }
-  });
-
-  canvas.addEventListener("pointermove", (event) => {
-    const last = pointers.get(event.pointerId);
-    if (!last) return;
-    // A locked pointer stays put, so only its movement is reported
-    const locked = document.pointerLockElement === canvas;
-    const dx = locked ? event.movementX : event.clientX - last.x;
-    const dy = locked ? event.movementY : event.clientY - last.y;
-    last.x = event.clientX;
-    last.y = event.clientY;
-
-    if (pointers.size === 1) {
-      camera.rotation.y -= dx * lookSpeed;
-      camera.rotation.x = MathUtils.clamp(camera.rotation.x - dy * lookSpeed, -maxPitch, maxPitch);
-    } else if (pointers.size === 2) {
-      const distance = getPinchDistance();
-      camera.translateZ((pinchDistance - distance) * pinchSpeed);
-      pinchDistance = distance;
-    }
-  });
-
-  const release = (event: PointerEvent) => {
-    pointers.delete(event.pointerId);
-    if (pointers.size === 2) {
-      pinchDistance = getPinchDistance();
-    }
-    if (event.pointerType === "mouse") {
-      document.exitPointerLock?.();
-    }
-  };
-  canvas.addEventListener("pointerup", release);
-  canvas.addEventListener("pointercancel", release);
-  canvas.addEventListener("contextmenu", (event) => event.preventDefault());
-
-  window.addEventListener("keydown", (event) => {
-    // Skip shortcuts, whose keyup may never arrive
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
-    heldKeys.add(event.code);
-  });
-  window.addEventListener("keyup", (event) => heldKeys.delete(event.code));
-  window.addEventListener("blur", () => heldKeys.clear());
-
-  const move = new Vector3();
-  return {
-    update: (deltaTime: number) => {
-      move.set(0, 0, 0);
-      for (const key of heldKeys) {
-        const direction = keyDirections[key];
-        if (direction) move.add(direction);
-      }
-      if (move.lengthSq() === 0) return;
-      move.multiplyScalar(moveSpeed * deltaTime).applyQuaternion(camera.quaternion);
-      camera.position.add(move);
-    },
-  };
+  return { device, renderer, scene, camera };
 };
 
 // Circular orbital speed vs radius for a uniform-density disk around a central mass,

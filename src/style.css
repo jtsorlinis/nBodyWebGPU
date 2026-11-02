@@ -380,12 +380,6 @@ button:focus-visible, summary:focus-visible, a:focus-visible, input:focus-visibl
   font-size: 12px;
 }
 
-kbd {
-  font: inherit;
-  letter-spacing: .3px;
-  color: #b7bbce;
-}
-
 #sourceButton {
   position: fixed;
   z-index: 2;

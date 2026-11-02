@@ -39,7 +39,7 @@ const softening = 3.0;
 const theta = 1.1;
 const simDt = 1 / 60; // Fixed simulation timestep (seconds)
 
-const { device, renderer, scene, camera, controls } = await initScene();
+const { device, renderer, scene, camera } = await initScene();
 
 const fpsText = document.getElementById("fpsText") as HTMLElement;
 const bodiesText = document.getElementById("bodiesText") as HTMLElement;
@@ -348,8 +348,6 @@ renderer.setAnimationLoop((time) => {
     fpsTimer = 0;
     fpsFrames = 0;
   }
-
-  controls.update(frameTime);
 
   timeAccumulator = Math.min(timeAccumulator + frameTime, 2 * simDt);
   if (timeAccumulator >= simDt) {
