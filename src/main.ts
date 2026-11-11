@@ -43,10 +43,12 @@ const bulgeFraction = 0.2;
 // How much random motion the discs start with (see createGalaxy). At 1.5 they stay
 // smooth; at 1 they grow spiral arms.
 const toomreQ = 1.0;
-// With quadrupoles (and the offset opening test, see bhForcesCoherent) 1.25 keeps the
-// median force error around 0.2-0.3% of an exact sum, and under about 2.5% for the worst
-// 1% of bodies. 1.1 is about 1.5 times as accurate, for about 15% more work.
-const theta = 1.25;
+// How much of a body's acceleration approximating one node may get wrong (see
+// canApproximate in common.wgsl). 0.04 keeps the median force error around 0.2% of an
+// exact sum, and under about 0.7% for the worst 1% of bodies (0.4% and 1.2% on GPUs
+// without subgroups, whose force shader opens fewer nodes). Half of it is about twice
+// as accurate, for about 15% more work.
+const tolerance = 0.04;
 const simDt = 1 / 60; // Fixed simulation timestep (seconds)
 
 const { device, renderer, scene, camera } = await initScene();
@@ -127,7 +129,7 @@ const updateParams = () => {
   paramsData.setFloat32(4, gravity, true);
   paramsData.setFloat32(8, simDt, true);
   paramsData.setFloat32(12, softening, true);
-  paramsData.setFloat32(16, theta, true);
+  paramsData.setFloat32(16, tolerance, true);
   paramsData.setUint32(20, maxNodes, true);
   paramsData.setFloat32(24, massScale, true);
   device.queue.writeBuffer(params, 0, paramsData);

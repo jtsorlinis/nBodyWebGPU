@@ -77,11 +77,14 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   let pos2 = posMass[body2].xyz;
   var acc2 = vec3(0.0);
 
-  // A node can be approximated when size / theta + offset < dist, where offset is how far
-  // its centre of mass is from its centre. Without the offset, a node whose mass sits in
-  // one corner could be approximated for a target nearly as close as its far bodies, where
-  // the quadrupole expansion breaks down. A child's size is its parent's half size.
-  let invTheta = 1.0 / params.theta;
+  // What approximating one node may get wrong, squared: a fraction of the acceleration the
+  // targets had last step (see canApproximate in common.wgsl). The lane keeps one figure,
+  // its targets' smallest, since they are neighbours. One each makes this shader slower
+  // than the nodes it saves, as a fourth target does.
+  let toleranceSq = params.tolerance * params.tolerance * min(min(
+    dot(motion[body0].acc, motion[body0].acc),
+    dot(motion[body1].acc, motion[body1].acc)),
+    dot(motion[body2].acc, motion[body2].acc));
 
   // Stack of nodes to open, starting at the root (which contains every target).
   // Children are tested as soon as their parent is opened, so only nodes that need
@@ -94,7 +97,6 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     stackPtr--;
     let nodeIdx = stack[stackPtr];
     let halfSize = subgroupBroadcastFirst(nodes[nodeIdx].geom.w);
-    let sizeOverTheta = halfSize * invTheta;
 
     // Issue every load for this node before using any of them, so they overlap
     let children = nodes[nodeIdx].children;
@@ -136,13 +138,13 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
       } else {
         // It's a Node. Approximate only if EVERY target in EVERY participating lane
         // passes the opening test. Batching can only make this test more conservative.
+        // The test only gets easier with distance, so the lane's nearest target decides
+        // for it. The child's size is this node's half size.
         // If the stack is full, the node is approximated rather than dropped
-        let openDist = sizeOverTheta + bitcast<f32>(childQuads[i].w);
-        let threshold = openDist * openDist;
-        let canApproximate = dot(r0, r0) > threshold && dot(r1, r1) > threshold && dot(r2, r2) > threshold;
-        if (subgroupBroadcastFirst(u32(subgroupAll(canApproximate))) != 0u || stackPtr >= STACK_SIZE) {
-          // The child's size is this node's half size
-          let gm = params.gravity * source.w;
+        let gm = params.gravity * source.w;
+        let nearestSq = min(min(dot(r0, r0), dot(r1, r1)), dot(r2, r2));
+        let approximate = canApproximate(nearestSq, gm, halfSize, bitcast<f32>(childQuads[i].w), toleranceSq);
+        if (subgroupBroadcastFirst(u32(subgroupAll(approximate))) != 0u || stackPtr >= STACK_SIZE) {
           let q = unpackQuadrupole(childQuads[i], gm * halfSize * halfSize);
           acc0 += quadrupoleAttraction(r0, gm, q.quad, q.softTrace);
           acc1 += quadrupoleAttraction(r1, gm, q.quad, q.softTrace);

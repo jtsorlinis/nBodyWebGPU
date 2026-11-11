@@ -11,7 +11,8 @@ struct Params {
   gravity: f32,
   deltaTime: f32,
   softening: f32,
-  theta: f32,
+  // How much of a body's acceleration approximating one node may get wrong (see canApproximate)
+  tolerance: f32,
   maxNodes: u32,
   massScale: f32,
 }
@@ -76,6 +77,38 @@ const STACK_SIZE = 256;
 fn attraction(r: vec3<f32>, mass: f32) -> vec3<f32> {
   let invDist = inverseSqrt(dot(r, r) + params.softening * params.softening);
   return r * (params.gravity * mass * invDist * invDist * invDist);
+}
+
+// The nearest a node may be approximated, in node sizes from where its mass could be.
+// Closer than this, a target can be among the node's own bodies.
+const NEAREST_APPROXIMATION = 0.5;
+// The theta beyond which a node is approximated whatever the target's acceleration.
+// A body with almost no acceleration would otherwise open most of the tree. On the first
+// step no body has one yet, so that step's force pass takes about four times as long.
+const BACKSTOP_THETA = 0.6;
+
+// Whether the force pass can use a node's centre of mass and quadrupole in place of its
+// bodies, for a target distSq from its centre of mass. gm is gravity * the node's mass,
+// and comOffset how far its centre of mass is from its centre.
+//
+// Approximating leaves an error of about gm * size^3 / dist^5, the next term of the
+// expansion. That has to be under a fraction (params.tolerance) of the acceleration the
+// target had last step, which toleranceSq is the square of. So light nodes are approximated
+// from closer in than heavy ones, where a fixed opening angle treats them alike and spends
+// most of its work on nodes too light to matter. For the same median force error this
+// opens a third fewer nodes, and the worst 1% of errors are less than half as large.
+//
+// The test is squared, with distance in node sizes so its tenth power stays in range:
+// gm^2 <= (dist / size)^10 * (size^2 * tolerance * acceleration)^2. If the right side
+// overflows the node is far enough away, and with no acceleration the backstop decides.
+fn canApproximate(distSq: f32, gm: f32, size: f32, comOffset: f32, toleranceSq: f32) -> bool {
+  let nearest = size * NEAREST_APPROXIMATION + comOffset;
+  let backstop = size / BACKSTOP_THETA + comOffset;
+  let sizeSq = size * size;
+  let ratio = distSq / sizeSq;
+  let ratio5 = ratio * ratio * ratio * ratio * ratio;
+  return distSq > nearest * nearest &&
+    (ratio5 * (sizeSq * sizeSq * toleranceSq) >= gm * gm || distSq > backstop * backstop);
 }
 
 // Softened acceleration towards a node's mass and quadrupole, at offset r from its centre
