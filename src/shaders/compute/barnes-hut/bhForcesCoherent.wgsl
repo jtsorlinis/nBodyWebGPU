@@ -4,7 +4,7 @@ enable subgroups;
 // comes from subgroupBroadcastFirst, and every push decision comes from subgroupAll.
 // Thus all lanes in a subgroup execute each collective in the same control flow.
 // The compiler cannot prove the private-stack invariant across the loop.
-// Each lane owns three targets; all their opening tests join the collective.
+// Each lane owns two targets, and its opening test for both joins the collective.
 // Padded targets participate using a clamped position, but are never written out.
 diagnostic(off, subgroup_uniformity);
 
@@ -53,13 +53,15 @@ fn finishBody(bodyIdx: u32, rank: u32, acceleration: vec3<f32>) {
 
 @compute @workgroup_size(128)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-  // Three adjacent targets amortize node loads and traversal over more force work. More
-  // make the subgroup's targets spread wider, so it opens more nodes. Three measured
-  // fastest of one to four on an RTX 4070, where four is far slower; it was two before
-  // bodies were ordered along a Hilbert curve and small nodes became buckets.
+  // Two adjacent targets amortize node loads and traversal over more force work. More
+  // make the subgroup's targets spread wider, so it opens more nodes, and give each lane
+  // more to keep in registers. How many is best depends on the GPU. At High an RTX 4070
+  // runs this pass 9% faster with three and an M4 Max 7% faster with two, while one or
+  // four are about a third slower than two on the 4070. Two is the compromise, and the
+  // one that asks less of a GPU nobody has measured.
   // Keep the accumulators explicit so they stay in registers. No subgroup width
   // or relationship between lane IDs and invocation IDs is assumed.
-  let rank0 = id.x * 3u;
+  let rank0 = id.x * 2u;
   let valid0 = rank0 < params.numBodies;
   let body0 = targetBody(rank0);
   let pos0 = posMass[body0].xyz;
@@ -71,20 +73,13 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   let pos1 = posMass[body1].xyz;
   var acc1 = vec3(0.0);
 
-  let rank2 = rank0 + 2u;
-  let valid2 = rank2 < params.numBodies;
-  let body2 = targetBody(rank2);
-  let pos2 = posMass[body2].xyz;
-  var acc2 = vec3(0.0);
-
   // What approximating one node may get wrong, squared: a fraction of the acceleration the
   // targets had last step (see canApproximate in common.wgsl). The lane keeps one figure,
-  // its targets' smallest, since they are neighbours. One each makes this shader slower
-  // than the nodes it saves, as a fourth target does.
-  let toleranceSq = params.tolerance * params.tolerance * min(min(
+  // the smaller of its targets', since they are neighbours. A figure and a test for each
+  // target cost more time than the nodes they saved (measured with three targets).
+  let toleranceSq = params.tolerance * params.tolerance * min(
     dot(motion[body0].acc, motion[body0].acc),
-    dot(motion[body1].acc, motion[body1].acc)),
-    dot(motion[body2].acc, motion[body2].acc));
+    dot(motion[body1].acc, motion[body1].acc));
 
   // Stack of nodes to open, starting at the root (which contains every target).
   // Children are tested as soon as their parent is opened, so only nodes that need
@@ -116,7 +111,6 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
         if (subgroupBroadcastFirst(entry.w) == 0.0) { break; }
         acc0 += attraction(entry.xyz - pos0, -entry.w);
         acc1 += attraction(entry.xyz - pos1, -entry.w);
-        acc2 += attraction(entry.xyz - pos2, -entry.w);
       }
       continue;
     }
@@ -129,26 +123,23 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
       let r0 = source.xyz - pos0;
       let r1 = source.xyz - pos1;
-      let r2 = source.xyz - pos2;
       if (child < 0) {
         // It's a Body. Self attraction is exactly zero: displacement is zero and softening > 0.
         acc0 += attraction(r0, source.w);
         acc1 += attraction(r1, source.w);
-        acc2 += attraction(r2, source.w);
       } else {
         // It's a Node. Approximate only if EVERY target in EVERY participating lane
         // passes the opening test. Batching can only make this test more conservative.
-        // The test only gets easier with distance, so the lane's nearest target decides
+        // The test only gets easier with distance, so the lane's nearer target decides
         // for it. The child's size is this node's half size.
         // If the stack is full, the node is approximated rather than dropped
         let gm = params.gravity * source.w;
-        let nearestSq = min(min(dot(r0, r0), dot(r1, r1)), dot(r2, r2));
+        let nearestSq = min(dot(r0, r0), dot(r1, r1));
         let approximate = canApproximate(nearestSq, gm, halfSize, bitcast<f32>(childQuads[i].w), toleranceSq);
         if (subgroupBroadcastFirst(u32(subgroupAll(approximate))) != 0u || stackPtr >= STACK_SIZE) {
           let q = unpackQuadrupole(childQuads[i], gm * halfSize * halfSize);
           acc0 += quadrupoleAttraction(r0, gm, q.quad, q.softTrace);
           acc1 += quadrupoleAttraction(r1, gm, q.quad, q.softTrace);
-          acc2 += quadrupoleAttraction(r2, gm, q.quad, q.softTrace);
         } else {
           stack[stackPtr] = child;
           stackPtr++;
@@ -159,5 +150,4 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   // Write each owned target once
   if (valid0) { finishBody(body0, rank0, acc0); }
   if (valid1) { finishBody(body1, rank1, acc1); }
-  if (valid2) { finishBody(body2, rank2, acc2); }
 }

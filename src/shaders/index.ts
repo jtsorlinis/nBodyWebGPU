@@ -87,9 +87,9 @@ class ComputeShader {
 const supportsCoherentTraversal = (device: GPUDevice) =>
   device.features.has("subgroups") &&
   navigator.gpu.wgslLanguageFeatures.has("subgroup_uniformity");
-// The coherent shader handles three targets per invocation, with 128 invocations.
+// The coherent shader handles two targets per invocation, with 128 invocations.
 export const getBHForceBodiesPerWorkgroup = (device: GPUDevice) =>
-  supportsCoherentTraversal(device) ? 128 * 3 : 256;
+  supportsCoherentTraversal(device) ? 128 * 2 : 256;
 
 // Each star's light is a Gaussian with this standard deviation, in world units...
 const starSigma = 0.25;
