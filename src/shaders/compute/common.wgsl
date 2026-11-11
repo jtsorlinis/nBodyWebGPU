@@ -62,6 +62,12 @@ fn momentExponent(halfSize: f32) -> i32 {
   return i32((bitcast<u32>(halfSize) >> 23u) & 0xFFu) - 126;
 }
 
+// A node with this many bodies under it or fewer (and a parent with more) is a bucket.
+// bhSummarize puts those bodies in the node's record block in place of its child records,
+// and the force pass sums them directly instead of walking the node's subtree, most of
+// whose opens would each find a body or two. A block holds 16.
+const BUCKET_SIZE = 16u;
+
 // MAX_DEPTH=30 permits internal children through depth 31. A depth-first walk
 // needs at most 1 + 7*31 pending nodes, so 256 entries cover every valid tree.
 const STACK_SIZE = 256;

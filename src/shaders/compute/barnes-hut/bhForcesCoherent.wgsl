@@ -16,7 +16,8 @@ diagnostic(off, subgroup_uniformity);
 @group(0) @binding(3) var<storage, read> nodes : array<Node>;
 // Body indices in tree order (see bhOrder)
 @group(0) @binding(4) var<storage, read> order : array<u32>;
-// Each node's eight child records: centre of mass xyz, mass (see bhSummarize)
+// Each node's eight child records: centre of mass xyz, mass. A bucket's blocks, here and
+// in quadrupoles, hold its bodies instead (see bhSummarize).
 @group(0) @binding(5) var<storage, read> records : array<vec4<f32>>;
 // Each child record's quadrupole, packed (see bhSummarize)
 @group(0) @binding(6) var<storage, read> quadrupoles : array<vec4<u32>>;
@@ -95,6 +96,19 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     for (var i = 0u; i < 8u; i++) {
       childRecords[i] = records[u32(nodeIdx) * 8u + i];
       childQuads[i] = quadrupoles[u32(nodeIdx) * 8u + i];
+    }
+
+    // A bucket's blocks hold the bodies under it instead: position, then minus the mass
+    // (see writeBucket in bhSummarize). Sum them directly, up to the first unused entry.
+    // A target's own entry adds nothing, as for a body below.
+    if (subgroupBroadcastFirst(childRecords[0].w) < 0.0) {
+      for (var i = 0u; i < BUCKET_SIZE; i++) {
+        let entry = select(bitcast<vec4<f32>>(childQuads[i & 7u]), childRecords[i & 7u], i < 8u);
+        if (subgroupBroadcastFirst(entry.w) == 0.0) { break; }
+        acc0 += attraction(entry.xyz - pos0, -entry.w);
+        acc1 += attraction(entry.xyz - pos1, -entry.w);
+      }
+      continue;
     }
 
     for (var i = 0u; i < 8u; i++) {

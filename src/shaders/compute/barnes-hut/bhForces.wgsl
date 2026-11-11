@@ -6,7 +6,8 @@
 @group(0) @binding(3) var<storage, read> nodes : array<Node>;
 // Body indices in tree order (see bhOrder)
 @group(0) @binding(4) var<storage, read> order : array<u32>;
-// Each node's eight child records: centre of mass xyz, mass (see bhSummarize)
+// Each node's eight child records: centre of mass xyz, mass. A bucket's blocks, here and
+// in quadrupoles, hold its bodies instead (see bhSummarize).
 @group(0) @binding(5) var<storage, read> records : array<vec4<f32>>;
 // Each child record's quadrupole, packed (see bhSummarize)
 @group(0) @binding(6) var<storage, read> quadrupoles : array<vec4<u32>>;
@@ -47,6 +48,25 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   while (stackPtr > 0) {
     stackPtr--;
     let nodeIdx = stack[stackPtr];
+    let block = u32(nodeIdx) * 8u;
+
+    // A bucket's blocks hold the bodies under it instead: position, then minus the mass
+    // (see writeBucket in bhSummarize). Sum them directly, up to the first unused entry.
+    // This body's own entry adds nothing: its displacement is zero and softening > 0.
+    if (records[block].w < 0.0) {
+      for (var i = 0u; i < BUCKET_SIZE; i++) {
+        var entry: vec4<f32>;
+        if (i < 8u) {
+          entry = records[block + i];
+        } else {
+          entry = bitcast<vec4<f32>>(quadrupoles[block + i - 8u]);
+        }
+        if (entry.w == 0.0) { break; }
+        newAcc += attraction(entry.xyz - pos, -entry.w);
+      }
+      continue;
+    }
+
     let halfSize = nodes[nodeIdx].geom.w;
     let sizeOverTheta = halfSize * invTheta;
 
@@ -55,7 +75,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     for (var i = 0u; i < 8u; i++) {
       let child = nodes[nodeIdx].children[i];
       if (child == 0) { continue; }
-      let source = records[u32(nodeIdx) * 8u + i];
+      let source = records[block + i];
       // Empty cells of bhTree's fixed prefix have no mass
       if (source.w <= 0.0) { continue; }
 
@@ -68,7 +88,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
       } else {
         // It's a Node. Check if it can be approximated (see the opening test above)
         // If the stack is full, the node is approximated rather than dropped
-        let quadrupole = quadrupoles[u32(nodeIdx) * 8u + i];
+        let quadrupole = quadrupoles[block + i];
         let openDist = sizeOverTheta + bitcast<f32>(quadrupole.w);
         if (dot(r, r) > openDist * openDist || stackPtr >= STACK_SIZE) {
           // The child's size is this node's half size
