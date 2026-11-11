@@ -1,10 +1,11 @@
-// Params and Node are shared by every kernel, see common.wgsl
+// Params, Node and Unranked are shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // xyz = position, w = mass
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read> nodes : array<Node>;
 @group(0) @binding(3) var<storage, read> counts : array<u32>;
 @group(0) @binding(4) var<storage, read_write> order : array<u32>;
+@group(0) @binding(5) var<storage, read_write> unranked : Unranked;
 
 // The Hilbert curve's 24 orientations in a cube. An orientation is the eight steps the
 // curve takes through the cube's octants, a byte per step: the octant in the low 3 bits,
@@ -67,10 +68,14 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
       return;
     }
     if (child <= 0) {
-      // Dropped from the tree (out of nodes or too deep), so it's left out
-      return;
+      break;
     }
     nodeIdx = child;
     orientation = step >> 3u;
   }
+
+  // bhTree left this body out (out of nodes or too deep), so it has no rank. The nodes it
+  // passed through still counted it, which leaves a rank empty; the force pass puts one of
+  // these bodies there, so every body is still written out.
+  unranked.bodies[atomicAdd(&unranked.count, 1u)] = id.x;
 }

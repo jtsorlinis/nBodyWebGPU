@@ -26,7 +26,8 @@ import {
 let numBodies = 1 << 17;
 // Every node gets eight contiguous child records for the force pass, so the tree's
 // capacity is also the record capacity. Trees have used at most 0.84 nodes per body,
-// including failed allocations that insertion reuses.
+// including failed allocations that insertion reuses. Insertion also leaves up to about
+// 0.25 per body allocated but never linked in (see bhTree).
 const nodesPerBody = 2;
 // Eight child records per node: centre of mass xyz, mass. Their quadrupoles are a
 // separate buffer of the same size.
@@ -216,30 +217,27 @@ const setup = () => {
   // Twin galaxies start with a small gap between their faint outer discs
   const galaxy1Offset = twinGalaxies ? -spaceLimit * 1.25 : 0;
   const galaxy2Offset = twinGalaxies ? spaceLimit * 1.25 : 0;
-  // posMass: xyz = position, w = mass
-  // motion: velocity, acceleration (vec3s padded to 4 floats)
-  const posMassArr = new Float32Array(numBodies * 4);
-  const motionArr = new Float32Array(numBodies * 8);
+  // Each body is position and mass, velocity, then acceleration: 4 floats each, the
+  // vec3s padded (see Body in common.wgsl)
+  const bodiesArr = new Float32Array(numBodies * 12);
   for (let i = 0; i < numBodies; i++) {
     const { pos, vel } = Math.random() < bulgeFraction ? galaxy.bulgeStar() : galaxy.diskStar();
     const offset = i < numBodies / 2 ? galaxy1Offset : galaxy2Offset;
-    posMassArr[i * 4] = pos.x + offset;
-    posMassArr[i * 4 + 1] = pos.y;
-    posMassArr[i * 4 + 2] = pos.z;
-    posMassArr[i * 4 + 3] = MathUtils.randFloat(0.5, 1.5);
+    bodiesArr[i * 12] = pos.x + offset;
+    bodiesArr[i * 12 + 1] = pos.y;
+    bodiesArr[i * 12 + 2] = pos.z;
+    bodiesArr[i * 12 + 3] = MathUtils.randFloat(0.5, 1.5);
 
-    motionArr[i * 8] = vel.x;
-    motionArr[i * 8 + 1] = vel.y;
-    motionArr[i * 8 + 2] = vel.z;
+    bodiesArr[i * 12 + 4] = vel.x;
+    bodiesArr[i * 12 + 5] = vel.y;
+    bodiesArr[i * 12 + 6] = vel.z;
   }
 
-  // Black hole(s)
-  posMassArr.set([galaxy1Offset, 0, 0, blackHoleMass], 0); // Pos, Mass
-  motionArr.set([0, 0, 0], 0); // Vel
+  // Black hole(s): Pos, Mass, then Vel
+  bodiesArr.set([galaxy1Offset, 0, 0, blackHoleMass, 0, 0, 0], 0);
 
   if (twinGalaxies) {
-    posMassArr.set([galaxy2Offset, 0, 0, blackHoleMass], 4); // Pos, Mass
-    motionArr.set([0, 0, 0], 8); // Vel
+    bodiesArr.set([galaxy2Offset, 0, 0, blackHoleMass, 0, 0, 0], 12);
   }
 
   // Fixed-point scale for the octree's mass/COM sums, so the total mass fits in an i32
@@ -248,8 +246,13 @@ const setup = () => {
   updateParams();
 
   const buffers = {
-    posMass: createStorageBuffer(posMassArr.byteLength, posMassArr),
-    motion: createStorageBuffer(motionArr.byteLength, motionArr),
+    // The bodies as the force pass leaves them, in tree order: what each step starts
+    // from, and what's drawn. 48 bytes each.
+    sortedBodies: createStorageBuffer(bodiesArr.byteLength, bodiesArr),
+    // The copy a step works on, which integration fills in. Position and mass (16 bytes)
+    // are kept apart from velocity and acceleration (32), as most passes only read positions.
+    posMass: createStorageBuffer(numBodies * 16),
+    motion: createStorageBuffer(numBodies * 32),
     // 64 and 32 bytes per node. New buffers are zeroed, which is an empty tree
     nodes: createStorageBuffer(maxNodes * 64),
     secondMoments: createStorageBuffer(maxNodes * 32),
@@ -260,21 +263,22 @@ const setup = () => {
     // Bodies under each node, and body indices in tree order: 1 uint each
     counts: createStorageBuffer(maxNodes * 4),
     order: createStorageBuffer(numBodies * 4),
+    // Bodies left out of the tree, which have no place in the order: 2 counts, then 1 uint each
+    unranked: createStorageBuffer(8 + numBodies * 4),
     // Rebuilt every step
     records: createStorageBuffer(maxNodes * recordBytesPerNode),
     quadrupoles: createStorageBuffer(maxNodes * recordBytesPerNode),
   };
   simBuffers = Object.values(buffers);
 
-  // Bodies are updated in place, so the buffers only need binding once
+  // Every step reads and writes the same buffers, so they only need binding once
   for (const shader of computeShaders) {
     shader.setBuffers({ params, ...buffers });
   }
 
   bodyMesh.material.dispose();
   bodyMesh.material = createBodiesMaterial(
-    shareWithRenderer(buffers.posMass, 4),
-    shareWithRenderer(buffers.motion, 4),
+    shareWithRenderer(buffers.sortedBodies, 4),
     numBodies,
     maxAcc,
     extrapolationTime,
@@ -311,7 +315,7 @@ const step = () => {
   const computePass = encoder.beginComputePass();
   const bodyWorkgroups = Math.ceil(numBodies / 256);
 
-  // Pass 1: Integrate (Drift + Kick 1)
+  // Pass 1: Integrate (Drift + Kick 1), from the sorted bodies into this step's working copy
   bodiesIntegrateShader.dispatch(computePass, bodyWorkgroups);
 
   // Pass 2: Barnes-Hut
@@ -328,10 +332,11 @@ const step = () => {
   // for the force pass, plus one workgroup for the tree's top levels
   bhSummarizeShader.dispatch(computePass, Math.ceil(maxNodes * 2 / 256) + 1);
 
-  // 2e: Put bodies in tree order
+  // 2e: Work out the bodies' tree order
   bhOrderShader.dispatch(computePass, bodyWorkgroups);
 
-  // 2f: Compute Forces (Kick 2)
+  // 2f: Compute Forces (Kick 2), writing the bodies out sorted into that order. The next
+  // step then finds neighbours in space next to each other in memory.
   bhForcesShader.dispatch(computePass, Math.ceil(numBodies / forceBodiesPerWorkgroup));
 
   computePass.end();

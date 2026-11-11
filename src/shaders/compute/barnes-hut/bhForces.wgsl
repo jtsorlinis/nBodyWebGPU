@@ -1,8 +1,8 @@
-// Params, Motion and Node are shared by every kernel, see common.wgsl
+// Params, Motion, Body, Node and Unranked are shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // xyz = position, w = mass
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;
-@group(0) @binding(2) var<storage, read_write> motion : array<Motion>;
+@group(0) @binding(2) var<storage, read> motion : array<Motion>;
 @group(0) @binding(3) var<storage, read> nodes : array<Node>;
 // Body indices in tree order (see bhOrder)
 @group(0) @binding(4) var<storage, read> order : array<u32>;
@@ -10,6 +10,10 @@
 @group(0) @binding(5) var<storage, read> records : array<vec4<f32>>;
 // Each child record's quadrupole, packed (see bhSummarize)
 @group(0) @binding(6) var<storage, read> quadrupoles : array<vec4<u32>>;
+// The bodies with no rank in the tree order (see bhOrder)
+@group(0) @binding(7) var<storage, read_write> unranked : Unranked;
+// The bodies after this step, in tree order
+@group(0) @binding(8) var<storage, read_write> sortedBodies : array<Body>;
 
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
@@ -17,11 +21,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     return;
   }
 
-  // Process bodies in tree order so neighbouring threads walk similar paths.
-  // Bodies that were left out of the tree this step have no slot and are skipped.
-  let bodyIdx = order[id.x];
+  // Process bodies in tree order so neighbouring threads walk similar paths. If bhOrder
+  // left this rank empty, take one of the bodies it couldn't place (there are as many of each).
+  var bodyIdx = order[id.x];
   if (bodyIdx >= params.numBodies) {
-    return;
+    bodyIdx = min(unranked.bodies[atomicAdd(&unranked.taken, 1u)], params.numBodies - 1u);
   }
 
   let pos = posMass[bodyIdx].xyz;
@@ -94,5 +98,8 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
     vel = normalize(vel) * 1000.0;
   }
 
-  motion[bodyIdx] = Motion(vel, newAcc);
+  // Writing each body at its rank is what puts the bodies in tree order: the next step
+  // reads them back from there (see bodiesIntegrate), so its passes find neighbours in
+  // space next to each other in memory.
+  sortedBodies[id.x] = Body(posMass[bodyIdx], Motion(vel, newAcc));
 }

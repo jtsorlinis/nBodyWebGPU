@@ -5,14 +5,14 @@ enable subgroups;
 // Thus all lanes in a subgroup execute each collective in the same control flow.
 // The compiler cannot prove the private-stack invariant across the loop.
 // Each lane owns two targets; both opening tests join the collective.
-// Padded targets participate using a clamped position, but never access motion.
+// Padded targets participate using a clamped position, but are never written out.
 diagnostic(off, subgroup_uniformity);
 
-// Params, Motion and Node are shared by every kernel, see common.wgsl
+// Params, Motion, Body, Node and Unranked are shared by every kernel, see common.wgsl
 @group(0) @binding(0) var<uniform> params : Params;
 // xyz = position, w = mass
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;
-@group(0) @binding(2) var<storage, read_write> motion : array<Motion>;
+@group(0) @binding(2) var<storage, read> motion : array<Motion>;
 @group(0) @binding(3) var<storage, read> nodes : array<Node>;
 // Body indices in tree order (see bhOrder)
 @group(0) @binding(4) var<storage, read> order : array<u32>;
@@ -20,16 +20,34 @@ diagnostic(off, subgroup_uniformity);
 @group(0) @binding(5) var<storage, read> records : array<vec4<f32>>;
 // Each child record's quadrupole, packed (see bhSummarize)
 @group(0) @binding(6) var<storage, read> quadrupoles : array<vec4<u32>>;
+// The bodies with no rank in the tree order (see bhOrder)
+@group(0) @binding(7) var<storage, read_write> unranked : Unranked;
+// The bodies after this step, in tree order
+@group(0) @binding(8) var<storage, read_write> sortedBodies : array<Body>;
+
+// The body a target is: the one at its rank in the tree order, or if bhOrder left that
+// rank empty, one of the bodies it couldn't place (there are as many of each). A target
+// past the last body is padding, which only needs a position near its subgroup's others.
+fn targetBody(rank: u32) -> u32 {
+  let last = params.numBodies - 1u;
+  if (rank > last) { return min(order[last], last); }
+  let body = order[rank];
+  if (body <= last) { return body; }
+  return min(unranked.bodies[atomicAdd(&unranked.taken, 1u)], last);
+}
 
 // Called only for a valid, uniquely owned target, after all subgroup collectives.
-fn finishBody(bodyIdx: u32, acceleration: vec3<f32>) {
+// Writing each body at its rank is what puts the bodies in tree order: the next step
+// reads them back from there (see bodiesIntegrate), so its passes find neighbours in
+// space next to each other in memory.
+fn finishBody(bodyIdx: u32, rank: u32, acceleration: vec3<f32>) {
   var acc = acceleration;
   let accLen = length(acc);
   if (accLen > 1000.0) { acc *= 1000.0 / accLen; }
   var vel = motion[bodyIdx].vel + 0.5 * acc * params.deltaTime;
   let speed = length(vel);
   if (speed > 1000.0) { vel *= 1000.0 / speed; }
-  motion[bodyIdx] = Motion(vel, acc);
+  sortedBodies[rank] = Body(posMass[bodyIdx], Motion(vel, acc));
 }
 
 @compute @workgroup_size(128)
@@ -40,16 +58,14 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   // Keep the accumulators explicit so they stay in registers. No subgroup width
   // or relationship between lane IDs and invocation IDs is assumed.
   let rank0 = id.x * 2u;
-  let requested0 = order[min(rank0, params.numBodies - 1u)];
-  let valid0 = rank0 < params.numBodies && requested0 < params.numBodies;
-  let body0 = min(requested0, params.numBodies - 1u);
+  let valid0 = rank0 < params.numBodies;
+  let body0 = targetBody(rank0);
   let pos0 = posMass[body0].xyz;
   var acc0 = vec3(0.0);
 
   let rank1 = rank0 + 1u;
-  let requested1 = order[min(rank1, params.numBodies - 1u)];
-  let valid1 = rank1 < params.numBodies && requested1 < params.numBodies;
-  let body1 = min(requested1, params.numBodies - 1u);
+  let valid1 = rank1 < params.numBodies;
+  let body1 = targetBody(rank1);
   let pos1 = posMass[body1].xyz;
   var acc1 = vec3(0.0);
 
@@ -113,8 +129,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
       }
     }
   }
-  // Write each owned target once. Padded targets must not even read motion while
-  // the invocation owning that clamped body updates it.
-  if (valid0) { finishBody(body0, acc0); }
-  if (valid1) { finishBody(body1, acc1); }
+  // Write each owned target once
+  if (valid0) { finishBody(body0, rank0, acc0); }
+  if (valid1) { finishBody(body1, rank1, acc1); }
 }

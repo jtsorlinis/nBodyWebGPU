@@ -13,6 +13,8 @@
 @group(0) @binding(5) var<storage, read_write> secondMoments : array<SecondMoment>;
 // Each child record's quadrupole (see quadrupoleRecord)
 @group(0) @binding(6) var<storage, read_write> quadrupoles : array<vec4<u32>>;
+// Number of bodies under each node
+@group(0) @binding(7) var<storage, read> counts : array<u32>;
 
 // What the force pass needs from a child slot. Bodies are copied as they are;
 // a node's moment is relative to its centre (see momentExponent in common.wgsl).
@@ -120,9 +122,9 @@ fn summarizePrefix(lid: u32) {
 
 // Gathers each node's children into one 128-byte block of records, and one of
 // quadrupoles, so the force pass opens a node with contiguous reads instead of a scattered
-// read chain per child. Two invocations per node, four child slots each. Unused (spare)
-// nodes have no children, so their records are all empty. One extra workgroup, the first
-// (so it overlaps the rest), handles the nodes whose children are in bhTree's prefix.
+// read chain per child. Two invocations per node, four child slots each. One extra
+// workgroup, the first (so it overlaps the rest), handles the nodes whose children are in
+// bhTree's prefix.
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(@builtin(global_invocation_id) id : vec3<u32>,
         @builtin(local_invocation_index) lid : u32,
@@ -137,6 +139,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,
 
   let nodeIdx = (id.x - WORKGROUP_SIZE) / 2u;
   if ((seedPrefix && nodeIdx < TOP_INTERNAL) || nodeIdx >= min(allocator, params.maxNodes)) {
+    return;
+  }
+  // A node with no bodies under it has no mass in its parent's record, so the force pass
+  // never opens it and nothing reads its own records. That skips the spare nodes bhTree
+  // allocated but never linked in, and the empty cells of its prefix.
+  if (counts[nodeIdx] == 0u) {
     return;
   }
 

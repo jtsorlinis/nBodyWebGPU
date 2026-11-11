@@ -21,6 +21,22 @@ struct Motion {
   acc : vec3<f32>,
 };
 
+// A body's whole state, 48 bytes. The force pass writes the bodies out like this in tree
+// order (see bhOrder), for the next step's integration and the renderer to read.
+struct Body {
+  posMass : vec4<f32>, // xyz = position, w = mass
+  motion : Motion,
+};
+
+// The bodies bhTree left out of the tree, which bhOrder can't give a rank. Each one
+// leaves a rank empty, so the force pass gives those ranks to these bodies instead.
+struct Unranked {
+  count : atomic<u32>,
+  // How many of them the force pass has placed
+  taken : atomic<u32>,
+  bodies : array<u32>,
+};
+
 // An octree node, 64 bytes. bhTree builds it through an atomic view of the same layout.
 // A zeroed node is an empty node, which is what bhClear resets nodes to.
 struct Node {

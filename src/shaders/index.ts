@@ -97,20 +97,18 @@ const starSigma = 0.25;
 const minSigmaPixels = 0.7;
 
 // Bodies are drawn as soft points of light that add up, so dense regions glow brighter.
-// They're read straight from the simulation's buffers.
+// They're read straight from the simulation's sorted bodies buffer.
 export const createBodiesMaterial = (
-  posMass: StorageBufferAttribute,
-  motion: StorageBufferAttribute,
+  sortedBodies: StorageBufferAttribute,
   numBodies: number,
   maxAcc: UniformNode<"float", number>,
   extrapolationTime: UniformNode<"float", number>,
 ) => {
-  const bodies = storage(posMass, "vec4", numBodies).toReadOnly();
-  // Two vec4s per body: velocity, then acceleration
-  const motions = storage(motion, "vec4", numBodies * 2).toReadOnly();
-  const body = bodies.element(instanceIndex);
-  const vel = motions.element(instanceIndex.mul(2)).xyz;
-  const acc = motions.element(instanceIndex.mul(2).add(1)).xyz;
+  // Three vec4s per body: position and mass, velocity, then acceleration
+  const bodies = storage(sortedBodies, "vec4", numBodies * 3).toReadOnly();
+  const body = bodies.element(instanceIndex.mul(3));
+  const vel = bodies.element(instanceIndex.mul(3).add(1)).xyz;
+  const acc = bodies.element(instanceIndex.mul(3).add(2)).xyz;
 
   const pos = body.xyz.add(vel.mul(extrapolationTime));
   const center = cameraViewMatrix.mul(vec4(pos, 1)).xyz;

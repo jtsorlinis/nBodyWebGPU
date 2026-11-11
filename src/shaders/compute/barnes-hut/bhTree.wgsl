@@ -53,6 +53,27 @@ var<workgroup> scratch: array<atomic<i32>, SCRATCH_WORDS>;
 // Within WebGPU's 16 KiB baseline limit (15,776 bytes)
 const_assert (WORKGROUP_SIZE * 4u + SCRATCH_WORDS) * 4u <= 16384u;
 
+// Bodies are stored in last step's tree order (see bhForces), so neighbours in memory
+// are neighbours in space. A workgroup taking 256 of those in a row races for the same
+// few leaf slots, and every race lost costs a retry and usually a spare node: the build
+// gets slower and allocates twice the nodes the tree uses. So each thread takes a body
+// from across a block of this many instead. A workgroup's bodies are then still close
+// enough to share the upper nodes its cache sums, but rarely a leaf.
+const SPREAD_BLOCK = 65536u;
+// About SPREAD_BLOCK / the golden ratio, which lands threads near each other far apart
+// in the block. It's odd, so multiplying by it takes each body in a block exactly once.
+const SPREAD_STEP = 40503u;
+
+// The body thread i inserts
+fn spreadBody(i: u32) -> u32 {
+  let block = i & ~(SPREAD_BLOCK - 1u);
+  // Bodies past the last whole block are taken in order
+  if (block + SPREAD_BLOCK > params.numBodies) {
+    return i;
+  }
+  return block | ((i * SPREAD_STEP) & (SPREAD_BLOCK - 1u));
+}
+
 fn getOctant(pos: vec3<f32>, box: Box) -> u32 {
   return octantOf(pos, (box.min + box.max) * 0.5);
 }
@@ -191,10 +212,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   }
   workgroupBarrier();
 
+  // Only used by the threads that have a body
+  let bodyIdx = spreadBody(id.x);
   var startNode = 0u;
   var start = root;
   if (id.x < params.numBodies) {
-    let body = posMass[id.x];
+    let body = posMass[bodyIdx];
     for (var depth = 0u; depth < topLevels; depth++) {
       let octant = getOctant(body.xyz, start);
       start = octantBox(start, octant);
@@ -210,7 +233,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
 
   var rootSum = vec4<i32>(0);
   if (id.x < params.numBodies) {
-    rootSum = contribution(posMass[id.x], root.min, root.max).first;
+    rootSum = contribution(posMass[bodyIdx], root.min, root.max).first;
   }
   rootSums[lid.x] = rootSum;
   workgroupBarrier();
@@ -230,7 +253,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   workgroupBarrier();
 
   if (id.x < params.numBodies) {
-    insertBody(i32(id.x), startNode, start, topLevels);
+    insertBody(i32(bodyIdx), startNode, start, topLevels);
   }
 
   // Once the whole workgroup has inserted its bodies, add the cached sums to the tree.
