@@ -4,7 +4,7 @@ enable subgroups;
 // comes from subgroupBroadcastFirst, and every push decision comes from subgroupAll.
 // Thus all lanes in a subgroup execute each collective in the same control flow.
 // The compiler cannot prove the private-stack invariant across the loop.
-// Each lane owns two targets; both opening tests join the collective.
+// Each lane owns three targets; all their opening tests join the collective.
 // Padded targets participate using a clamped position, but are never written out.
 diagnostic(off, subgroup_uniformity);
 
@@ -53,12 +53,13 @@ fn finishBody(bodyIdx: u32, rank: u32, acceleration: vec3<f32>) {
 
 @compute @workgroup_size(128)
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-  // Two adjacent targets amortize node loads and traversal over more force work. More
-  // make the subgroup's targets spread wider, so it opens more nodes; with quadrupole
-  // interactions that costs more than it saves (two measured fastest of one to four).
+  // Three adjacent targets amortize node loads and traversal over more force work. More
+  // make the subgroup's targets spread wider, so it opens more nodes. Three measured
+  // fastest of one to four on an RTX 4070, where four is far slower; it was two before
+  // bodies were ordered along a Hilbert curve and small nodes became buckets.
   // Keep the accumulators explicit so they stay in registers. No subgroup width
   // or relationship between lane IDs and invocation IDs is assumed.
-  let rank0 = id.x * 2u;
+  let rank0 = id.x * 3u;
   let valid0 = rank0 < params.numBodies;
   let body0 = targetBody(rank0);
   let pos0 = posMass[body0].xyz;
@@ -69,6 +70,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   let body1 = targetBody(rank1);
   let pos1 = posMass[body1].xyz;
   var acc1 = vec3(0.0);
+
+  let rank2 = rank0 + 2u;
+  let valid2 = rank2 < params.numBodies;
+  let body2 = targetBody(rank2);
+  let pos2 = posMass[body2].xyz;
+  var acc2 = vec3(0.0);
 
   // A node can be approximated when size / theta + offset < dist, where offset is how far
   // its centre of mass is from its centre. Without the offset, a node whose mass sits in
@@ -107,6 +114,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
         if (subgroupBroadcastFirst(entry.w) == 0.0) { break; }
         acc0 += attraction(entry.xyz - pos0, -entry.w);
         acc1 += attraction(entry.xyz - pos1, -entry.w);
+        acc2 += attraction(entry.xyz - pos2, -entry.w);
       }
       continue;
     }
@@ -119,23 +127,26 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
 
       let r0 = source.xyz - pos0;
       let r1 = source.xyz - pos1;
+      let r2 = source.xyz - pos2;
       if (child < 0) {
         // It's a Body. Self attraction is exactly zero: displacement is zero and softening > 0.
         acc0 += attraction(r0, source.w);
         acc1 += attraction(r1, source.w);
+        acc2 += attraction(r2, source.w);
       } else {
         // It's a Node. Approximate only if EVERY target in EVERY participating lane
         // passes the opening test. Batching can only make this test more conservative.
         // If the stack is full, the node is approximated rather than dropped
         let openDist = sizeOverTheta + bitcast<f32>(childQuads[i].w);
         let threshold = openDist * openDist;
-        let canApproximate = dot(r0, r0) > threshold && dot(r1, r1) > threshold;
+        let canApproximate = dot(r0, r0) > threshold && dot(r1, r1) > threshold && dot(r2, r2) > threshold;
         if (subgroupBroadcastFirst(u32(subgroupAll(canApproximate))) != 0u || stackPtr >= STACK_SIZE) {
           // The child's size is this node's half size
           let gm = params.gravity * source.w;
           let q = unpackQuadrupole(childQuads[i], gm * halfSize * halfSize);
           acc0 += quadrupoleAttraction(r0, gm, q.quad, q.softTrace);
           acc1 += quadrupoleAttraction(r1, gm, q.quad, q.softTrace);
+          acc2 += quadrupoleAttraction(r2, gm, q.quad, q.softTrace);
         } else {
           stack[stackPtr] = child;
           stackPtr++;
@@ -146,4 +157,5 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {
   // Write each owned target once
   if (valid0) { finishBody(body0, rank0, acc0); }
   if (valid1) { finishBody(body1, rank1, acc1); }
+  if (valid2) { finishBody(body2, rank2, acc2); }
 }
