@@ -548,7 +548,8 @@ struct Params {\r
   gravity: f32,\r
   deltaTime: f32,\r
   softening: f32,\r
-  theta: f32,\r
+  // How much of a body's acceleration approximating one node may get wrong (see canApproximate)\r
+  tolerance: f32,\r
   maxNodes: u32,\r
   massScale: f32,\r
 }\r
@@ -556,6 +557,22 @@ struct Params {\r
 struct Motion {\r
   vel : vec3<f32>,\r
   acc : vec3<f32>,\r
+};\r
+\r
+// A body's whole state, 48 bytes. The force pass writes the bodies out like this in tree\r
+// order (see bhOrder), for the next step's integration and the renderer to read.\r
+struct Body {\r
+  posMass : vec4<f32>, // xyz = position, w = mass\r
+  motion : Motion,\r
+};\r
+\r
+// The bodies bhTree left out of the tree, which bhOrder can't give a rank. Each one\r
+// leaves a rank empty, so the force pass gives those ranks to these bodies instead.\r
+struct Unranked {\r
+  count : atomic<u32>,\r
+  // How many of them the force pass has placed\r
+  taken : atomic<u32>,\r
+  bodies : array<u32>,\r
 };\r
 \r
 // An octree node, 64 bytes. bhTree builds it through an atomic view of the same layout.\r
@@ -583,6 +600,12 @@ fn momentExponent(halfSize: f32) -> i32 {\r
   return i32((bitcast<u32>(halfSize) >> 23u) & 0xFFu) - 126;\r
 }\r
 \r
+// A node with this many bodies under it or fewer (and a parent with more) is a bucket.\r
+// bhSummarize puts those bodies in the node's record block in place of its child records,\r
+// and the force pass sums them directly instead of walking the node's subtree, most of\r
+// whose opens would each find a body or two. A block holds 16.\r
+const BUCKET_SIZE = 16u;\r
+\r
 // MAX_DEPTH=30 permits internal children through depth 31. A depth-first walk\r
 // needs at most 1 + 7*31 pending nodes, so 256 entries cover every valid tree.\r
 const STACK_SIZE = 256;\r
@@ -591,6 +614,38 @@ const STACK_SIZE = 256;\r
 fn attraction(r: vec3<f32>, mass: f32) -> vec3<f32> {\r
   let invDist = inverseSqrt(dot(r, r) + params.softening * params.softening);\r
   return r * (params.gravity * mass * invDist * invDist * invDist);\r
+}\r
+\r
+// The nearest a node may be approximated, in node sizes from where its mass could be.\r
+// Closer than this, a target can be among the node's own bodies.\r
+const NEAREST_APPROXIMATION = 0.5;\r
+// The theta beyond which a node is approximated whatever the target's acceleration.\r
+// A body with almost no acceleration would otherwise open most of the tree. On the first\r
+// step no body has one yet, so that step's force pass takes about four times as long.\r
+const BACKSTOP_THETA = 0.6;\r
+\r
+// Whether the force pass can use a node's centre of mass and quadrupole in place of its\r
+// bodies, for a target distSq from its centre of mass. gm is gravity * the node's mass,\r
+// and comOffset how far its centre of mass is from its centre.\r
+//\r
+// Approximating leaves an error of about gm * size^3 / dist^5, the next term of the\r
+// expansion. That has to be under a fraction (params.tolerance) of the acceleration the\r
+// target had last step, which toleranceSq is the square of. So light nodes are approximated\r
+// from closer in than heavy ones, where a fixed opening angle treats them alike and spends\r
+// most of its work on nodes too light to matter. For the same median force error this\r
+// opens a third fewer nodes, and the worst 1% of errors are less than half as large.\r
+//\r
+// The test is squared, with distance in node sizes so its tenth power stays in range:\r
+// gm^2 <= (dist / size)^10 * (size^2 * tolerance * acceleration)^2. If the right side\r
+// overflows the node is far enough away, and with no acceleration the backstop decides.\r
+fn canApproximate(distSq: f32, gm: f32, size: f32, comOffset: f32, toleranceSq: f32) -> bool {\r
+  let nearest = size * NEAREST_APPROXIMATION + comOffset;\r
+  let backstop = size / BACKSTOP_THETA + comOffset;\r
+  let sizeSq = size * size;\r
+  let ratio = distSq / sizeSq;\r
+  let ratio5 = ratio * ratio * ratio * ratio * ratio;\r
+  return distSq > nearest * nearest &&\r
+    (ratio5 * (sizeSq * sizeSq * toleranceSq) >= gm * gm || distSq > backstop * backstop);\r
 }\r
 \r
 // Softened acceleration towards a node's mass and quadrupole, at offset r from its centre\r
@@ -665,11 +720,13 @@ fn seedsTopPrefix() -> bool {\r
 fn seededNodes() -> u32 {\r
   return select(1u, TOP_NODES, seedsTopPrefix());\r
 }\r
-`,hF=`// Params and Motion are shared by every kernel, see common.wgsl\r
+`,hF=`// Params, Motion and Body are shared by every kernel, see common.wgsl\r
 @group(0) @binding(0) var<uniform> params : Params;\r
+// The bodies as the force pass left them, in last step's tree order\r
+@group(0) @binding(1) var<storage, read> sortedBodies : array<Body>;\r
 // xyz = position, w = mass\r
-@group(0) @binding(1) var<storage, read_write> posMass : array<vec4<f32>>;\r
-@group(0) @binding(2) var<storage, read_write> motion : array<Motion>;\r
+@group(0) @binding(2) var<storage, read_write> posMass : array<vec4<f32>>;\r
+@group(0) @binding(3) var<storage, read_write> motion : array<Motion>;\r
 \r
 @compute @workgroup_size(256, 1, 1)\r
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
@@ -677,14 +734,14 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
     return;\r
   }\r
 \r
-  var body = motion[id.x];\r
+  let body = sortedBodies[id.x];\r
 \r
   // First "Kick": Half update of the velocity\r
-  body.vel += 0.5 * body.acc * params.deltaTime;\r
+  let vel = body.motion.vel + 0.5 * body.motion.acc * params.deltaTime;\r
 \r
   // "Drift": Full update of the position\r
-  posMass[id.x] = vec4(posMass[id.x].xyz + body.vel * params.deltaTime, posMass[id.x].w);\r
-  motion[id.x].vel = body.vel;\r
+  posMass[id.x] = vec4(body.posMass.xyz + vel * params.deltaTime, body.posMass.w);\r
+  motion[id.x] = Motion(vel, body.motion.acc);\r
 }\r
 `,gF=`// Node (see common.wgsl), with atomics so invocations can build the tree concurrently\r
 struct BuildNode {\r
@@ -740,6 +797,27 @@ var<workgroup> rootSums: array<vec4<i32>, WORKGROUP_SIZE>;\r
 var<workgroup> scratch: array<atomic<i32>, SCRATCH_WORDS>;\r
 // Within WebGPU's 16 KiB baseline limit (15,776 bytes)\r
 const_assert (WORKGROUP_SIZE * 4u + SCRATCH_WORDS) * 4u <= 16384u;\r
+\r
+// Bodies are stored in last step's tree order (see bhForces), so neighbours in memory\r
+// are neighbours in space. A workgroup taking 256 of those in a row races for the same\r
+// few leaf slots, and every race lost costs a retry and usually a spare node: the build\r
+// gets slower and allocates twice the nodes the tree uses. So each thread takes a body\r
+// from across a block of this many instead. A workgroup's bodies are then still close\r
+// enough to share the upper nodes its cache sums, but rarely a leaf.\r
+const SPREAD_BLOCK = 65536u;\r
+// About SPREAD_BLOCK / the golden ratio, which lands threads near each other far apart\r
+// in the block. It's odd, so multiplying by it takes each body in a block exactly once.\r
+const SPREAD_STEP = 40503u;\r
+\r
+// The body thread i inserts\r
+fn spreadBody(i: u32) -> u32 {\r
+  let block = i & ~(SPREAD_BLOCK - 1u);\r
+  // Bodies past the last whole block are taken in order\r
+  if (block + SPREAD_BLOCK > params.numBodies) {\r
+    return i;\r
+  }\r
+  return block | ((i * SPREAD_STEP) & (SPREAD_BLOCK - 1u));\r
+}\r
 \r
 fn getOctant(pos: vec3<f32>, box: Box) -> u32 {\r
   return octantOf(pos, (box.min + box.max) * 0.5);\r
@@ -879,10 +957,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   }\r
   workgroupBarrier();\r
 \r
+  // Only used by the threads that have a body\r
+  let bodyIdx = spreadBody(id.x);\r
   var startNode = 0u;\r
   var start = root;\r
   if (id.x < params.numBodies) {\r
-    let body = posMass[id.x];\r
+    let body = posMass[bodyIdx];\r
     for (var depth = 0u; depth < topLevels; depth++) {\r
       let octant = getOctant(body.xyz, start);\r
       start = octantBox(start, octant);\r
@@ -898,7 +978,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
 \r
   var rootSum = vec4<i32>(0);\r
   if (id.x < params.numBodies) {\r
-    rootSum = contribution(posMass[id.x], root.min, root.max).first;\r
+    rootSum = contribution(posMass[bodyIdx], root.min, root.max).first;\r
   }\r
   rootSums[lid.x] = rootSum;\r
   workgroupBarrier();\r
@@ -918,7 +998,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>, @builtin(local_invocation
   workgroupBarrier();\r
 \r
   if (id.x < params.numBodies) {\r
-    insertBody(i32(id.x), startNode, start, topLevels);\r
+    insertBody(i32(bodyIdx), startNode, start, topLevels);\r
   }\r
 \r
   // Once the whole workgroup has inserted its bodies, add the cached sums to the tree.\r
@@ -1014,18 +1094,23 @@ fn insertBody(bodyIdx: i32, startNode: u32, start: Box, topLevels: u32) {\r
     if (depth > MAX_DEPTH) { break; }\r
   }\r
 }\r
-`,_F=`// Params, Motion and Node are shared by every kernel, see common.wgsl\r
+`,_F=`// Params, Motion, Body, Node and Unranked are shared by every kernel, see common.wgsl\r
 @group(0) @binding(0) var<uniform> params : Params;\r
 // xyz = position, w = mass\r
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;\r
-@group(0) @binding(2) var<storage, read_write> motion : array<Motion>;\r
+@group(0) @binding(2) var<storage, read> motion : array<Motion>;\r
 @group(0) @binding(3) var<storage, read> nodes : array<Node>;\r
 // Body indices in tree order (see bhOrder)\r
 @group(0) @binding(4) var<storage, read> order : array<u32>;\r
-// Each node's eight child records: centre of mass xyz, mass (see bhSummarize)\r
+// Each node's eight child records: centre of mass xyz, mass. A bucket's blocks, here and\r
+// in quadrupoles, hold its bodies instead (see bhSummarize).\r
 @group(0) @binding(5) var<storage, read> records : array<vec4<f32>>;\r
 // Each child record's quadrupole, packed (see bhSummarize)\r
 @group(0) @binding(6) var<storage, read> quadrupoles : array<vec4<u32>>;\r
+// The bodies with no rank in the tree order (see bhOrder)\r
+@group(0) @binding(7) var<storage, read_write> unranked : Unranked;\r
+// The bodies after this step, in tree order\r
+@group(0) @binding(8) var<storage, read_write> sortedBodies : array<Body>;\r
 \r
 @compute @workgroup_size(256)\r
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
@@ -1033,21 +1118,20 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
     return;\r
   }\r
 \r
-  // Process bodies in tree order so neighbouring threads walk similar paths.\r
-  // Bodies that were left out of the tree this step have no slot and are skipped.\r
-  let bodyIdx = order[id.x];\r
+  // Process bodies in tree order so neighbouring threads walk similar paths. If bhOrder\r
+  // left this rank empty, take one of the bodies it couldn't place (there are as many of each).\r
+  var bodyIdx = order[id.x];\r
   if (bodyIdx >= params.numBodies) {\r
-    return;\r
+    bodyIdx = min(unranked.bodies[atomicAdd(&unranked.taken, 1u)], params.numBodies - 1u);\r
   }\r
 \r
   let pos = posMass[bodyIdx].xyz;\r
   var newAcc = vec3(0.0);\r
 \r
-  // A node can be approximated when size / theta + offset < dist, where offset is how far\r
-  // its centre of mass is from its centre. Without the offset, a node whose mass sits in\r
-  // one corner could be approximated for a target nearly as close as its far bodies, where\r
-  // the quadrupole expansion breaks down. A child's size is its parent's half size.\r
-  let invTheta = 1.0 / params.theta;\r
+  // What approximating one node may get wrong, squared: a fraction of the acceleration\r
+  // this body had last step (see canApproximate in common.wgsl)\r
+  let lastAcc = motion[bodyIdx].acc;\r
+  let toleranceSq = params.tolerance * params.tolerance * dot(lastAcc, lastAcc);\r
 \r
   // Stack of nodes to open, starting at the Root (which always contains this body).\r
   // Children are tested as soon as their parent is opened, so only nodes that need\r
@@ -1059,15 +1143,33 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
   while (stackPtr > 0) {\r
     stackPtr--;\r
     let nodeIdx = stack[stackPtr];\r
+    let block = u32(nodeIdx) * 8u;\r
+\r
+    // A bucket's blocks hold the bodies under it instead: position, then minus the mass\r
+    // (see writeBucket in bhSummarize). Sum them directly, up to the first unused entry.\r
+    // This body's own entry adds nothing: its displacement is zero and softening > 0.\r
+    if (records[block].w < 0.0) {\r
+      for (var i = 0u; i < BUCKET_SIZE; i++) {\r
+        var entry: vec4<f32>;\r
+        if (i < 8u) {\r
+          entry = records[block + i];\r
+        } else {\r
+          entry = bitcast<vec4<f32>>(quadrupoles[block + i - 8u]);\r
+        }\r
+        if (entry.w == 0.0) { break; }\r
+        newAcc += attraction(entry.xyz - pos, -entry.w);\r
+      }\r
+      continue;\r
+    }\r
+\r
     let halfSize = nodes[nodeIdx].geom.w;\r
-    let sizeOverTheta = halfSize * invTheta;\r
 \r
     // Invocations traverse independently here, so unlike bhForcesCoherent, only\r
     // load the records of occupied slots\r
     for (var i = 0u; i < 8u; i++) {\r
       let child = nodes[nodeIdx].children[i];\r
       if (child == 0) { continue; }\r
-      let source = records[u32(nodeIdx) * 8u + i];\r
+      let source = records[block + i];\r
       // Empty cells of bhTree's fixed prefix have no mass\r
       if (source.w <= 0.0) { continue; }\r
 \r
@@ -1078,13 +1180,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
           newAcc += attraction(r, source.w);\r
         }\r
       } else {\r
-        // It's a Node. Check if it can be approximated (see the opening test above)\r
-        // If the stack is full, the node is approximated rather than dropped\r
-        let quadrupole = quadrupoles[u32(nodeIdx) * 8u + i];\r
-        let openDist = sizeOverTheta + bitcast<f32>(quadrupole.w);\r
-        if (dot(r, r) > openDist * openDist || stackPtr >= STACK_SIZE) {\r
-          // The child's size is this node's half size\r
-          let gm = params.gravity * source.w;\r
+        // It's a Node. Check if it can be approximated. The child's size is this node's\r
+        // half size. If the stack is full, the node is approximated rather than dropped\r
+        let quadrupole = quadrupoles[block + i];\r
+        let gm = params.gravity * source.w;\r
+        if (canApproximate(dot(r, r), gm, halfSize, bitcast<f32>(quadrupole.w), toleranceSq) ||\r
+            stackPtr >= STACK_SIZE) {\r
           let q = unpackQuadrupole(quadrupole, gm * halfSize * halfSize);\r
           newAcc += quadrupoleAttraction(r, gm, q.quad, q.softTrace);\r
         } else {\r
@@ -1110,7 +1211,10 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
     vel = normalize(vel) * 1000.0;\r
   }\r
 \r
-  motion[bodyIdx] = Motion(vel, newAcc);\r
+  // Writing each body at its rank is what puts the bodies in tree order: the next step\r
+  // reads them back from there (see bodiesIntegrate), so its passes find neighbours in\r
+  // space next to each other in memory.\r
+  sortedBodies[id.x] = Body(posMass[bodyIdx], Motion(vel, newAcc));\r
 }\r
 `,vF=`requires subgroup_uniformity;\r
 enable subgroups;\r
@@ -1118,60 +1222,82 @@ enable subgroups;\r
 // comes from subgroupBroadcastFirst, and every push decision comes from subgroupAll.\r
 // Thus all lanes in a subgroup execute each collective in the same control flow.\r
 // The compiler cannot prove the private-stack invariant across the loop.\r
-// Each lane owns two targets; both opening tests join the collective.\r
-// Padded targets participate using a clamped position, but never access motion.\r
+// Each lane owns two targets, and its opening test for both joins the collective.\r
+// Padded targets participate using a clamped position, but are never written out.\r
 diagnostic(off, subgroup_uniformity);\r
 \r
-// Params, Motion and Node are shared by every kernel, see common.wgsl\r
+// Params, Motion, Body, Node and Unranked are shared by every kernel, see common.wgsl\r
 @group(0) @binding(0) var<uniform> params : Params;\r
 // xyz = position, w = mass\r
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;\r
-@group(0) @binding(2) var<storage, read_write> motion : array<Motion>;\r
+@group(0) @binding(2) var<storage, read> motion : array<Motion>;\r
 @group(0) @binding(3) var<storage, read> nodes : array<Node>;\r
 // Body indices in tree order (see bhOrder)\r
 @group(0) @binding(4) var<storage, read> order : array<u32>;\r
-// Each node's eight child records: centre of mass xyz, mass (see bhSummarize)\r
+// Each node's eight child records: centre of mass xyz, mass. A bucket's blocks, here and\r
+// in quadrupoles, hold its bodies instead (see bhSummarize).\r
 @group(0) @binding(5) var<storage, read> records : array<vec4<f32>>;\r
 // Each child record's quadrupole, packed (see bhSummarize)\r
 @group(0) @binding(6) var<storage, read> quadrupoles : array<vec4<u32>>;\r
+// The bodies with no rank in the tree order (see bhOrder)\r
+@group(0) @binding(7) var<storage, read_write> unranked : Unranked;\r
+// The bodies after this step, in tree order\r
+@group(0) @binding(8) var<storage, read_write> sortedBodies : array<Body>;\r
+\r
+// The body a target is: the one at its rank in the tree order, or if bhOrder left that\r
+// rank empty, one of the bodies it couldn't place (there are as many of each). A target\r
+// past the last body is padding, which only needs a position near its subgroup's others.\r
+fn targetBody(rank: u32) -> u32 {\r
+  let last = params.numBodies - 1u;\r
+  if (rank > last) { return min(order[last], last); }\r
+  let body = order[rank];\r
+  if (body <= last) { return body; }\r
+  return min(unranked.bodies[atomicAdd(&unranked.taken, 1u)], last);\r
+}\r
 \r
 // Called only for a valid, uniquely owned target, after all subgroup collectives.\r
-fn finishBody(bodyIdx: u32, acceleration: vec3<f32>) {\r
+// Writing each body at its rank is what puts the bodies in tree order: the next step\r
+// reads them back from there (see bodiesIntegrate), so its passes find neighbours in\r
+// space next to each other in memory.\r
+fn finishBody(bodyIdx: u32, rank: u32, acceleration: vec3<f32>) {\r
   var acc = acceleration;\r
   let accLen = length(acc);\r
   if (accLen > 1000.0) { acc *= 1000.0 / accLen; }\r
   var vel = motion[bodyIdx].vel + 0.5 * acc * params.deltaTime;\r
   let speed = length(vel);\r
   if (speed > 1000.0) { vel *= 1000.0 / speed; }\r
-  motion[bodyIdx] = Motion(vel, acc);\r
+  sortedBodies[rank] = Body(posMass[bodyIdx], Motion(vel, acc));\r
 }\r
 \r
 @compute @workgroup_size(128)\r
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
   // Two adjacent targets amortize node loads and traversal over more force work. More\r
-  // make the subgroup's targets spread wider, so it opens more nodes; with quadrupole\r
-  // interactions that costs more than it saves (two measured fastest of one to four).\r
+  // make the subgroup's targets spread wider, so it opens more nodes, and give each lane\r
+  // more to keep in registers. How many is best depends on the GPU. At High an RTX 4070\r
+  // runs this pass 9% faster with three and an M4 Max 7% faster with two, while one or\r
+  // four are about a third slower than two on the 4070. Two is the compromise, and the\r
+  // one that asks less of a GPU nobody has measured.\r
   // Keep the accumulators explicit so they stay in registers. No subgroup width\r
   // or relationship between lane IDs and invocation IDs is assumed.\r
   let rank0 = id.x * 2u;\r
-  let requested0 = order[min(rank0, params.numBodies - 1u)];\r
-  let valid0 = rank0 < params.numBodies && requested0 < params.numBodies;\r
-  let body0 = min(requested0, params.numBodies - 1u);\r
+  let valid0 = rank0 < params.numBodies;\r
+  let body0 = targetBody(rank0);\r
   let pos0 = posMass[body0].xyz;\r
   var acc0 = vec3(0.0);\r
 \r
   let rank1 = rank0 + 1u;\r
-  let requested1 = order[min(rank1, params.numBodies - 1u)];\r
-  let valid1 = rank1 < params.numBodies && requested1 < params.numBodies;\r
-  let body1 = min(requested1, params.numBodies - 1u);\r
+  let valid1 = rank1 < params.numBodies;\r
+  let body1 = targetBody(rank1);\r
   let pos1 = posMass[body1].xyz;\r
   var acc1 = vec3(0.0);\r
 \r
-  // A node can be approximated when size / theta + offset < dist, where offset is how far\r
-  // its centre of mass is from its centre. Without the offset, a node whose mass sits in\r
-  // one corner could be approximated for a target nearly as close as its far bodies, where\r
-  // the quadrupole expansion breaks down. A child's size is its parent's half size.\r
-  let invTheta = 1.0 / params.theta;\r
+  // What approximating one node may get wrong, squared: a fraction of the acceleration the\r
+  // targets had last step (see canApproximate in common.wgsl). The lane keeps one figure,\r
+  // the smaller of its targets', since they are neighbours. A figure and a test for each\r
+  // target cost more time than the nodes they saved (measured with three targets).\r
+  let toleranceSq = params.tolerance * params.tolerance * min(\r
+    dot(motion[body0].acc, motion[body0].acc),\r
+    dot(motion[body1].acc, motion[body1].acc));\r
 \r
   // Stack of nodes to open, starting at the root (which contains every target).\r
   // Children are tested as soon as their parent is opened, so only nodes that need\r
@@ -1184,7 +1310,6 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
     stackPtr--;\r
     let nodeIdx = stack[stackPtr];\r
     let halfSize = subgroupBroadcastFirst(nodes[nodeIdx].geom.w);\r
-    let sizeOverTheta = halfSize * invTheta;\r
 \r
     // Issue every load for this node before using any of them, so they overlap\r
     let children = nodes[nodeIdx].children;\r
@@ -1193,6 +1318,19 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
     for (var i = 0u; i < 8u; i++) {\r
       childRecords[i] = records[u32(nodeIdx) * 8u + i];\r
       childQuads[i] = quadrupoles[u32(nodeIdx) * 8u + i];\r
+    }\r
+\r
+    // A bucket's blocks hold the bodies under it instead: position, then minus the mass\r
+    // (see writeBucket in bhSummarize). Sum them directly, up to the first unused entry.\r
+    // A target's own entry adds nothing, as for a body below.\r
+    if (subgroupBroadcastFirst(childRecords[0].w) < 0.0) {\r
+      for (var i = 0u; i < BUCKET_SIZE; i++) {\r
+        let entry = select(bitcast<vec4<f32>>(childQuads[i & 7u]), childRecords[i & 7u], i < 8u);\r
+        if (subgroupBroadcastFirst(entry.w) == 0.0) { break; }\r
+        acc0 += attraction(entry.xyz - pos0, -entry.w);\r
+        acc1 += attraction(entry.xyz - pos1, -entry.w);\r
+      }\r
+      continue;\r
     }\r
 \r
     for (var i = 0u; i < 8u; i++) {\r
@@ -1210,13 +1348,13 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
       } else {\r
         // It's a Node. Approximate only if EVERY target in EVERY participating lane\r
         // passes the opening test. Batching can only make this test more conservative.\r
+        // The test only gets easier with distance, so the lane's nearer target decides\r
+        // for it. The child's size is this node's half size.\r
         // If the stack is full, the node is approximated rather than dropped\r
-        let openDist = sizeOverTheta + bitcast<f32>(childQuads[i].w);\r
-        let threshold = openDist * openDist;\r
-        let canApproximate = dot(r0, r0) > threshold && dot(r1, r1) > threshold;\r
-        if (subgroupBroadcastFirst(u32(subgroupAll(canApproximate))) != 0u || stackPtr >= STACK_SIZE) {\r
-          // The child's size is this node's half size\r
-          let gm = params.gravity * source.w;\r
+        let gm = params.gravity * source.w;\r
+        let nearestSq = min(dot(r0, r0), dot(r1, r1));\r
+        let approximate = canApproximate(nearestSq, gm, halfSize, bitcast<f32>(childQuads[i].w), toleranceSq);\r
+        if (subgroupBroadcastFirst(u32(subgroupAll(approximate))) != 0u || stackPtr >= STACK_SIZE) {\r
           let q = unpackQuadrupole(childQuads[i], gm * halfSize * halfSize);\r
           acc0 += quadrupoleAttraction(r0, gm, q.quad, q.softTrace);\r
           acc1 += quadrupoleAttraction(r1, gm, q.quad, q.softTrace);\r
@@ -1227,12 +1365,11 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
       }\r
     }\r
   }\r
-  // Write each owned target once. Padded targets must not even read motion while\r
-  // the invocation owning that clamped body updates it.\r
-  if (valid0) { finishBody(body0, acc0); }\r
-  if (valid1) { finishBody(body1, acc1); }\r
+  // Write each owned target once\r
+  if (valid0) { finishBody(body0, rank0, acc0); }\r
+  if (valid1) { finishBody(body1, rank1, acc1); }\r
 }\r
-`,yF=`// Params and Node are shared by every kernel, see common.wgsl\r
+`,yF=`// Params, Node and Unranked are shared by every kernel, see common.wgsl\r
 @group(0) @binding(0) var<uniform> params : Params;\r
 @group(0) @binding(1) var<storage, read_write> nodes : array<Node>;\r
 // Number of nodes the last tree build allocated\r
@@ -1241,6 +1378,7 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
 @group(0) @binding(4) var<storage, read_write> counts : array<u32>;\r
 @group(0) @binding(5) var<storage, read_write> order : array<u32>;\r
 @group(0) @binding(6) var<storage, read_write> secondMoments : array<SecondMoment>;\r
+@group(0) @binding(7) var<storage, read_write> unranked : Unranked;\r
 \r
 // Only the nodes the last tree used need zeroing (a zeroed node is empty),\r
 // since everything past them was never written. Early-out workgroups are cheap.\r
@@ -1249,9 +1387,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
   // Bounds are reduced with atomicMin/Max (see bhBounds), so start them at the extremes\r
   if (id.x == 0u) {\r
     bounds = array<u32, 6>(0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu, 0u, 0u, 0u);\r
+    // Empty the list of bodies left out of the tree\r
+    atomicStore(&unranked.count, 0u);\r
+    atomicStore(&unranked.taken, 0u);\r
   }\r
 \r
-  // Bodies left out of the tree won't get a slot in the order (see bhOrder)\r
+  // A body left out of the tree leaves a rank in the order empty (see bhOrder)\r
   if (id.x < params.numBodies) {\r
     order[id.x] = 0xFFFFFFFFu;\r
   }\r
@@ -1259,6 +1400,12 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
   // Failed allocations can push the allocator past the end\r
   let used = min(allocator, params.maxNodes);\r
   if (id.x >= used) {\r
+    return;\r
+  }\r
+\r
+  // Nor do the nodes insertion allocated but never linked into the tree (see bhTree),\r
+  // which are still empty. Every node it did link has a body counted under it.\r
+  if (counts[id.x] == 0u) {\r
     return;\r
   }\r
 \r
@@ -1313,13 +1460,29 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,\r
     atomicMax(&bounds.maxBits[lid.x], atomicLoad(&localMax[lid.x]));\r
   }\r
 }\r
-`,xF=`// Params and Node are shared by every kernel, see common.wgsl\r
+`,xF=`// Params, Node and Unranked are shared by every kernel, see common.wgsl\r
 @group(0) @binding(0) var<uniform> params : Params;\r
 // xyz = position, w = mass\r
 @group(0) @binding(1) var<storage, read> posMass : array<vec4<f32>>;\r
 @group(0) @binding(2) var<storage, read> nodes : array<Node>;\r
 @group(0) @binding(3) var<storage, read> counts : array<u32>;\r
 @group(0) @binding(4) var<storage, read_write> order : array<u32>;\r
+@group(0) @binding(5) var<storage, read_write> unranked : Unranked;\r
+\r
+// The Hilbert curve's 24 orientations in a cube. An orientation is the eight steps the\r
+// curve takes through the cube's octants, a byte per step: the octant in the low 3 bits,\r
+// and the curve's orientation inside it in the high 5. x holds the first four steps from\r
+// its lowest byte, and y the last four.\r
+const HILBERT_STEPS = array<vec2<u32>, 24>(\r
+  vec2(0x1A062C08u, 0x11350723u), vec2(0x410B4A38u, 0x545E0F2Du), vec2(0x34165F75u, 0x694B1260u),\r
+  vec2(0x071E745Du, 0x49681A7Bu), vec2(0x7A233948u, 0x5C552706u), vec2(0x812D0420u, 0x8A962F0Bu),\r
+  vec2(0x123697A3u, 0x19053498u), vec2(0xAC3D2100u, 0x928B3F4Eu), vec2(0x0F43B28Eu, 0x24784185u),\r
+  vec2(0x6C4E0A28u, 0x31134F3Du), vec2(0x5A538FB6u, 0x7C2551B8u), vec2(0x515B1765u, 0x440E5A70u),\r
+  vec2(0x9C60791Du, 0xA7B36216u), vec2(0x4F6EA293u, 0x01186CADu), vec2(0xB9701C7Du, 0xB7A6725Bu),\r
+  vec2(0x277B6115u, 0x0C407A1Eu), vec2(0x2F85BC56u, 0x3AA88143u), vec2(0x948D57BEu, 0xAA3B89B0u),\r
+  vec2(0x8995379Bu, 0x822E94A0u), vec2(0x6298A96Bu, 0x77BD9C36u), vec2(0xB1A06AABu, 0xBF76A495u),\r
+  vec2(0x3FAD9933u, 0x2A80AC6Eu), vec2(0xA4B04286u, 0x9F63B18Du), vec2(0x72B88446u, 0x679DB953u),\r
+);\r
 \r
 // Bodies under a child slot: a node's count, 1 for a body, 0 if empty\r
 fn bodiesUnder(child: i32) -> u32 {\r
@@ -1329,9 +1492,13 @@ fn bodiesUnder(child: i32) -> u32 {\r
   return select(0u, 1u, child < 0);\r
 }\r
 \r
-// Puts bodies in the order of a depth-first walk of the tree (a Morton curve), so the force\r
-// pass can give neighbouring threads nearby bodies, which visit mostly the same nodes.\r
-// Each body follows its own path from the root, adding up the bodies in earlier siblings.\r
+// Puts bodies in the order a Hilbert curve visits them, so the force pass can give\r
+// neighbouring threads nearby bodies, which visit mostly the same nodes. The curve walks\r
+// the tree depth first, and turns inside each node so it enters every octant next to where\r
+// it left the last one. Taking the octants in index order instead (a Morton curve) jumps\r
+// across the node between some of them, which spreads a subgroup's bodies further apart.\r
+// Each body follows its own path from the root, adding up the bodies in the octants the\r
+// curve visits before its own.\r
 @compute @workgroup_size(256)\r
 fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
   if (id.x >= params.numBodies) {\r
@@ -1342,12 +1509,19 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
   let encoded = -1 - i32(id.x);\r
   var nodeIdx = 0;\r
   var rank = 0u;\r
+  // The curve's orientation in the current node, starting with the root's\r
+  var orientation = 0u;\r
 \r
   // Bodies sit at most MAX_DEPTH + 1 levels down (see bhTree)\r
   for (var depth = 0u; depth <= MAX_DEPTH + 1u; depth++) {\r
     let octant = octantOf(pos, nodes[nodeIdx].geom.xyz);\r
-    for (var i = 0u; i < octant; i++) {\r
-      rank += bodiesUnder(nodes[nodeIdx].children[i]);\r
+    // Follow the curve up to this body's octant, which every orientation reaches\r
+    let steps = HILBERT_STEPS[orientation];\r
+    var step = 0u;\r
+    for (var i = 0u; i < 8u; i++) {\r
+      step = (select(steps.x, steps.y, i >= 4u) >> (8u * (i % 4u))) & 0xFFu;\r
+      if ((step & 7u) == octant) { break; }\r
+      rank += bodiesUnder(nodes[nodeIdx].children[step & 7u]);\r
     }\r
 \r
     let child = nodes[nodeIdx].children[octant];\r
@@ -1356,11 +1530,16 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
       return;\r
     }\r
     if (child <= 0) {\r
-      // Dropped from the tree (out of nodes or too deep), so it's left out\r
-      return;\r
+      break;\r
     }\r
     nodeIdx = child;\r
+    orientation = step >> 3u;\r
   }\r
+\r
+  // bhTree left this body out (out of nodes or too deep), so it has no rank. The nodes it\r
+  // passed through still counted it, which leaves a rank empty; the force pass puts one of\r
+  // these bodies there, so every body is still written out.\r
+  unranked.bodies[atomicAdd(&unranked.count, 1u)] = id.x;\r
 }\r
 `,SF=`// Params, Node and SecondMoment are shared by every kernel, see common.wgsl\r
 @group(0) @binding(0) var<uniform> params : Params;\r
@@ -1371,12 +1550,15 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>) {\r
 @group(0) @binding(2) var<storage, read> allocator : u32;\r
 // xyz = position, w = mass\r
 @group(0) @binding(3) var<storage, read> posMass : array<vec4<f32>>;\r
-// Eight contiguous child records per node: centre of mass xyz, mass (0 = empty)\r
+// Eight contiguous child records per node: centre of mass xyz, mass (0 = empty). A\r
+// bucket's block holds its bodies instead (see writeBucket).\r
 @group(0) @binding(4) var<storage, read_write> records : array<vec4<f32>>;\r
 // As built by bhTree below its prefix. The prefix workgroup adds the prefix's own.\r
 @group(0) @binding(5) var<storage, read_write> secondMoments : array<SecondMoment>;\r
 // Each child record's quadrupole (see quadrupoleRecord)\r
 @group(0) @binding(6) var<storage, read_write> quadrupoles : array<vec4<u32>>;\r
+// Number of bodies under each node\r
+@group(0) @binding(7) var<storage, read> counts : array<u32>;\r
 \r
 // What the force pass needs from a child slot. Bodies are copied as they are;\r
 // a node's moment is relative to its centre (see momentExponent in common.wgsl).\r
@@ -1424,6 +1606,66 @@ fn quadrupoleRecord(child: i32) -> vec4<u32> {\r
   let comOffset = length(offset) * ldexp(1.0, momentExponent(halfSize));\r
   return vec4(pack2x16float(traceless.xy), pack2x16float(3.0 * cross.xy),\r
     pack2x16float(vec2(3.0 * cross.z, trace)), bitcast<u32>(comOffset));\r
+}\r
+\r
+// Whether a child slot holds a bucket: a node with few enough bodies under it (see\r
+// BUCKET_SIZE in common.wgsl). The cells of bhTree's prefix can be nodes with none.\r
+fn isBucket(child: i32) -> bool {\r
+  if (child <= 0) {\r
+    return false;\r
+  }\r
+  let count = counts[child];\r
+  return count > 0u && count <= BUCKET_SIZE;\r
+}\r
+\r
+// Fills a bucket's blocks with the bodies under it, in place of its child records: the\r
+// first eight in records and the rest in quadrupoles, then zeros. Each is a position and\r
+// minus the mass, which is how the force pass tells a bucket's block from child records.\r
+// The nodes below the bucket are never opened, so they get no records at all.\r
+fn writeBucket(bucket: i32) {\r
+  // Subtrees still to search. Each holds at least one of the bucket's bodies, so there\r
+  // are never more than BUCKET_SIZE.\r
+  var pending: array<i32, BUCKET_SIZE>;\r
+  pending[0] = bucket;\r
+  var numPending = 1u;\r
+  var found = 0u;\r
+  let block = u32(bucket) * 8u;\r
+  // Two close bodies can sit under a long chain of nodes, but no chain is longer than the\r
+  // tree is deep, which bounds the search\r
+  for (var visited = 0u; visited < BUCKET_SIZE * (MAX_DEPTH + 2u) && numPending > 0u; visited++) {\r
+    numPending--;\r
+    let node = pending[numPending];\r
+    for (var slot = 0u; slot < 8u; slot++) {\r
+      let child = nodes[node].children[slot];\r
+      if (child < 0) {\r
+        let body = posMass[u32(-child - 1)];\r
+        let entry = vec4(body.xyz, -body.w);\r
+        if (found < 8u) {\r
+          records[block + found] = entry;\r
+        } else if (found < BUCKET_SIZE) {\r
+          quadrupoles[block + found - 8u] = bitcast<vec4<u32>>(entry);\r
+        }\r
+        found++;\r
+      } else if (child > 0 && numPending < BUCKET_SIZE && counts[child] > 0u) {\r
+        pending[numPending] = child;\r
+        numPending++;\r
+      }\r
+    }\r
+  }\r
+  for (var i = found; i < BUCKET_SIZE; i++) {\r
+    if (i < 8u) {\r
+      records[block + i] = vec4(0.0);\r
+    } else {\r
+      quadrupoles[block + i - 8u] = vec4(0u);\r
+    }\r
+  }\r
+}\r
+\r
+// Whether a node's block is its child records: only the root's and the nodes too big to\r
+// be buckets. A bucket's parent fills the bucket's block, and nothing reads the blocks of\r
+// nodes with no bodies under them or of the nodes inside a bucket.\r
+fn hasChildRecords(nodeIdx: u32) -> bool {\r
+  return nodeIdx == 0u || counts[nodeIdx] > BUCKET_SIZE;\r
 }\r
 \r
 // A child's second moment about its parent's centre, in the parent's units (2^exponent)\r
@@ -1476,17 +1718,23 @@ fn summarizePrefix(lid: u32) {\r
     levelStart = (levelStart - 1u) / 8u;\r
   }\r
   for (var i = lid; i < TOP_INTERNAL * 8u; i += WORKGROUP_SIZE) {\r
+    if (!hasChildRecords(i / 8u)) {\r
+      continue;\r
+    }\r
     let child = nodes[i / 8u].children[i % 8u];\r
     records[i] = childRecord(child);\r
     quadrupoles[i] = quadrupoleRecord(child);\r
+    if (isBucket(child)) {\r
+      writeBucket(child);\r
+    }\r
   }\r
 }\r
 \r
 // Gathers each node's children into one 128-byte block of records, and one of\r
 // quadrupoles, so the force pass opens a node with contiguous reads instead of a scattered\r
-// read chain per child. Two invocations per node, four child slots each. Unused (spare)\r
-// nodes have no children, so their records are all empty. One extra workgroup, the first\r
-// (so it overlaps the rest), handles the nodes whose children are in bhTree's prefix.\r
+// read chain per child. Two invocations per node, four child slots each, which also fill\r
+// the blocks of any buckets among those children. One extra workgroup, the first (so it\r
+// overlaps the rest), handles the nodes whose children are in bhTree's prefix.\r
 @compute @workgroup_size(WORKGROUP_SIZE)\r
 fn main(@builtin(global_invocation_id) id : vec3<u32>,\r
         @builtin(local_invocation_index) lid : u32,\r
@@ -1503,12 +1751,22 @@ fn main(@builtin(global_invocation_id) id : vec3<u32>,\r
   if ((seedPrefix && nodeIdx < TOP_INTERNAL) || nodeIdx >= min(allocator, params.maxNodes)) {\r
     return;\r
   }\r
+  // A node with no bodies under it has no mass in its parent's record, so the force pass\r
+  // never opens it and nothing reads its block. That skips the spare nodes bhTree allocated\r
+  // but never linked in, and the empty cells of its prefix. Buckets and the nodes inside\r
+  // them are skipped too (see hasChildRecords).\r
+  if (!hasChildRecords(nodeIdx)) {\r
+    return;\r
+  }\r
 \r
   for (var k = 0u; k < 4u; k++) {\r
     let slot = (id.x % 2u) * 4u + k;\r
     let child = nodes[nodeIdx].children[slot];\r
     records[nodeIdx * 8u + slot] = childRecord(child);\r
     quadrupoles[nodeIdx * 8u + slot] = quadrupoleRecord(child);\r
+    if (isBucket(child)) {\r
+      writeBucket(child);\r
+    }\r
   }\r
 }\r
-`,CF=class e{device;pipeline;bindings;bindGroup=null;constructor(e,t,n){this.device=e,this.pipeline=t,this.bindings=n}static async create(t,n,r){let i=`${r}\n${mF}`,a=[];for(let[,e,t]of i.matchAll(/@binding\((\d+)\)\s*var(?:<[^>]*>)?\s+(\w+)/g))a[Number(e)]=t;let o=t.createShaderModule({label:n,code:i}),s=await t.createComputePipelineAsync({label:n,layout:`auto`,compute:{module:o}});return new e(t,s,a)}setBuffers(e){this.bindGroup=this.device.createBindGroup({layout:this.pipeline.getBindGroupLayout(0),entries:this.bindings.map((t,n)=>({binding:n,resource:{buffer:e[t]}}))})}dispatch(e,t){e.setPipeline(this.pipeline),e.setBindGroup(0,this.bindGroup),e.dispatchWorkgroups(t)}},wF=e=>e.features.has(`subgroups`)&&navigator.gpu.wgslLanguageFeatures.has(`subgroup_uniformity`),TF=e=>(wF(e),256),EF=.25,DF=.7,OF=(e,t,n,r,i)=>{let a=kP(e,`vec4`,n).toReadOnly(),o=kP(t,`vec4`,n*2).toReadOnly(),s=a.element(vP),c=o.element(vP.mul(2)).xyz,l=o.element(vP.mul(2).add(1)).xyz,u=s.xyz.add(c.mul(i)),d=fP.mul(LP(u,1)).xyz,f=dP.mul(LP(0,1,0,0)).y.mul(DP.y).div(d.z.mul(-2)),p=bP(EF,_P(DF).div(f)),m=wP.xy.mul(6),h=new L_;h.side=2,h.blending=2,h.depthTest=!1,h.depthWrite=!1,h.vertexNode=dP.mul(LP(d.add(IP(m.mul(p),0)),1));let g=s.w,_=EP(yP(l).div(r)),v=EP(g.sub(.5)).mul(_.mul(-.5).add(1)),y=IP(1,.552,.25),b=IP(1,.896,.863),x=IP(.462,.61,1),S=xP(xP(y,b,EP(v.mul(2))),x,EP(v.mul(2).sub(1))),ee=OP(g.greaterThan(2),_P(0),g.pow(2.5)),C=15/Math.cbrt(n)/(2*Math.PI),te=PP(S.mul(ee).mul(C).div(p.mul(p))),ne=PP(m),w=gP(hP(ne,ne).mul(-.5)).sub(Math.exp(-4.5)).max(0);return h.fragmentNode=LP(te.mul(w),1),h},kF=e=>CF.create(e,`bodiesIntegrate`,hF),AF=e=>CF.create(e,`bhTree`,gF),jF=e=>CF.create(e,`bhForces`,wF(e)?vF:_F),MF=e=>CF.create(e,`bhBounds`,bF),NF=e=>CF.create(e,`bhSummarize`,SF),PF=e=>CF.create(e,`bhOrder`,xF),FF=e=>CF.create(e,`bhClear`,yF),IF=1<<17,LF=2,RF=128,zF=0,BF=0,VF=3,HF=1e3,UF=.2,WF=1,GF=1.25,KF=1/60,{device:qF,renderer:JF,scene:YF,camera:XF}=await dF(),ZF=document.getElementById(`fpsText`),QF=document.getElementById(`bodiesText`),$F=document.getElementById(`gravityText`),eI=document.getElementById(`gravitySlider`),tI=document.getElementById(`restartButton`),nI=document.getElementById(`twinGalaxiesToggle`),rI=eI.valueAsNumber,iI=nI.checked,aI=()=>{$F.textContent=String(rI);let e=en.inverseLerp(Number(eI.min),Number(eI.max),rI);eI.style.setProperty(`--range-progress`,`${e*100}%`)};aI();var oI=document.querySelectorAll(`#bodyCountButtons button`),sI=Math.min(qF.limits.maxStorageBufferBindingSize,qF.limits.maxBufferSize);for(let e of oI){let t=Number(e.value);e.title=`${t.toLocaleString()} bodies`,(t*LF*RF>sI||Math.ceil(t*LF*2/256)+1>qF.limits.maxComputeWorkgroupsPerDimension)&&(e.disabled=!0,e.title=`Unavailable on this GPU`)}var cI=await Promise.all([kF(qF),AF(qF),jF(qF),FF(qF),MF(qF),PF(qF),NF(qF)]),[lI,uI,dI,fI,pI,mI,hI]=cI,gI=TF(qF),_I=new DataView(new ArrayBuffer(28)),vI=qF.createBuffer({size:_I.byteLength,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST}),yI=0,bI=()=>{_I.setUint32(0,IF,!0),_I.setFloat32(4,rI,!0),_I.setFloat32(8,KF,!0),_I.setFloat32(12,VF,!0),_I.setFloat32(16,GF,!0),_I.setUint32(20,zF,!0),_I.setFloat32(24,yI,!0),qF.queue.writeBuffer(vI,0,_I),xI.value=Math.sqrt((IF+BF)*rI)/15},xI=jP(1),SI=jP(0),CI=new Pi(new $i(1,1));CI.frustumCulled=!1,YF.add(CI),JF.toneMapping=7;var wI=new lP(JF),TI=SP(YF,XF).getTextureNode(),EI=VP(TI,null,6.5,{resolutionScale:.5});wI.outputNode=TI.add(EI.mul(.2));var DI=(e,t)=>{let n=qF.createBuffer({size:e,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});return t&&qF.queue.writeBuffer(n,0,t),n},OI=(e,t)=>{let n=new KC(1,t),r=JF.backend;return r.get(n).buffer=e,n},kI=[],AI=()=>{for(let e of kI)e.destroy();zF=IF*LF,BF=IF/2,QF.textContent=IF.toLocaleString();for(let e of oI)e.setAttribute(`aria-pressed`,String(Number(e.value)===IF));let e=iI?2:1,t=(IF/e)**(1/3)*10,n=IF/e,r=pF({gravity:rI,softening:VF,blackHoleMass:BF,bulgeMass:n*UF,bulgeRadius:t*.08,diskMass:n*.8,diskScaleLength:t/4,diskScaleHeight:t/40,toomreQ:WF,rMin:Math.max(t*.03,1.2*Math.sqrt(rI*BF/HF)),rMax:t}),i=t*(iI?3.5:2.25),a=en.degToRad(30),o=i*Math.sin(a),s=i*Math.cos(a);XF.position.set(0,o,s),XF.lookAt(0,0,0);let c=iI?-t*1.25:0,l=iI?t*1.25:0,u=new Float32Array(IF*4),d=new Float32Array(IF*8);for(let e=0;e<IF;e++){let{pos:t,vel:n}=Math.random()<UF?r.bulgeStar():r.diskStar(),i=e<IF/2?c:l;u[e*4]=t.x+i,u[e*4+1]=t.y,u[e*4+2]=t.z,u[e*4+3]=en.randFloat(.5,1.5),d[e*8]=n.x,d[e*8+1]=n.y,d[e*8+2]=n.z}u.set([c,0,0,BF],0),d.set([0,0,0],0),iI&&(u.set([l,0,0,BF],4),d.set([0,0,0],8));let f=IF*1.5+e*BF;yI=Math.floor(2147483647/(f*1.1)),bI();let p={posMass:DI(u.byteLength,u),motion:DI(d.byteLength,d),nodes:DI(zF*64),secondMoments:DI(zF*32),allocator:DI(4),bounds:DI(24),counts:DI(zF*4),order:DI(IF*4),records:DI(zF*RF),quadrupoles:DI(zF*RF)};kI=Object.values(p);for(let e of cI)e.setBuffers({params:vI,...p});CI.material.dispose(),CI.material=OF(OI(p.posMass,4),OI(p.motion,4),IF,xI,SI),CI.count=IF};AI(),eI.oninput=()=>{rI=eI.valueAsNumber,aI(),bI()},tI.onclick=AI,nI.onchange=()=>{iI=nI.checked,AI()};for(let e of oI)e.onclick=()=>{let t=Number(e.value);t!==IF&&(IF=t,AI())};var jI=()=>{let e=qF.createCommandEncoder(),t=e.beginComputePass(),n=Math.ceil(IF/256);lI.dispatch(t,n),fI.dispatch(t,Math.ceil(zF/256)),pI.dispatch(t,n),uI.dispatch(t,n),hI.dispatch(t,Math.ceil(zF*2/256)+1),mI.dispatch(t,n),dI.dispatch(t,Math.ceil(IF/gI)),t.end(),qF.queue.submit([e.finish()])},MI=0,NI,PI=0,FI=0;JF.setAnimationLoop(e=>{let t=NI===void 0?0:(e-NI)/1e3;NI=e,PI+=t,FI++,PI>=.25&&(ZF.textContent=Math.round(FI/PI).toLocaleString(),PI=0,FI=0),MI=Math.min(MI+t,2*KF),MI>=KF&&(jI(),MI-=KF),SI.value=MI,wI.render()});
+`,CF=class e{device;pipeline;bindings;bindGroup=null;constructor(e,t,n){this.device=e,this.pipeline=t,this.bindings=n}static async create(t,n,r){let i=`${r}\n${mF}`,a=[];for(let[,e,t]of i.matchAll(/@binding\((\d+)\)\s*var(?:<[^>]*>)?\s+(\w+)/g))a[Number(e)]=t;let o=t.createShaderModule({label:n,code:i}),s=await t.createComputePipelineAsync({label:n,layout:`auto`,compute:{module:o}});return new e(t,s,a)}setBuffers(e){this.bindGroup=this.device.createBindGroup({layout:this.pipeline.getBindGroupLayout(0),entries:this.bindings.map((t,n)=>({binding:n,resource:{buffer:e[t]}}))})}dispatch(e,t){e.setPipeline(this.pipeline),e.setBindGroup(0,this.bindGroup),e.dispatchWorkgroups(t)}},wF=e=>e.features.has(`subgroups`)&&navigator.gpu.wgslLanguageFeatures.has(`subgroup_uniformity`),TF=e=>(wF(e),256),EF=.25,DF=.7,OF=(e,t,n,r)=>{let i=kP(e,`vec4`,t*3).toReadOnly(),a=i.element(vP.mul(3)),o=i.element(vP.mul(3).add(1)).xyz,s=i.element(vP.mul(3).add(2)).xyz,c=a.xyz.add(o.mul(r)),l=fP.mul(LP(c,1)).xyz,u=dP.mul(LP(0,1,0,0)).y.mul(DP.y).div(l.z.mul(-2)),d=bP(EF,_P(DF).div(u)),f=wP.xy.mul(6),p=new L_;p.side=2,p.blending=2,p.depthTest=!1,p.depthWrite=!1,p.vertexNode=dP.mul(LP(l.add(IP(f.mul(d),0)),1));let m=a.w,h=EP(yP(s).div(n)),g=EP(m.sub(.5)).mul(h.mul(-.5).add(1)),_=IP(1,.552,.25),v=IP(1,.896,.863),y=IP(.462,.61,1),b=xP(xP(_,v,EP(g.mul(2))),y,EP(g.mul(2).sub(1))),x=OP(m.greaterThan(2),_P(0),m.pow(2.5)),S=15/Math.cbrt(t)/(2*Math.PI),ee=PP(b.mul(x).mul(S).div(d.mul(d))),C=PP(f),te=gP(hP(C,C).mul(-.5)).sub(Math.exp(-4.5)).max(0);return p.fragmentNode=LP(ee.mul(te),1),p},kF=e=>CF.create(e,`bodiesIntegrate`,hF),AF=e=>CF.create(e,`bhTree`,gF),jF=e=>CF.create(e,`bhForces`,wF(e)?vF:_F),MF=e=>CF.create(e,`bhBounds`,bF),NF=e=>CF.create(e,`bhSummarize`,SF),PF=e=>CF.create(e,`bhOrder`,xF),FF=e=>CF.create(e,`bhClear`,yF),IF=1<<17,LF=2,RF=128,zF=0,BF=0,VF=3,HF=1e3,UF=.2,WF=1,GF=.04,KF=1/60,{device:qF,renderer:JF,scene:YF,camera:XF}=await dF(),ZF=document.getElementById(`fpsText`),QF=document.getElementById(`bodiesText`),$F=document.getElementById(`gravityText`),eI=document.getElementById(`gravitySlider`),tI=document.getElementById(`restartButton`),nI=document.getElementById(`twinGalaxiesToggle`),rI=eI.valueAsNumber,iI=nI.checked,aI=()=>{$F.textContent=String(rI);let e=en.inverseLerp(Number(eI.min),Number(eI.max),rI);eI.style.setProperty(`--range-progress`,`${e*100}%`)};aI();var oI=document.querySelectorAll(`#bodyCountButtons button`),sI=Math.min(qF.limits.maxStorageBufferBindingSize,qF.limits.maxBufferSize);for(let e of oI){let t=Number(e.value);e.title=`${t.toLocaleString()} bodies`,(t*LF*RF>sI||Math.ceil(t*LF*2/256)+1>qF.limits.maxComputeWorkgroupsPerDimension)&&(e.disabled=!0,e.title=`Unavailable on this GPU`)}var cI=await Promise.all([kF(qF),AF(qF),jF(qF),FF(qF),MF(qF),PF(qF),NF(qF)]),[lI,uI,dI,fI,pI,mI,hI]=cI,gI=TF(qF),_I=new DataView(new ArrayBuffer(28)),vI=qF.createBuffer({size:_I.byteLength,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST}),yI=0,bI=()=>{_I.setUint32(0,IF,!0),_I.setFloat32(4,rI,!0),_I.setFloat32(8,KF,!0),_I.setFloat32(12,VF,!0),_I.setFloat32(16,GF,!0),_I.setUint32(20,zF,!0),_I.setFloat32(24,yI,!0),qF.queue.writeBuffer(vI,0,_I),xI.value=Math.sqrt((IF+BF)*rI)/15},xI=jP(1),SI=jP(0),CI=new Pi(new $i(1,1));CI.frustumCulled=!1,YF.add(CI),JF.toneMapping=7;var wI=new lP(JF),TI=SP(YF,XF).getTextureNode(),EI=VP(TI,null,6.5,{resolutionScale:.5});wI.outputNode=TI.add(EI.mul(.2));var DI=(e,t)=>{let n=qF.createBuffer({size:e,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});return t&&qF.queue.writeBuffer(n,0,t),n},OI=(e,t)=>{let n=new KC(1,t),r=JF.backend;return r.get(n).buffer=e,n},kI=[],AI=()=>{for(let e of kI)e.destroy();zF=IF*LF,BF=IF/2,QF.textContent=IF.toLocaleString();for(let e of oI)e.setAttribute(`aria-pressed`,String(Number(e.value)===IF));let e=iI?2:1,t=(IF/e)**(1/3)*10,n=IF/e,r=pF({gravity:rI,softening:VF,blackHoleMass:BF,bulgeMass:n*UF,bulgeRadius:t*.08,diskMass:n*.8,diskScaleLength:t/4,diskScaleHeight:t/40,toomreQ:WF,rMin:Math.max(t*.03,1.2*Math.sqrt(rI*BF/HF)),rMax:t}),i=t*(iI?3.5:2.25),a=en.degToRad(30),o=i*Math.sin(a),s=i*Math.cos(a);XF.position.set(0,o,s),XF.lookAt(0,0,0);let c=iI?-t*1.25:0,l=iI?t*1.25:0,u=new Float32Array(IF*12);for(let e=0;e<IF;e++){let{pos:t,vel:n}=Math.random()<UF?r.bulgeStar():r.diskStar(),i=e<IF/2?c:l;u[e*12]=t.x+i,u[e*12+1]=t.y,u[e*12+2]=t.z,u[e*12+3]=en.randFloat(.5,1.5),u[e*12+4]=n.x,u[e*12+5]=n.y,u[e*12+6]=n.z}u.set([c,0,0,BF,0,0,0],0),iI&&u.set([l,0,0,BF,0,0,0],12);let d=IF*1.5+e*BF;yI=Math.floor(2147483647/(d*1.1)),bI();let f={sortedBodies:DI(u.byteLength,u),posMass:DI(IF*16),motion:DI(IF*32),nodes:DI(zF*64),secondMoments:DI(zF*32),allocator:DI(4),bounds:DI(24),counts:DI(zF*4),order:DI(IF*4),unranked:DI(8+IF*4),records:DI(zF*RF),quadrupoles:DI(zF*RF)};kI=Object.values(f);for(let e of cI)e.setBuffers({params:vI,...f});CI.material.dispose(),CI.material=OF(OI(f.sortedBodies,4),IF,xI,SI),CI.count=IF};AI(),eI.oninput=()=>{rI=eI.valueAsNumber,aI(),bI()},tI.onclick=AI,nI.onchange=()=>{iI=nI.checked,AI()};for(let e of oI)e.onclick=()=>{let t=Number(e.value);t!==IF&&(IF=t,AI())};var jI=()=>{let e=qF.createCommandEncoder(),t=e.beginComputePass(),n=Math.ceil(IF/256);lI.dispatch(t,n),fI.dispatch(t,Math.ceil(zF/256)),pI.dispatch(t,n),uI.dispatch(t,n),hI.dispatch(t,Math.ceil(zF*2/256)+1),mI.dispatch(t,n),dI.dispatch(t,Math.ceil(IF/gI)),t.end(),qF.queue.submit([e.finish()])},MI=0,NI,PI=0,FI=0;JF.setAnimationLoop(e=>{let t=NI===void 0?0:(e-NI)/1e3;NI=e,PI+=t,FI++,PI>=.25&&(ZF.textContent=Math.round(FI/PI).toLocaleString(),PI=0,FI=0),MI=Math.min(MI+t,2*KF),MI>=KF&&(jI(),MI-=KF),SI.value=MI,wI.render()});
